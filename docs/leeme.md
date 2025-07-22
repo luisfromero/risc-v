@@ -1,0 +1,1 @@
+Para cualquier documentación que escribas. Por ejemplo, architecture.md podría explicar tus decisiones de diseño.

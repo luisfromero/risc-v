@@ -1,0 +1,18 @@
+# Directorio de compilación
+/build/
+
+# Archivos de compilación de C/C++
+*.o
+*.so
+*.dll
+*.a
+*.lib
+
+# Archivos de Python
+__pycache__/
+*.pyc
+
+# Entornos virtuales de Python
+/venv/
+
+/resources/secrets.json

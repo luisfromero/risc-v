@@ -1,0 +1,1 @@
+¡Fundamental! Aquí escribirás tests unitarios para verificar que tu simulador funciona correctamente. Por ejemplo, un test que carga una instrucción ADDI, la ejecuta y comprueba si el registro de destino tiene el valor correcto. Puedes usar un framework como Google Test.

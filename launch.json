@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) Launch Simulator Test",
+            "type": "cppdbg",
+            "request": "launch",
+            // La ruta al ejecutable que CMake ha compilado.
+            "program": "${workspaceFolder}/build/simulator_test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                { "text": "-enable-pretty-printing", "ignoreFailures": true }
+            ]
+        }
+    ]
+}
