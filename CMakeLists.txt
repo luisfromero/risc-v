@@ -18,6 +18,12 @@ aux_source_directory(core/src CORE_SOURCES)
 # a partir de los archivos fuente encontrados.
 add_library(simulator SHARED ${CORE_SOURCES})
 
+# Para Windows, es necesario definir un macro para exportar los símbolos de la DLL.
+# Esto asegura que se genere el archivo .lib necesario para el enlazado.
+if(WIN32)
+    target_compile_definitions(simulator PRIVATE SIMULATOR_EXPORTS)
+endif()
+
 # --- Sección para Tests y Depuración ---
 # Habilitar los tests
 enable_testing()

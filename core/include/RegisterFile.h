@@ -1,13 +1,14 @@
 #include <array>
 #include <cstdint>
+#include "CoreExport.h"
 
-class RegisterFile {
+class SIMULATOR_API RegisterFile {
 public:
     RegisterFile();
 
     // Lee el valor de un registro.
     // El registro x0 siempre debe devolver 0.
-    uint32_t read(uint8_t reg_num);
+    uint32_t read(uint8_t reg_num) const;
 
     // Escribe un valor en un registro.
     // No se debe poder escribir en el registro x0.

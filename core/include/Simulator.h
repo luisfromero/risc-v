@@ -1,8 +1,10 @@
 #include "Memory.h"
 #include "RegisterFile.h"
 #include <cstdint>
+#include <vector>
+#include "CoreExport.h"
 
-class Simulator {
+class SIMULATOR_API Simulator {
 public:
     Simulator(size_t mem_size);
 

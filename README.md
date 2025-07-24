@@ -30,10 +30,16 @@ El proyecto sigue una filosofía de separación de incumbencias:
 ## 🛠️ Instalación y Uso (Local)
 
 ### Prerrequisitos
-*   Un compilador de C++ (GCC/g++, Clang o MSVC)
-*   CMake (versión 3.10+)
-*   Python (versión 3.10+)
-*   Git
+*   **Compilador C++:**
+    *   **Windows:** Instalar [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/) con la carga de trabajo "Desarrollo de escritorio con C++".
+    *   **Linux/macOS:** Instalar `build-essential` (o `g++`/`clang`) y `make`.
+*   **CMake (versión 3.10+):**
+    *   Descargar desde la página oficial de CMake.
+    *   **Importante para Windows:** Durante la instalación, asegúrate de marcar la opción **"Add CMake to the system PATH for all users"** o "for current user".
+*   **Python (versión 3.10+):**
+    *   Descargar desde la página oficial de Python.
+    *   **Importante para Windows:** Durante la instalación, asegúrate de marcar la casilla **"Add Python to PATH"**.
+*   **Git:** Para clonar el repositorio.
 
 ### Pasos
 
@@ -44,7 +50,13 @@ El proyecto sigue una filosofía de separación de incumbencias:
     ```
 
 2.  **Compilar el núcleo C++:**
-    Usa CMake para generar los archivos de compilación y compilar la biblioteca.
+    Usa CMake para generar los archivos de compilación y luego compilar la biblioteca.
+
+    > **Nota para usuarios de Windows:**
+    > Para compilar, necesitas abrir una terminal de desarrollador especial. Ve al Menú Inicio de Windows, escribe **"x64 Native Tools"** y selecciona **"x64 Native Tools Command Prompt for VS"**. Ejecuta todos los comandos siguientes dentro de esta terminal.
+
+    Navega a la raíz del proyecto y ejecuta:
+
     ```bash
     # Crear el directorio de compilación
     cmake -B build .

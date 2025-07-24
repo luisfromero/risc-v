@@ -1,7 +1,8 @@
 #include <vector>
 #include <cstdint>
+#include "CoreExport.h"
 
-class Memory {
+class SIMULATOR_API Memory {
 public:
     // Inicializa la memoria con un tamaño dado en bytes.
     Memory(size_t size_in_bytes);
