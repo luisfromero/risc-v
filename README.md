@@ -83,9 +83,12 @@ El proyecto sigue una filosofía de separación de incumbencias:
     pip install -r requirements.txt
 
     # Iniciar el servidor (se recargará automáticamente con los cambios)
-    uvicorn main:app --reload
+    .\venv\Scripts\activate #tras una recarga
+    uvicorn --host 0.0.0.0 main:app --reload
     ```
-    La API estará disponible en `http://localhost:8000`.
+    La API estará disponible en `http://localhost:8000` o cualquier otro nombre de host.
+
+
 
 ## 🐳 Uso con Docker
 

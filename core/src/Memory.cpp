@@ -37,3 +37,11 @@ void Memory::load_program(const std::vector<uint8_t>& program, uint32_t base_add
     }
     std::copy(program.begin(), program.end(), mem.begin() + base_address);
 }
+
+// Lee un bloque de memoria y lo copia en el buffer proporcionado.
+void Memory::read_block(uint32_t base_address, std::vector<uint8_t>& buffer) {
+    if (base_address + buffer.size() > mem.size()) {
+        throw std::out_of_range("Memory block read access out of bounds");
+    }
+    std::copy(mem.begin() + base_address, mem.begin() + base_address + buffer.size(), buffer.begin());
+}

@@ -16,3 +16,16 @@ __pycache__/
 /venv/
 
 /resources/secrets.json
+backups
+core/.vs/
+simulator_ui/.*
+simulator_ui/android
+simulator_ui/build
+simulator_ui/ios
+simulator_ui/linux
+simulator_ui/macos
+simulator_ui/windows
+simulator_ui/web
+
+docs/~$Tema 2 - Monociclo.pptx
+api/simulator.log

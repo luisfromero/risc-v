@@ -16,6 +16,15 @@ public:
     // Carga un programa (un vector de bytes) en la memoria en una dirección base.
     void load_program(const std::vector<uint8_t>& program, uint32_t base_address);
 
+    // Lee un bloque de memoria. Usado por la caché para manejar fallos.
+    void read_block(uint32_t base_address, std::vector<uint8_t>& buffer);
+
+    void set_delay(uint32_t new_delay) { delay = new_delay; }
+    uint32_t get_delay() const { return delay; }
+
+private:
+    uint32_t delay=50;
+
 private:
     std::vector<uint8_t> mem;
 };
