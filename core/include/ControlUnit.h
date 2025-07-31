@@ -17,6 +17,6 @@ public:
     uint32_t decode(uint32_t instruction, bool Z);
 
 private:
-    uint32_t delay=20;
+    uint32_t delay=5;
     std::vector<InstructionInfo> control_table;
 };

@@ -12,12 +12,14 @@ def find_library_path():
     lib_name = "simulator.dll" if sys.platform == "win32" else "libsimulator.so"
     
     # Buscar en las carpetas de compilación comunes relativas a este script
-    script_dir = pathlib.Path(__file__).parent
-    root_dir = script_dir.parent
+    script_dir = pathlib.Path(__file__).parent.resolve()
+    root_dir = script_dir.parent # Sube un nivel desde /api a la raíz del proyecto
     
     search_paths = [
-        root_dir / "build",
-        root_dir / "build" / "Debug",
+        # Rutas de compilación comunes para Visual Studio y otros generadores
+        root_dir / "build" / "core" / "Debug",
+        root_dir / "build" / "core" / "Release",
+        root_dir / "build" / "Debug", # Si el target está en la raíz de build
         root_dir / "build" / "Release",
     ]
     
@@ -27,7 +29,7 @@ def find_library_path():
             print(f"Biblioteca encontrada en: {lib_path}")
             return lib_path
             
-    raise FileNotFoundError(f"No se pudo encontrar {lib_name} en {search_paths}")
+    raise FileNotFoundError(f"No se pudo encontrar '{lib_name}' en las rutas de búsqueda: {search_paths}")
 
 # Cargar la biblioteca
 try:
@@ -214,6 +216,20 @@ def get_state():
         "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"
     ]
     reg_map = {f"x{i} ({abi_names[i]})": f"0x{val:08x}" for i, val in enumerate(registers)}
+
+    # --- Desempaquetado de las señales de control ---
+    # Extraemos la palabra de control empaquetada y la procesamos en Python
+    packed_word = datapath_c_struct.bus_Control.value
+    unpacked_control_signals = {
+        "ALUctr":   (packed_word >> 13) & 0x7,
+        "ResSrc":   (packed_word >> 11) & 0x3,
+        "ImmSrc":   (packed_word >> 9)  & 0x3,
+        "PCsrc":    (packed_word >> 8)  & 0x1,
+        "BRwr":     (packed_word >> 7)  & 0x1,
+        "ALUsrc":   (packed_word >> 6)  & 0x1,
+        "MemWr":    (packed_word >> 5)  & 0x1,
+        "ready_at": datapath_c_struct.bus_Control.ready_at
+    }
     
     datapath_dict = {}
     for field_name, _ in datapath_c_struct._fields_:
@@ -235,7 +251,8 @@ def get_state():
         "model": "SingleCycle", # Placeholder, necesita get_model()
         "pc": f"0x{pc:08x}",
         "instruction": instruction_string,
-        "status_register": f"0x{status:08x}", 
+        "status_register": f"0x{status:08x}",
+        "control_signals": unpacked_control_signals,
         "registers": reg_map,
         "datapath": datapath_dict
     }

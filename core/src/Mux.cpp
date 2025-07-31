@@ -27,4 +27,6 @@ uint32_t Mux4::select(uint32_t in0, uint32_t in1, uint32_t in2, uint32_t in3, ui
             // Opcional: lanzar un error si la señal de control es inválida.
             throw std::invalid_argument("Señal de selección inválida para Mux4.");
     }
+    return output;
+
 }

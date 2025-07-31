@@ -2,7 +2,7 @@
 
 #include <cstdint>
 #include <string>
-#define INDETERMINADO 0xFABADA
+#define INDETERMINADO 0x00FABADA
 
 // Modos de pipeline para configurar el simulador
 enum class PipelineModel {

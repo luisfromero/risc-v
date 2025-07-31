@@ -7,7 +7,7 @@
 
 // (Puedes ponerlo como un método privado o función estática)
 std::string Simulator::disassemble(uint32_t instruction, const InstructionInfo* info) const {
-    if (!info) return "NOP";
+    if (!info) return "not implemented";
 
     // Extraer campos comunes (ya los tienes en decode_and_execute, pásalos aquí o recalcúlalos)
     uint32_t rd  = (instruction >> 7) & 0x1F;
@@ -134,130 +134,6 @@ uint32_t Simulator::fetch() {
 }
 
 
-/*
-// --- Implementación de las funciones de ejecución de instrucciones ---
-
-void Simulator::execute_lw(uint32_t instruction) {
-    uint32_t rd = (instruction >> 7) & 0x1F;
-    uint32_t rs1 = (instruction >> 15) & 0x1F;
-    int32_t imm = static_cast<int32_t>(instruction) >> 20;
-    uint32_t address = register_file.readA(rs1) + imm;
-    uint32_t data = (model == PipelineModel::General)
-                        ? d_cache.read_word(address)
-                        : d_mem.read_word(address);
-    register_file.write(rd, data);
-    pc += 4;
-}
-
-void Simulator::execute_sw(uint32_t instruction) {
-    uint32_t rs1 = (instruction >> 15) & 0x1F;
-    uint32_t rs2 = (instruction >> 20) & 0x1F;
-    int32_t imm = ((static_cast<int32_t>(instruction) >> 25) << 5) | ((instruction >> 7) & 0x1F);
-    uint32_t address = register_file.readA(rs1) + imm;
-    uint32_t data = register_file.readB(rs2);
-    if (model == PipelineModel::General) {
-        d_cache.write_word(address, data);
-    } else {
-        d_mem.write_word(address, data);
-    }
-    pc += 4;
-
-}
-
-
-void Simulator::execute_addi(uint32_t instruction) {
-    uint32_t cycle = current_cycle; // Asume que tienes este contador en el simulador
-    if(this->model==PipelineModel::SingleCycle)cycle=0;
-    if(this->model==PipelineModel::MultiCycle)cycle=0;  //ToDo
-    if(this->model==PipelineModel::PipeLined)cycle=0;  //ToDo
-    
-    // --- Extraer campos de la instrucción ---
-    uint32_t rd  = (instruction >> 7) & 0x1F;
-    uint32_t rs1 = (instruction >> 15) & 0x1F;
-    int32_t imm  = static_cast<int32_t>(instruction) >> 20;
-
-    // Guardar campos en el datapath con disponibilidad inmediata (este ciclo)
-    this->datapath.bus_Instr          = {instruction, cycle};
-    this->datapath.bus_DC             = {static_cast<uint8_t>(rd),  cycle};
-    this->datapath.bus_DA             = {static_cast<uint8_t>(rs1), cycle};
-    this->datapath.bus_imm            = {static_cast<uint32_t>(imm), cycle};
-    this->datapath.bus_immExt         = {static_cast<uint32_t>(imm), cycle}; // Para uniformidad, aunque ya está extendido
-
-    // Leer valor de rs1
-    uint32_t rs1_val = register_file.readA(rs1);
-    this->datapath.bus_A             = {rs1_val, cycle + 1}; // Retardo de lectura del registro: 1 ciclo
-
-    // ALU: suma rs1 + imm
-    this->datapath.bus_ALU_A         = {rs1_val, cycle + 1};
-    this->datapath.bus_ALU_B         = {static_cast<uint32_t>(imm), cycle + 1};
-    uint32_t result            = rs1_val + imm;
-    this->datapath.bus_ALU_result    = {result, cycle + 2};
-    this->datapath.bus_ALU_zero      = {result == 0, cycle + 2};
-
-    // Control: señal ficticia, asumimos una palabra codificada como 0x001 para ADDI
-    this->datapath.bus_Control       = {0x0001, cycle};
-
-    // Write-back al registro destino (retardo: 3er ciclo)
-    this->datapath.bus_C             = {result, cycle + 3};
-    register_file.write(rd, result); // Puedes sincronizar esta escritura con ready_at si lo deseas
-
-    // PC + 4
-    this->datapath.bus_PC            = {pc, cycle};
-    this->datapath.bus_PC_plus4      = {pc + 4, cycle + 1};
-    this->datapath.bus_PC_next       = {pc + 4, cycle + 1};
-
-    pc += 4;
-}
-
-
-void Simulator::execute_add(uint32_t instruction) {
-    uint32_t rd = (instruction >> 7) & 0x1F;
-    uint32_t rs1 = (instruction >> 15) & 0x1F;
-    uint32_t rs2 = (instruction >> 20) & 0x1F;
-    uint32_t rs1_val = register_file.readA(rs1);
-    uint32_t rs2_val = register_file.readB(rs2);
-    register_file.write(rd, rs1_val + rs2_val);
-    pc += 4;
-}
-
-void Simulator::execute_unrecognized(uint32_t instruction) {
-    // Instrucción no reconocida o no implementada
-    std::cerr << "Instrucción no reconocida: 0x" << std::hex << instruction << std::endl;
-    // Por ahora, solo avanzamos el PC para no entrar en un bucle infinito.
-    // En un futuro, esto podría lanzar una excepción de instrucción ilegal.
-    pc += 4;
-}
-
-
-
-// --- Tabla de decodificación ---
-
-// Definición de la tabla estática. Al ser un miembro estático de Simulator,
-// tiene acceso a los punteros a funciones miembro privadas.
-const std::vector<Simulator::InstructionFormat> Simulator::instruction_table = {
-    // R-Type
-    {0xFE00707F, 0x00000033, &Simulator::execute_add},  // ADD (funct7=0x00, funct3=0x0, opcode=0x33)
-    // I-Type
-    {0x707F,     0x00000013, &Simulator::execute_addi}, // ADDI (funct3=0x0, opcode=0x13)
-    {0x707F,     0x00002003, &Simulator::execute_lw},   // LW (funct3=0x2, opcode=0x03)
-    // S-Type
-    {0x707F,     0x00002023, &Simulator::execute_sw},   // SW (funct3=0x2, opcode=0x23)
-};
-
-// Fase de Decode y Execute: Interpreta y ejecuta la instrucción.
-void Simulator::decode_and_execute(uint32_t instruction) {
-    for (const auto& fmt : instruction_table) {
-        if ((instruction & fmt.mask) == fmt.match) {
-            (this->*fmt.execute)(instruction); // Llama a la función miembro correspondiente
-            return; // Instrucción encontrada y ejecutada
-        }
-    }
-
-    // Si el bucle termina, ninguna instrucción coincidió.
-    execute_unrecognized(instruction);
-}
-    */
-
 uint16_t controlWord(const InstructionInfo* info) {
     return (info->ALUctr  & 0x7) << 13 |  // 3 bits
            (info->ResSrc & 0x3) << 11 |  // 2 bits
@@ -291,18 +167,35 @@ void Simulator::decode_and_execute(uint32_t instruction)
     datapath.bus_DA = {(uint8_t)rs1_addr,tmptime};
     datapath.bus_DB = {(uint8_t)rs2_addr,tmptime};
     datapath.bus_DC = {(uint8_t)rd_addr,tmptime};
+    datapath.bus_Opcode={(uint8_t)(instruction & 0x3F),tmptime};
+    datapath.bus_funct3={(uint8_t)((instruction >> 12) & 0x07),tmptime};
+    datapath.bus_funct7={(uint8_t)((instruction >> 25) & 0x7F),tmptime};
 
     
 
     // 1. DECODIFICACIÓN Y LECTURA DE REGISTROS
     const InstructionInfo* info = control_unit.decode(instruction);
-    datapath.bus_Control = {controlWord(info),tmptime+control_unit.get_delay()};
-
+    m_logfile << info << std::endl;
+    
     if (!info) {
         std::cerr << "Instrucción no reconocida: 0x" << std::hex << instruction << std::endl;
+        if (m_logfile.is_open()) {
+            m_logfile << "Instrucción no reconocida: 0x" << std::hex << instruction << std::endl;
+        }
+        // Tratar como NOP para evitar un bucle infinito: avanzar PC y no hacer nada más.
+        pc = pc_plus_4;
+        instructionString = disassemble(instruction, nullptr);
         return;
     }
 
+    datapath.bus_Control = {controlWord(info),tmptime+control_unit.get_delay()};
+    if (m_logfile.is_open()) {
+        m_logfile << "Info: instr=" << info->instr << ", PCsrc=" << static_cast<int>(info->PCsrc)
+                  << ", BRwr=" << static_cast<int>(info->BRwr) << ", ALUsrc=" << static_cast<int>(info->ALUsrc)
+                  << ", ALUctr=" << static_cast<int>(info->ALUctr) << ", MemWr=" << static_cast<int>(info->MemWr)
+                  << ", ResSrc=" << static_cast<int>(info->ResSrc) << ", ImmSrc=" << static_cast<int>(info->ImmSrc)
+                  << ", type=" << info->type << std::endl;
+    }
     
 
     // 2. Lectura de registros y EXTENSIÓN DE SIGNO
@@ -361,7 +254,12 @@ void Simulator::decode_and_execute(uint32_t instruction)
     uint32_t critical=std::max(std::max(std::max(datapath.bus_ALU_result.ready_at,datapath.bus_Mem_read_data.ready_at),datapath.bus_Control.ready_at),datapath.bus_PC_plus4.ready_at)+mux_C.get_delay();
     datapath.bus_C = {final_result,critical};
     critical=critical+register_file.get_write_delay();
-
+        if (m_logfile.is_open()) {
+            m_logfile << "Resultado ALU: "+std::to_string(alu_result) << std::endl;
+            m_logfile << "Resultado MEM: "+std::to_string(mem_read_data) << std::endl;
+            m_logfile << "Resultado PC+4: "+std::to_string(pc_plus_4) << std::endl;
+            m_logfile << "Resultado final: "+std::to_string(final_result) << std::endl;
+        }
 
     if (info->BRwr == 1) {
         register_file.write(rd_addr, final_result);
@@ -382,8 +280,5 @@ void Simulator::decode_and_execute(uint32_t instruction)
 
 
     pc = next_pc;
-    instructionString=disassemble(instruction, info);
-    current_cycle++;
-
-
+    instructionString = disassemble(instruction, info);
 }
