@@ -97,7 +97,10 @@ core_lib.Simulator_load_program.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctyp
 core_lib.Simulator_load_program.restype = None
 
 core_lib.Simulator_step.argtypes = [ctypes.c_void_p]
-core_lib.Simulator_step.restype = None
+core_lib.Simulator_step.restype = ctypes.c_char_p
+
+core_lib.Simulator_reset.argtypes = [ctypes.c_void_p]
+core_lib.Simulator_reset.restype = ctypes.c_char_p
 
 core_lib.Simulator_get_pc.argtypes = [ctypes.c_void_p]
 core_lib.Simulator_get_pc.restype = ctypes.c_uint32
@@ -131,7 +134,7 @@ class Simulator:
         core_lib.Simulator_load_program(self.obj, prog_array, len(program))
 
     def step(self):
-        core_lib.Simulator_step(self.obj)
+        return core_lib.Simulator_step(self.obj)
 
     def get_pc(self) -> int:
         return core_lib.Simulator_get_pc(self.obj)
@@ -224,10 +227,10 @@ def get_state():
         "ALUctr":   (packed_word >> 13) & 0x7,
         "ResSrc":   (packed_word >> 11) & 0x3,
         "ImmSrc":   (packed_word >> 9)  & 0x3,
-        "PCsrc":    (packed_word >> 8)  & 0x1,
-        "BRwr":     (packed_word >> 7)  & 0x1,
-        "ALUsrc":   (packed_word >> 6)  & 0x1,
-        "MemWr":    (packed_word >> 5)  & 0x1,
+        "PCsrc":    (packed_word >> 7)  & 0x2,
+        "BRwr":     (packed_word >> 6)  & 0x1,
+        "ALUsrc":   (packed_word >> 5)  & 0x1,
+        "MemWr":    (packed_word >> 4)  & 0x1,
         "ready_at": datapath_c_struct.bus_Control.ready_at
     }
     

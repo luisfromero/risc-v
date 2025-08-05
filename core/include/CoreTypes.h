@@ -22,7 +22,7 @@ struct Signal {
 
 struct InstructionInfo {
     std::string instr; // Mnemónico
-    uint8_t PCsrc;     // 0 = pc+4, 1 = salto
+    uint8_t PCsrc;     // 0 = pc+4, 1 = salto, 2 reg
     uint8_t BRwr;      // 1 = escribir en reg
     uint8_t ALUsrc;    // 0 = reg, 1 = inm
     uint8_t ALUctr;    // 3 bits para la ALU (según tu tabla de ALU)
@@ -80,4 +80,6 @@ struct DatapathState {
     Signal<uint32_t> bus_PC_next;        // Valor final de PC
 
     Signal<bool>     bus_branch_taken;   // ¿Se tomó un salto condicional?
+    uint32_t criticalTime;
+
 };

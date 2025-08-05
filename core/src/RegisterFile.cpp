@@ -33,3 +33,7 @@ void RegisterFile::write(uint8_t reg_num, uint32_t value) {
         regs[reg_num] = value;
     }
 }
+
+void RegisterFile::reset() {
+    regs.fill(0);
+}

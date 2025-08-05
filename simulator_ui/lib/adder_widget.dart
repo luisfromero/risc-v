@@ -3,11 +3,18 @@ import 'package:flutter/material.dart';
 class AdderWidget extends StatelessWidget {
   final String label;
   final bool isActive; // Para recibir si debe estar "activo" (color verde)
+  final List<Offset> connectionPoints;
 
   const AdderWidget({
     super.key,
     required this.label,
     this.isActive = false, // Por defecto no está activo
+    // Por defecto, 3 puntos: dos entradas a la izquierda/abajo y una salida a la derecha.
+    this.connectionPoints = const [
+      Offset(0,0.25),
+      Offset(0,0.75),
+      Offset(1,0.5),
+    ],
   });
 
   @override
@@ -29,9 +36,13 @@ class AdderWidget extends StatelessWidget {
             painter: _AdderPainter(color: backgroundColor),
           ),
           // El símbolo '+' centrado
-          Text(
-            label,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+          Padding(
+            padding: const EdgeInsets.only(left: 15),
+            child: Text(
+              label,
+              
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -57,14 +68,14 @@ class _AdderPainter extends CustomPainter {
 
     // Creamos la ruta (el path) de nuestro trapecio
     final path = Path();
-    path.moveTo(size.width * 0.1, 0); // Punto inicial superior-izquierda
-    path.lineTo(size.width * 0.9, size.height * 0.2); // Línea a superior-derecha
-    path.lineTo(size.width * 0.9, size.height * 0.8); // Línea a superior-derecha
-    path.lineTo(size.width * 0.1, size.height); // Punto inicial superior-izquierda
-    path.lineTo(size.width * 0.1, 0.6*size.height); // Punto inicial superior-izquierda
+    path.moveTo(size.width * 0, 0); // Punto inicial superior-izquierda
+    path.lineTo(size.width * 1, size.height * 0.25); // Línea a superior-derecha
+    path.lineTo(size.width * 1, size.height * 0.75); // Línea a superior-derecha
+    path.lineTo(size.width * 0, size.height); // Punto inicial superior-izquierda
+    path.lineTo(size.width * 0, 0.6*size.height); // Punto inicial superior-izquierda
     path.lineTo(size.width * 0.3, 0.5*size.height); // Punto inicial superior-izquierda
-    path.lineTo(size.width * 0.1, 0.4*size.height); // Punto inicial superior-izquierda
-    path.lineTo(size.width*0.1, 0); // Línea a inferior-derecha
+    path.lineTo(size.width * 0, 0.4*size.height); // Punto inicial superior-izquierda
+    path.lineTo(size.width*0, 0); // Línea a inferior-derecha
     path.close(); // Cierra la forma
 
     canvas.drawPath(path, paint); // Dibuja el relleno

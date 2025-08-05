@@ -5,6 +5,7 @@
 #include <sstream>
 
 
+
 // (Puedes ponerlo como un método privado o función estática)
 std::string Simulator::disassemble(uint32_t instruction, const InstructionInfo* info) const {
     if (!info) return "not implemented";
@@ -28,20 +29,47 @@ std::string Simulator::disassemble(uint32_t instruction, const InstructionInfo* 
         case 'I': // ej. addi rd, rs1, imm
             oss << "x" << rd << ", x" << rs1 << ", " << imm;
             break;
-        case 'S': // ej. sw rs2, imm(rs1)   (store word)
-            oss << "x" << rs2 << ", " << ((instruction >> 7) & 0x1F | ((instruction >> 25) << 5)) // S-type imm
-                << "(x" << rs1 << ")";
+        case 'S': { // ej. sw rs2, imm(rs1)
+            const uint32_t imm11_5 = (instruction >> 25) & 0x7F;
+            const uint32_t imm4_0  = (instruction >> 7)  & 0x1F;
+            uint32_t imm_s = (imm11_5 << 5) | imm4_0;
+            if (imm_s & 0x800) { // Sign-extend from 12 bits
+                imm_s |= 0xFFFFF000;
+            }
+            oss << "x" << rs2 << ", " << static_cast<int32_t>(imm_s) << "(x" << rs1 << ")";
             break;
-        case 'B': // ej. beq rs1, rs2, imm
-            oss << "x" << rs1 << ", x" << rs2 << ", " << ((instruction >> 8) & 0xF)
-                /* etc, calcula bien el inmediato tipo B */;
+        }
+        case 'B': { // ej. beq rs1, rs2, imm
+            const uint32_t imm12   = (instruction >> 19) & 0x1000; // bit 31 -> bit 12
+            const uint32_t imm11   = (instruction << 4)  & 0x800;  // bit 7  -> bit 11
+            const uint32_t imm10_5 = (instruction >> 20) & 0x7E0;  // bits 30:25 -> 10:5
+            const uint32_t imm4_1  = (instruction >> 7)  & 0x1E;   // bits 11:8  -> 4:1
+            uint32_t imm_b   = imm12 | imm11 | imm10_5 | imm4_1;
+
+            // Sign-extend from 13 bits
+            if (imm_b & 0x1000) {
+                imm_b |= 0xFFFFE000;
+            }
+            oss << "x" << rs1 << ", x" << rs2 << ", " << static_cast<int32_t>(imm_b);
             break;
+        }
         case 'U': // ej. lui rd, imm
             oss << "x" << rd << ", " << (instruction & 0xFFFFF000);
             break;
-        case 'J': // ej. jal rd, imm
-            oss << "x" << rd << ", " << /*calcula_j_imm(instruction)*/0;
+        case 'J': { // ej. jal rd, imm
+            const uint32_t imm20    = (instruction >> 11) & 0x100000; // bit 31 -> bit 20
+            const uint32_t imm19_12 = instruction & 0xFF000;          // bits 19:12
+            const uint32_t imm11    = (instruction >> 9)  & 0x800;    // bit 20 -> bit 11
+            const uint32_t imm10_1  = (instruction >> 20) & 0x7FE;    // bits 30:21 -> 10:1
+            uint32_t imm_j    = imm20 | imm19_12 | imm11 | imm10_1;
+
+            // Sign-extend from 21 bits
+            if (imm_j & 0x100000) {
+                imm_j |= 0xFFE00000;
+            }
+            oss << "x" << rd << ", " << static_cast<int32_t>(imm_j);
             break;
+        }
         default:
             oss << std::hex << "0x" << instruction;
     }
@@ -98,6 +126,21 @@ void Simulator::step() {
     decode_and_execute(instruction);
 }
 
+// Ejecuta un ciclo completo: fetch, decode, execute.
+void Simulator::reset() {
+    pc = 0;
+    current_cycle = 0;
+    status_reg = 0;
+    register_file.reset();
+    datapath = {};
+    instructionString = "";
+    // Después de resetear, ejecutamos el primer ciclo para que la UI muestre
+    // el estado inicial con la primera instrucción (la de PC=0) ya procesada.
+    step();
+}
+
+
+
 // Devuelve el valor actual del Program Counter.
 uint32_t Simulator::get_pc() const {
     return pc;
@@ -138,10 +181,10 @@ uint16_t controlWord(const InstructionInfo* info) {
     return (info->ALUctr  & 0x7) << 13 |  // 3 bits
            (info->ResSrc & 0x3) << 11 |  // 2 bits
            (info->ImmSrc & 0x3) << 9  |  // 2 bits
-           (info->PCsrc  & 0x1) << 8  |  // 1 bit
-           (info->BRwr   & 0x1) << 7  |  // 1 bit
-           (info->ALUsrc & 0x1) << 6  |  // 1 bit
-           (info->MemWr  & 0x1) << 5;    // 1 bit
+           (info->PCsrc  & 0x3) << 7  |  // 2 bit
+           (info->BRwr   & 0x1) << 6  |  // 1 bit
+           (info->ALUsrc & 0x1) << 5  |  // 1 bit
+           (info->MemWr  & 0x1) << 4;    // 1 bit
 }
 
 
@@ -149,7 +192,9 @@ void Simulator::decode_and_execute(uint32_t instruction)
 {
     // --- INICIO DEL CICLO (t=0) ---
     // La única señal estable al inicio del ciclo es el PC.
-    datapath.bus_PC = { pc, 0 };
+    // Le ponemos 1 ps para ver su aparición
+    datapath.bus_PC = { pc, 1 };
+    
     uint32_t pc_plus_4 = adder4.add(pc);
     datapath.bus_PC_plus4 = { pc_plus_4,datapath.bus_PC.ready_at+ adder4.get_delay() };
 
@@ -187,6 +232,7 @@ void Simulator::decode_and_execute(uint32_t instruction)
         instructionString = disassemble(instruction, nullptr);
         return;
     }
+    instructionString = disassemble(instruction, info);
 
     datapath.bus_Control = {controlWord(info),tmptime+control_unit.get_delay()};
     if (m_logfile.is_open()) {
@@ -238,22 +284,23 @@ void Simulator::decode_and_execute(uint32_t instruction)
 
     // 4. ACCESO A MEMORIA
     uint32_t mem_read_data = 0;
+    mem_read_data = d_mem.read_word(alu_result);
+
     if (info->MemWr == 1) { // SW
         d_mem.write_word(alu_result, rs2_val);
-        datapath.bus_Mem_read_data = {INDETERMINADO, tmptime4};//tmptime4 es la salida de la alu con dirección efectiva
+        //datapath.bus_Mem_read_data = {INDETERMINADO, tmptime4};//tmptime4 es la salida de la alu con dirección efectiva
 
     }
     if (info->ResSrc == 1) { // LW
-        mem_read_data = d_mem.read_word(alu_result);
-        datapath.bus_Mem_read_data = {mem_read_data, std::max(tmptime4,datapath.bus_Control.ready_at) + d_mem.get_delay()};;//tmptime4 es la salida de la alu con dirección efectiva
     }
+    datapath.bus_Mem_read_data = {mem_read_data, tmptime4+ d_mem.get_delay()};;//tmptime4 es la salida de la alu con dirección efectiva
 
     // 5. ESCRITURA (WRITE-BACK)
     // Mux para el resultado final
     uint32_t  final_result=mux_C.select(alu_result,mem_read_data,pc_plus_4,INDETERMINADO,info->ResSrc);
-    uint32_t critical=std::max(std::max(std::max(datapath.bus_ALU_result.ready_at,datapath.bus_Mem_read_data.ready_at),datapath.bus_Control.ready_at),datapath.bus_PC_plus4.ready_at)+mux_C.get_delay();
-    datapath.bus_C = {final_result,critical};
-    critical=critical+register_file.get_write_delay();
+    criticalTime=std::max(std::max(std::max(datapath.bus_ALU_result.ready_at,datapath.bus_Mem_read_data.ready_at),datapath.bus_Control.ready_at),datapath.bus_PC_plus4.ready_at)+mux_C.get_delay();
+    datapath.bus_C = {final_result,criticalTime};
+    datapath.criticalTime=criticalTime+register_file.get_write_delay();
         if (m_logfile.is_open()) {
             m_logfile << "Resultado ALU: "+std::to_string(alu_result) << std::endl;
             m_logfile << "Resultado MEM: "+std::to_string(mem_read_data) << std::endl;
@@ -280,5 +327,4 @@ void Simulator::decode_and_execute(uint32_t instruction)
 
 
     pc = next_pc;
-    instructionString = disassemble(instruction, info);
 }

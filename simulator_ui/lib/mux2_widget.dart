@@ -1,33 +1,32 @@
 import 'package:flutter/material.dart';
 
-class MuxWidget extends StatelessWidget {
+class Mux2Widget extends StatelessWidget {
   final int value;
   final bool isActive; // Para recibir si debe estar "activo" (color verde)
   final List<Offset> connectionPoints;
 
-  const MuxWidget({
+  const Mux2Widget({
     super.key,
     required this.value,
     this.isActive = false, // Por defecto no está activo
     // Por defecto, 3 puntos: dos entradas a la izquierda/abajo y una salida a la derecha.
     this.connectionPoints = const [
-      Offset(0,0.1),
-      Offset(0,0.35),
-      Offset(0,0.6),
-      Offset(0,0.85),
+      Offset(0,0.25),
+      Offset(0,0.75),
       Offset(0.35,0),
-      Offset(1,0.5),],
+      Offset(1,0.5),
+    ]
   });
 
-  final TextStyle estilo= const TextStyle(fontSize: 13);
+  final TextStyle estilo= const TextStyle(fontSize: 16);
   @override
   Widget build(BuildContext context) {
     // El color dependerá de si el widget está activo o no.
     final Color backgroundColor = isActive ? Colors.green.shade200 : Colors.blueGrey.shade100;
 
     return SizedBox(
-      width: 50,
-      height: 80,
+      width: 30,
+      height: 50,
       // Stack nos permite apilar widgets. Dibujaremos la forma
       // y pondremos el texto '+' encima.
       child: Stack(
@@ -39,20 +38,18 @@ class MuxWidget extends StatelessWidget {
             painter: _MuxPainter(color: backgroundColor),
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 20),
+            padding: const EdgeInsets.only(right: 15),
             child: 
             Column(
               children: [
                 Text("0",style:estilo),
                 Text("1",style:estilo),
-                Text("2",style:estilo),
-                Text("3",style:estilo),
               ],
             ),
           ),
 
           Padding(
-            padding: const EdgeInsets.only(left:15),
+            padding: const EdgeInsets.only(left:8.0),
             child: Text(
               value.toString(),
               style: const TextStyle(fontSize: 10, fontWeight: FontWeight.normal,color: Colors.blue),

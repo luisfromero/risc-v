@@ -23,6 +23,8 @@ public:
     // Ejecuta un solo ciclo de instrucción.
     void step();
 
+    void reset();
+    
     // Devuelve el estado actual para la API.
     uint32_t get_pc() const;
     uint32_t get_status_register() const;
@@ -33,6 +35,8 @@ public:
 
 private:
     uint32_t pc; // Program Counter
+    uint32_t pc_delay=1; 
+    uint32_t criticalTime=0;
     uint32_t status_reg;
     DatapathState datapath;   // Estado actual del datapath (todas las señales con valor + ready_at)
     uint32_t current_cycle;   // Ciclo actual de simulación (tiempo absoluto tipo reloj de pared)
@@ -60,7 +64,7 @@ private:
     ControlUnit control_unit;
 
 
-
+    
 
 
 

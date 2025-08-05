@@ -2,6 +2,46 @@
 #include <vector>
 // Incluimos el macro de exportación para que las funciones sean visibles en la DLL.
 #include "CoreExport.h"
+#include <nlohmann/json.hpp>
+
+
+using json = nlohmann::json;
+
+
+    const char *jsonFromState(DatapathState &state)
+    {
+        thread_local static std::string json_str;
+        json j = {
+            {"PC", {{"value", state.bus_PC.value}, {"ready_at", state.bus_PC.ready_at}}},
+            {"Instr", {{"value", state.bus_Instr.value}, {"ready_at", state.bus_Instr.ready_at}}},
+            {"Opcode", {{"value", state.bus_Opcode.value}, {"ready_at", state.bus_Opcode.ready_at}}},
+            {"funct3", {{"value", state.bus_funct3.value}, {"ready_at", state.bus_funct3.ready_at}}},
+            {"funct7", {{"value", state.bus_funct7.value}, {"ready_at", state.bus_funct7.ready_at}}},
+            {"DA", {{"value", state.bus_DA.value}, {"ready_at", state.bus_DA.ready_at}}},
+            {"DB", {{"value", state.bus_DB.value}, {"ready_at", state.bus_DB.ready_at}}},
+            {"DC", {{"value", state.bus_DC.value}, {"ready_at", state.bus_DC.ready_at}}},
+            {"A", {{"value", state.bus_A.value}, {"ready_at", state.bus_A.ready_at}}},
+            {"B", {{"value", state.bus_B.value}, {"ready_at", state.bus_B.ready_at}}},
+            {"imm", {{"value", state.bus_imm.value}, {"ready_at", state.bus_imm.ready_at}}},
+            {"immExt", {{"value", state.bus_immExt.value}, {"ready_at", state.bus_immExt.ready_at}}},
+            {"ALU_A", {{"value", state.bus_ALU_A.value}, {"ready_at", state.bus_ALU_A.ready_at}}},
+            {"ALU_B", {{"value", state.bus_ALU_B.value}, {"ready_at", state.bus_ALU_B.ready_at}}},
+            {"ALU_result", {{"value", state.bus_ALU_result.value}, {"ready_at", state.bus_ALU_result.ready_at}}},
+            {"ALU_zero", {{"value", state.bus_ALU_zero.value}, {"ready_at", state.bus_ALU_zero.ready_at}}},
+            {"Control", {{"value", state.bus_Control.value}, {"ready_at", state.bus_Control.ready_at}}},
+            {"Mem_address", {{"value", state.bus_Mem_address.value}, {"ready_at", state.bus_Mem_address.ready_at}}},
+            {"Mem_write_data", {{"value", state.bus_Mem_write_data.value}, {"ready_at", state.bus_Mem_write_data.ready_at}}},
+            {"Mem_read_data", {{"value", state.bus_Mem_read_data.value}, {"ready_at", state.bus_Mem_read_data.ready_at}}},
+            {"C", {{"value", state.bus_C.value}, {"ready_at", state.bus_C.ready_at}}},
+            {"PC_plus4", {{"value", state.bus_PC_plus4.value}, {"ready_at", state.bus_PC_plus4.ready_at}}},
+            {"PC_dest", {{"value", state.bus_PC_dest.value}, {"ready_at", state.bus_PC_dest.ready_at}}},
+            {"PC_next", {{"value", state.bus_PC_next.value}, {"ready_at", state.bus_PC_next.ready_at}}},
+            {"branch_taken", {{"value", state.bus_branch_taken.value}, {"ready_at", state.bus_branch_taken.ready_at}}},
+            {"CriticalTime", state.criticalTime}  };
+
+        json_str = j.dump();
+        return json_str.c_str();
+    }
 
 // Interfaz C-style para que Python (ctypes) pueda llamar a nuestro código C++.
 // Usamos extern "C" para evitar que el compilador de C++ modifique los nombres de las funciones.
@@ -24,9 +64,18 @@ extern "C" {
         static_cast<Simulator*>(sim_ptr)->load_program(program);
     }
 
-    SIMULATOR_API void Simulator_step(void* sim_ptr) {
-        if (!sim_ptr) return;
+    SIMULATOR_API const char* Simulator_reset(void* sim_ptr) {
+        if (!sim_ptr) return "{}";
+        static_cast<Simulator*>(sim_ptr)->reset();
+        DatapathState state = static_cast<Simulator*>(sim_ptr)->get_datapath_state();
+        return jsonFromState(state);
+    }
+
+    SIMULATOR_API const char*  Simulator_step(void* sim_ptr) {
+        if (!sim_ptr) return "{}";
         static_cast<Simulator*>(sim_ptr)->step();
+        DatapathState state = static_cast<Simulator*>(sim_ptr)->get_datapath_state();
+        return jsonFromState(state);
     }
 
     SIMULATOR_API uint32_t Simulator_get_pc(void* sim_ptr) {
@@ -35,8 +84,16 @@ extern "C" {
     }
 
     SIMULATOR_API DatapathState Simulator_get_datapath_state(void* sim_ptr) {
-        if (!sim_ptr) return {0};
+        if (!sim_ptr) return {};
         return static_cast<Simulator*>(sim_ptr)->get_datapath_state();
+    }
+
+    SIMULATOR_API const char* Simulator_get_state_json(void* sim_ptr) {
+        if (!sim_ptr) return "{}";
+
+        DatapathState state = static_cast<Simulator*>(sim_ptr)->get_datapath_state();
+
+        return jsonFromState(state);
     }
 
     SIMULATOR_API uint32_t Simulator_get_status_register(void* sim_ptr) {

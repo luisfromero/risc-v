@@ -6,6 +6,8 @@
 class SIMULATOR_API RegisterFile {
 public:
     RegisterFile();
+    void reset();
+
 
     // Lee el valor de un registro.
     // El registro x0 siempre debe devolver 0.

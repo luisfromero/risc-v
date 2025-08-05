@@ -3,24 +3,72 @@
 
 /// Un objeto simple para contener el estado de la simulación en un instante dado.
 class SimulationState {
+  final String instruction;
+  final int instructionValue;
+  final int statusRegister;
+  final Map<String, int> registers;
   final int pcValue;
-  final bool isPcAdderActive;
-  final bool isBranchAdderActive;
-  final bool isAluActive;
-  final bool isMux1Active;
-  final bool isMux2Active;
-  final bool isMux3Active;
-  // Aquí añadiremos más datos en el futuro, como los 'readyAt'.
+  final int criticalTime;
+  final Map<String, int> readyAt;
 
   SimulationState({
+    this.instruction = '',
+    this.instructionValue = 0,
+    this.statusRegister = 0,
+    this.criticalTime = 0,
+    this.registers = const {},
     required this.pcValue,
-    this.isPcAdderActive = false,
-    this.isBranchAdderActive = false,
-    this.isAluActive = false,
-    this.isMux1Active = false,
-    this.isMux2Active = false,
-    this.isMux3Active = false,
+    this.readyAt = const {},
   });
+
+  /// Crea un SimulationState a partir de un mapa JSON.
+  factory SimulationState.fromJson(Map<String, dynamic> json) {
+    // Helper para extraer de forma segura el 'ready_at' de una señal del JSON.
+    int getReadyAt(String key) {
+      final signal = json[key];
+      if (signal is Map<String, dynamic>) {
+        return signal['ready_at'] as int? ?? 0;
+      }
+      return 0;
+    }
+
+    // Helper para extraer de forma segura el 'value' de una señal del JSON.
+    int getValue(String key) {
+      final signal = json[key];
+      if (signal is Map<String, dynamic>) {
+        return signal['value'] as int? ?? 0;
+      }
+      return 0;
+    }
+
+    // Mapea los nombres de las señales del backend a los nombres de los buses del frontend.
+    final Map<String, int> readyAtMap = {
+      'pc_bus': getReadyAt('PC'),
+      'npc_bus': getReadyAt('PC_plus4'),
+      'instruction_bus': getReadyAt('Instr'),
+      'control_bus': getReadyAt('Control'),
+      'rd1_bus': getReadyAt('A'),
+      'rd2_bus': getReadyAt('B'),
+      'immediate_bus': getReadyAt('immExt'),
+      'alu_result_bus': getReadyAt('ALU_result'),
+      'branch_target_bus': getReadyAt('PC_dest'),
+      'mem_read_data_bus': getReadyAt('Mem_read_data'),
+      'mux_wb_bus': getReadyAt('C'),          // Mux para Write Back
+      'mux_pc_bus': getReadyAt('PC_next'),    // Mux para PC
+      'mux_alu_b_bus': getReadyAt('ALU_B'),   // Mux para entrada B del ALU
+    };
+
+    return SimulationState(
+      // Extrae los nuevos campos del JSON.
+      instruction: json['instruction'] as String? ?? '',
+      instructionValue: getValue('Instr'),
+      criticalTime: json['CriticalTime'] as int? ?? 0,
+      statusRegister: json['status_register'] as int? ?? 0,
+      pcValue: json['PC']['value'] as int? ?? 0,
+      registers: Map<String, int>.from(json['registers'] as Map? ?? {}),
+      readyAt: readyAtMap,
+    );
+  }
 }
 
 abstract class SimulationService {
@@ -28,7 +76,7 @@ abstract class SimulationService {
   Future<void> initialize();
 
   /// Ejecuta un ciclo de reloj y devuelve el nuevo estado.
-  Future<SimulationState> clockTick();
+  Future<SimulationState> step();
 
   /// Resetea la simulación a su estado inicial.
   Future<SimulationState> reset();
