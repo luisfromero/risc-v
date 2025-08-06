@@ -10,6 +10,8 @@ class SimulationState {
   final int pcValue;
   final int criticalTime;
   final Map<String, int> readyAt;
+  final Map<String, bool> activePaths;
+  final Map<String, int> busValues;
 
   SimulationState({
     this.instruction = '',
@@ -19,6 +21,8 @@ class SimulationState {
     this.registers = const {},
     required this.pcValue,
     this.readyAt = const {},
+    this.activePaths = const {},
+    this.busValues = const {},
   });
 
   /// Crea un SimulationState a partir de un mapa JSON.
@@ -30,6 +34,15 @@ class SimulationState {
         return signal['ready_at'] as int? ?? 0;
       }
       return 0;
+    }
+
+    // Helper para extraer de forma segura el 'is_active' de una señal del JSON.
+    bool getIsActive(String key) {
+      final signal = json[key];
+      if (signal is Map<String, dynamic>) {
+        return signal['is_active'] as bool? ?? false;
+      }
+      return false;
     }
 
     // Helper para extraer de forma segura el 'value' de una señal del JSON.
@@ -55,7 +68,42 @@ class SimulationState {
       'mem_read_data_bus': getReadyAt('Mem_read_data'),
       'mux_wb_bus': getReadyAt('C'),          // Mux para Write Back
       'mux_pc_bus': getReadyAt('PC_next'),    // Mux para PC
-      'mux_alu_b_bus': getReadyAt('ALU_B'),   // Mux para entrada B del ALU
+      'mux_alu_b_bus': getReadyAt('ALU_B'),   // Mux para entrada B del ALU´
+      'pcsrc_bus': getReadyAt('PCsrc'),       // Mux para PCsrc'
+    };
+
+    // Mapea las señales del backend para saber si están lógicamente activas.
+    final Map<String, bool> activePathsMap = {
+      'pc_bus': getIsActive('PC'),
+      'npc_bus': getIsActive('PC_plus4'),
+      'instruction_bus': getIsActive('Instr'),
+      'rd1_bus': getIsActive('A'),
+      'rd2_bus': getIsActive('B'),
+      'immediate_bus': getIsActive('immExt'),
+      'alu_result_bus': getIsActive('ALU_result'),
+      'branch_target_bus': getIsActive('PC_dest'),
+      'mem_read_data_bus': getIsActive('Mem_read_data'),
+      'mux_wb_bus': getIsActive('C'),
+      'mux_pc_bus': getIsActive('PC_next'),
+      'mux_alu_b_bus': getIsActive('ALU_B'),
+    };
+
+    final Map<String, int> busValuesMap = {
+      'pc_bus': getValue('PC'),
+      'npc_bus': getValue('PC_plus4'),
+      'instruction_bus': getValue('Instr'),
+      'rd1_bus': getValue('A'),
+      'rd2_bus': getValue('B'),
+      'immediate_bus': getValue('immExt'),
+      'alu_result_bus': getValue('ALU_result'),
+      'branch_target_bus': getValue('PC_dest'),
+      'mem_read_data_bus': getValue('Mem_read_data'),
+      'mux_wb_bus': getValue('C'),
+      'mux_pc_bus': getValue('PC_next'),
+      'mux_alu_b_bus': getValue('ALU_B'),
+      'da_bus':getValue('DA'),
+      'db_bus':getValue('DB'),
+      'dc_bus':getValue('DC'),
     };
 
     return SimulationState(
@@ -67,6 +115,8 @@ class SimulationState {
       pcValue: json['PC']['value'] as int? ?? 0,
       registers: Map<String, int>.from(json['registers'] as Map? ?? {}),
       readyAt: readyAtMap,
+      activePaths: activePathsMap,
+      busValues: busValuesMap,
     );
   }
 }

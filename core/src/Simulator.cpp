@@ -4,6 +4,8 @@
 #include <algorithm> // Para std::max
 #include <sstream>
 
+#define DELAY_Z_AND 1
+#define DELAY_PC 1
 
 
 // (Puedes ponerlo como un método privado o función estática)
@@ -53,9 +55,11 @@ std::string Simulator::disassemble(uint32_t instruction, const InstructionInfo* 
             oss << "x" << rs1 << ", x" << rs2 << ", " << static_cast<int32_t>(imm_b);
             break;
         }
-        case 'U': // ej. lui rd, imm
-            oss << "x" << rd << ", " << (instruction & 0xFFFFF000);
+        case 'U': { // ej. lui rd, imm
+            const uint32_t imm = instruction >> 12;
+            oss << "x" << rd << ", 0x" << std::hex << imm;
             break;
+        }
         case 'J': { // ej. jal rd, imm
             const uint32_t imm20    = (instruction >> 11) & 0x100000; // bit 31 -> bit 20
             const uint32_t imm19_12 = instruction & 0xFF000;          // bits 19:12
@@ -94,7 +98,11 @@ Simulator::Simulator(size_t mem_size, PipelineModel model)
     // El PC se inicializa en 0.
       // NOTA: La ruta al fichero de instrucciones debería ser configurable, no "hard-coded".
       // Por ejemplo, podría pasarse al constructor o leerse de una variable de entorno.
+      
+      if(false)//Pensar si es mejor o peor ToDo
       control_unit.load_control_table("d:/onedrive/proyectos/riscv/resources/instructions.json");
+      
+      
       // Abrir el fichero de log. Se sobreescribirá en cada nueva ejecución.
       m_logfile.open("simulator.log", std::ios::out | std::ios::trunc);
       m_logfile << "--- Log del Simulador RISC-V ---" << std::endl;
@@ -180,11 +188,11 @@ uint32_t Simulator::fetch() {
 uint16_t controlWord(const InstructionInfo* info) {
     return (info->ALUctr  & 0x7) << 13 |  // 3 bits
            (info->ResSrc & 0x3) << 11 |  // 2 bits
-           (info->ImmSrc & 0x3) << 9  |  // 2 bits
-           (info->PCsrc  & 0x3) << 7  |  // 2 bit
-           (info->BRwr   & 0x1) << 6  |  // 1 bit
-           (info->ALUsrc & 0x1) << 5  |  // 1 bit
-           (info->MemWr  & 0x1) << 4;    // 1 bit
+           (info->ImmSrc & 0x7) << 8  |  // 3 bits
+           (info->PCsrc  & 0x3) << 6  |  // 2 bit
+           (info->BRwr   & 0x1) << 5  |  // 1 bit
+           (info->ALUsrc & 0x1) << 4  |  // 1 bit
+           (info->MemWr  & 0x1) << 3;    // 1 bit
 }
 
 
@@ -193,8 +201,7 @@ void Simulator::decode_and_execute(uint32_t instruction)
     // --- INICIO DEL CICLO (t=0) ---
     // La única señal estable al inicio del ciclo es el PC.
     // Le ponemos 1 ps para ver su aparición
-    datapath.bus_PC = { pc, 1 };
-    
+    datapath.bus_PC = { pc, DELAY_PC };
     uint32_t pc_plus_4 = adder4.add(pc);
     datapath.bus_PC_plus4 = { pc_plus_4,datapath.bus_PC.ready_at+ adder4.get_delay() };
 
@@ -221,6 +228,8 @@ void Simulator::decode_and_execute(uint32_t instruction)
     // 1. DECODIFICACIÓN Y LECTURA DE REGISTROS
     const InstructionInfo* info = control_unit.decode(instruction);
     m_logfile << info << std::endl;
+
+
     
     if (!info) {
         std::cerr << "Instrucción no reconocida: 0x" << std::hex << instruction << std::endl;
@@ -232,8 +241,21 @@ void Simulator::decode_and_execute(uint32_t instruction)
         instructionString = disassemble(instruction, nullptr);
         return;
     }
-    instructionString = disassemble(instruction, info);
 
+
+
+    try{
+    instructionString = disassemble(instruction, info);
+    datapath.instruction=instructionString;
+    }
+    catch(const std::exception& e){
+        m_logfile << "Error al formatear la instrucción: " << e.what() << std::endl;
+        pc = pc_plus_4;
+        return;
+    }
+
+
+    try{
     datapath.bus_Control = {controlWord(info),tmptime+control_unit.get_delay()};
     if (m_logfile.is_open()) {
         m_logfile << "Info: instr=" << info->instr << ", PCsrc=" << static_cast<int>(info->PCsrc)
@@ -242,19 +264,32 @@ void Simulator::decode_and_execute(uint32_t instruction)
                   << ", ResSrc=" << static_cast<int>(info->ResSrc) << ", ImmSrc=" << static_cast<int>(info->ImmSrc)
                   << ", type=" << info->type << std::endl;
     }
-    
+    datapath.bus_PCsrc = {info->PCsrc,tmptime}; //El tiempo se cambia después
 
+}
+    catch(const std::exception& e){
+        m_logfile <<  "Error al calcular control de  la instrucción: " << e.what() << std::endl; 
+        pc = pc_plus_4;
+        return;
+    }
     // 2. Lectura de registros y EXTENSIÓN DE SIGNO
+
     uint32_t rs1_val = register_file.readA(rs1_addr);
     uint32_t rs2_val = register_file.readB(rs2_addr);
     tmptime=datapath.bus_Instr.ready_at + register_file.get_delay();
     datapath.bus_A = {rs1_val,tmptime};
-    datapath.bus_ALU_A = {rs1_val,tmptime};
+
+    // Para LUI, el primer operando de la ALU debe ser 0, no el valor de rs1.
+    // Para AUIPC, sería el PC. Aquí lo simplificamos para LUI.
+    const uint32_t alu_op_a = (info->type == 'U') ? 0 : rs1_val;
+    datapath.bus_ALU_A = {alu_op_a, tmptime};
+
     datapath.bus_B = {rs2_val,tmptime};
     uint32_t imm_ext = sign_extender.extender(instruction, info->ImmSrc);
     uint32_t tmptime2=datapath.bus_Control.ready_at + sign_extender.get_delay();
     datapath.bus_immExt = {imm_ext,tmptime2};
     datapath.bus_Mem_write_data=datapath.bus_B;
+    m_logfile <<  "Lectura de registros ok" << std::endl; 
     
 
     //
@@ -266,7 +301,7 @@ void Simulator::decode_and_execute(uint32_t instruction)
     datapath.bus_ALU_B = {alu_op_b,tmptime3};
 
     
-    uint32_t alu_result = alu.calc(rs1_val, alu_op_b, info->ALUctr);
+    uint32_t alu_result = alu.calc(alu_op_a, alu_op_b, info->ALUctr);
     bool alu_zero = (alu_result == 0);
     uint32_t tmptime4=std::max(std::max(datapath.bus_ALU_A.ready_at,datapath.bus_ALU_B.ready_at),datapath.bus_Control.ready_at) + alu.get_delay();
     datapath.bus_ALU_result    = {alu_result,tmptime4};
@@ -280,20 +315,36 @@ void Simulator::decode_and_execute(uint32_t instruction)
     datapath.bus_PC_dest       = {branch_target, datapath.bus_immExt.ready_at+ adder.get_delay()};
 
 
+    m_logfile <<  "ALU ok" << std::endl; 
 
 
     // 4. ACCESO A MEMORIA
-    uint32_t mem_read_data = 0;
+    uint32_t mem_read_data = 0x00FABADA;
+
+
+    if(info->instr=="lw")
+    try{
     mem_read_data = d_mem.read_word(alu_result);
+    }
+    catch(const std::exception& e)
+    {
+    m_logfile <<  "Error al leer de la memoria: " << e.what() << std::endl; 
+    mem_read_data=alu_result;
+    }
 
     if (info->MemWr == 1) { // SW
+    try{
         d_mem.write_word(alu_result, rs2_val);
-        //datapath.bus_Mem_read_data = {INDETERMINADO, tmptime4};//tmptime4 es la salida de la alu con dirección efectiva
+    }
+    catch(const std::exception& e)
+    {
+    m_logfile <<  "Error al escribir en la memoria: " << e.what() << std::endl; 
+    }
 
     }
-    if (info->ResSrc == 1) { // LW
-    }
-    datapath.bus_Mem_read_data = {mem_read_data, tmptime4+ d_mem.get_delay()};;//tmptime4 es la salida de la alu con dirección efectiva
+
+    datapath.bus_Mem_read_data = {mem_read_data, tmptime4+ d_mem.get_delay()};//tmptime4 es la salida de la alu con dirección efectiva
+    m_logfile <<  "MEM ok" << std::endl; 
 
     // 5. ESCRITURA (WRITE-BACK)
     // Mux para el resultado final
@@ -317,12 +368,54 @@ void Simulator::decode_and_execute(uint32_t instruction)
     // Mux para el PC
     bool take_branch = (info->PCsrc == 1|| (info->type=='B' && alu_zero));
 
-    uint32_t tmptime5 = std::max(datapath.bus_ALU_zero.ready_at,datapath.bus_Control.ready_at); //Tiempo en llegar la sñal que controla el mux
+    uint32_t tmptime5 = std::max(datapath.bus_ALU_zero.ready_at,datapath.bus_Control.ready_at)+DELAY_Z_AND; //Tiempo en llegar la sñal que controla el mux
     
     datapath.bus_branch_taken = {take_branch,tmptime5};
-    tmptime5 = std::max(std::max(datapath.bus_PC_plus4.ready_at,datapath.bus_PC_dest.ready_at),tmptime5) + control_unit.get_delay();
+    datapath.bus_PCsrc.ready_at = tmptime5;
+
+
+    tmptime5 = std::max(std::max(datapath.bus_PC_plus4.ready_at,datapath.bus_PC_dest.ready_at),tmptime5) + mux_PC.get_delay();
+
     uint32_t next_pc = mux_PC.select(pc_plus_4, branch_target, take_branch);
     datapath.bus_PC_next = {next_pc,tmptime5};
+
+
+    // --- Lógica de ActivePath ---
+    // Aquí desactivamos las rutas que no se usan para la instrucción actual.
+    // Por defecto, todos los is_active son 'true' desde la definición de la struct Signal.
+    if(info->PCsrc!=0)datapath.bus_PC_plus4.is_active=false;
+
+    if (info->instr == "addi") {
+        datapath.bus_PC_dest.is_active = false;       // El sumador de saltos no se usa.
+        datapath.bus_Mem_read_data.is_active = false; // No se lee de la memoria de datos.
+        datapath.bus_B.is_active = false;             // La segunda lectura de registros (rs2) no se usa.
+    } else if (info->instr == "lw") { // Load Word
+        datapath.bus_PC_dest.is_active = false;       // El sumador de saltos no se usa.
+        datapath.bus_B.is_active = false;             // La segunda lectura de registros no se usa para la ALU.
+    } else if (info->instr == "sw") { // Store Word
+        datapath.bus_PC_dest.is_active = false;       // El sumador de saltos no se usa.
+        datapath.bus_Mem_read_data.is_active = false; // No se lee de memoria, se escribe.
+        datapath.bus_C.is_active = false;             // No hay resultado que escribir en los registros (write-back).
+    } else if (info->type == 'U') { // LUI
+        datapath.bus_Mem_read_data.is_active = false; // No se accede a la memoria de datos.
+        datapath.bus_PC_dest.is_active = false;       // El sumador de saltos no se usa.
+    } else if (info->type == 'R') { // LUI
+        datapath.bus_Mem_read_data.is_active = false; // No se accede a la memoria de datos.
+        datapath.bus_PC_dest.is_active = false;       // El sumador de saltos no se usa.
+    } else if (info->type == 'B') { // Branches (BEQ, etc.)
+        datapath.bus_Mem_read_data.is_active = false; // No se accede a la memoria de datos.
+        datapath.bus_C.is_active = false;             // No hay resultado que escribir en los registros.
+    } else if (info->type == 'J' || info->instr == "jalr") { // Jumps
+        // Para JAL, el sumador de saltos (PC + imm) SÍ está activo.
+        // Lo que no se usa es el resultado de la ALU principal ni la memoria de datos.
+        datapath.bus_ALU_result.is_active = false;
+        datapath.bus_Mem_read_data.is_active = false;
+    }
+
+
+
+
+
 
 
 

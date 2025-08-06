@@ -16,6 +16,7 @@ template<typename T>
 struct Signal {
     T value;
     uint32_t ready_at; // En ciclos de reloj
+    bool is_active=true;
 };
 
 
@@ -65,6 +66,8 @@ struct DatapathState {
 
     // --- Unidad de control ---
     Signal<uint16_t> bus_Control;        // Palabra de control (como combinación de señales)
+    Signal<uint8_t> bus_PCsrc;        // Palabra de control (como combinación de señales)
+    
 
     // --- Memoria de datos ---
     Signal<uint32_t> bus_Mem_address;    // Dirección de acceso a memoria
@@ -81,5 +84,7 @@ struct DatapathState {
 
     Signal<bool>     bus_branch_taken;   // ¿Se tomó un salto condicional?
     uint32_t criticalTime;
+    std::string instruction;
+    
 
 };

@@ -3,6 +3,9 @@
 
 // --- Mux2 ---
 uint32_t Mux2::select(uint32_t in0, uint32_t in1, bool sel) {
+    if(sel==-1){
+        return INDETERMINADO;
+    }
     output = sel ? in1 : in0;
     return output;
 }

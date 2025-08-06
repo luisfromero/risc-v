@@ -15,16 +15,20 @@ ControlUnit::ControlUnit() {
  */
 static const InstructionInfo control_table_original[] = {
     // instr   PCsrc BRwr ALUsrc ALUctr MemWr ResSrc ImmSrc   mask        value
-    {"add",    0,    1,    0,    0b000, 0,     0,     0, 0xFE00707F, 0x00000033,'R' }, // R-type
-    {"sub",    0,    1,    0,    0b001, 0,     0,     0, 0xFE00707F, 0x40000033,'R' }, // R-type
-    {"and",    0,    1,    0,    0b010, 0,     0,     0, 0xFE00707F, 0x00007033,'R' }, // R-type
-    {"or",     0,    1,    0,    0b011, 0,     0,     0, 0xFE00707F, 0x00006033,'R' }, // R-type
-    {"addi",   0,    1,    1,    0b000, 0,     0,     0, 0x707F,     0x00000013,'I' }, // I-type
-    {"lw",     0,    1,    1,    0b000, 0,     1,     0, 0x707F,     0x00002003,'I' }, // I-type (funct3=0x2 si usas lw, ajústalo)
-    {"sw",     0,    0,    1,    0b000, 1,     0,     1, 0x707F,     0x00002023,'S' }, // S-type
-    {"beq",    1,    0,    0,    0b001, 0,     0,     2, 0x707F,     0x00000063,'B' }, // B-type (funct3=0)
-    {"jal",    1,    1,    0,    0b000, 0,     2,     3, 0x7F,       0x0000006F,'J' }, // J-type
-    {"sll",    0,    1,    0,    0b110, 0,     0,     0, 0xFE00707F, 0x00001033,'R' }, // R-type shift left logical
+    {"add",    0,    1,    0,    0b000, 0,     0,    -1, 0xFE00707F, 0x00000033, 'R' }, // R-type
+    {"sub",    0,    1,    0,    0b001, 0,     0,    -1, 0xFE00707F, 0x40000033, 'R' }, // R-type
+    {"and",    0,    1,    0,    0b010, 0,     0,    -1, 0xFE00707F, 0x00007033, 'R' }, // R-type
+    {"or",     0,    1,    0,    0b011, 0,     0,    -1, 0xFE00707F, 0x00006033, 'R' }, // R-type
+    {"addi",   0,    1,    1,    0b000, 0,     0,     0, 0x707F,     0x00000013, 'I' }, // I-type
+    {"lw",     0,    1,    1,    0b000, 0,     1,     0, 0x707F,     0x00002003, 'I' }, // I-type (funct3=0x2 si usas lw, ajústalo)
+    {"sw",     0,    0,    1,    0b000, 1,    -1,     1, 0x707F,     0x00002023, 'S' }, // S-type
+    {"beq",    1,    0,    0,    0b001, 0,    -1,     2, 0x707F,     0x00000063, 'B' }, // B-type (funct3=0)
+    {"jal",    1,    1,   -1,       -1, 0,     2,     3, 0x7F,       0x0000006F, 'J' }, // J-type
+    {"sll",    0,    1,    0,    0b110, 0,     0,    -1, 0xFE00707F, 0x00001033, 'R' }, // R-type shift left logical
+    {"ori",    0,    1,    1,    0b011, 0,     0,     0, 0x707F,     0x00006013, 'I'}, // <<< NUEVA
+    {"lui",    0,    1,    1,    0b000, 0,     0,     4, 0x7F,       0x00000037, 'U'}, // <<< NUEVA
+    // {"j",   1,    1,    0,    0b000, 0,     2,     3, 0x7F,       0x0000006F, 'J'}, // j es una pseudo-instrucción de 'jal x0, imm'. Usa la misma línea que jal.
+
 };
 
     control_table.assign(std::begin(control_table_original), std::end(control_table_original));

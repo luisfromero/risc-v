@@ -100,7 +100,10 @@ class MyApp extends StatelessWidget {
                   SizedBox(
                     width: 1070,
                     height: 90,
-                    child: ControlUnitWidget(key: datapathState.controlUnitKey), // Quitamos 'const' para poder usar la key
+                    child: ControlUnitWidget(
+                      key: datapathState.controlUnitKey,
+                      isActive: datapathState.isControlActive,
+                      ), // Quitamos 'const' para poder usar la key
                   ),
                 ],
               ),
@@ -146,7 +149,10 @@ class MyApp extends StatelessWidget {
                       child: MouseRegion(
                         onEnter: (_) => datapathState.setHoverInfo('PC: 0x${datapathState.pcValue.toRadixString(16)}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
-                        child: PcWidget(key: datapathState.pcKey),
+                        child: PcWidget(
+                          key: datapathState.pcKey,
+                          isActive: datapathState.isPCActive,
+                        ),
                       ),
                     ),
                     // --- Sumador del PC ---
@@ -184,6 +190,7 @@ class MyApp extends StatelessWidget {
                           label: 'Instruction\nMemory',
                           width: 100,
                           height: 120,
+                          isActive: datapathState.isIMemActive,
                           // 2 Puntos para I-Mem
                           connectionPoints: const [
                             Offset(0,0.5),
@@ -310,6 +317,7 @@ class MyApp extends StatelessWidget {
                           key: datapathState.registerFileKey,
                           label: 'Register\nFile',
                           width: 100,
+                          isActive: datapathState.isRegFileActive,
                           height: 120,
                           // 7 Puntos para el Banco de Registros
                           connectionPoints: const [
@@ -335,6 +343,8 @@ class MyApp extends StatelessWidget {
                         child: ExtenderWidget(
                           key: datapathState.extenderKey,
                           label: 'Imm. ext.',
+                          isActive: datapathState.isExtenderActive,
+
                           width: 100,
                           height: 30,
                         ),
@@ -351,6 +361,7 @@ class MyApp extends StatelessWidget {
                           key: datapathState.dataMemoryKey,
                           label: 'Data\nMemory',
                           width: 100,
+                          isActive: datapathState.isDMemActive,
                           height: 120,
                           // 4 Puntos para D-Mem
                           connectionPoints: const [

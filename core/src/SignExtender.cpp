@@ -1,11 +1,11 @@
 #include "SignExtender.h"
+#include "CoreTypes.h"
 
 uint32_t SignExtender::extender(uint32_t instr, uint8_t sExt)
 {
     uint32_t immediate = 0;
-    const uint8_t sExt_val = sExt & 0x3; // Aseguramos que solo usamos 2 bits
 
-    switch (sExt_val) {
+    switch (sExt) {
         case 0b00: { // I-type (ADDI, LW, JALR, etc.)
             // El inmediato son los bits instr[31:20].
             // El casteo a int32_t asegura un desplazamiento aritmético (extiende el signo).
@@ -61,10 +61,16 @@ uint32_t SignExtender::extender(uint32_t instr, uint8_t sExt)
             break;
         }
 
+        case 4: { // U-type (LUI)
+            // El inmediato son los bits instr[31:12], los 12 bits inferiores son 0.
+            immediate = instr & 0xFFFFF000;
+            break;
+        }
+
         default: {
             // Caso por defecto. En una implementación correcta, la unidad de control
-            // nunca debería generar un valor de sExt no válido.
-            immediate = 0;
+            // nunca debería generar un valor de sExt no válido. Puedo poner fabada para -1
+            immediate = INDETERMINADO;
             break;
         }
     }

@@ -59,10 +59,10 @@ late final SimulatorGetStateJson simulatorGetStateJson;
 // Clase Dart para usar el simulador
 // -------------------------------------------
 
-class SimulatorChatGPT {
+class Simulador {
   final Pointer<Void> _sim;
 
-  SimulatorChatGPT({int memSize = 1024 * 1024, int modelType = 3})
+  Simulador({int memSize = 1024 * 1024, int modelType = 3})
       : _sim = simulatorNew(memSize, modelType);
 
   void dispose() {
@@ -170,11 +170,11 @@ Map<String, int> splitControl(int controlWord) {
   return {
     'ALUctr': (controlWord >> 13) & 0x7,
     'ResSrc': (controlWord >> 11) & 0x3,
-    'ImmSrc': (controlWord >> 9) & 0x3,
-    'PCsrc': (controlWord >> 7) & 0x3,
-    'BRwr': (controlWord >> 6) & 0x1,
-    'ALUsrc': (controlWord >> 5) & 0x1,
-    'MemWr': (controlWord >> 4) & 0x1,
+    'ImmSrc': (controlWord >> 8) & 0x7,
+    'PCsrc': (controlWord >> 6) & 0x3,
+    'BRwr': (controlWord >> 5) & 0x1,
+    'ALUsrc': (controlWord >> 4) & 0x1,
+    'MemWr': (controlWord >> 3) & 0x1,
   };
 }
 
@@ -183,7 +183,7 @@ Map<String, int> splitControl(int controlWord) {
 /// Implementación del servicio de simulación que usa FFI para comunicarse
 /// directamente con una librería nativa (DLL/SO).
 class FfiSimulationService implements SimulationService {
-  late final SimulatorChatGPT simChatGPT;
+  late final Simulador simulador;
 
   @override
   Future<void> initialize() async {
@@ -240,14 +240,14 @@ class FfiSimulationService implements SimulationService {
     }
 
     // 2. Crear la instancia del simulador
-    simChatGPT = SimulatorChatGPT();
+    simulador = Simulador();
 
     // 3. Cargar el programa en la memoria del simulador
     try {
       final programFile = File('../core/program.bin');
       if (await programFile.exists()) {
         final programData = await programFile.readAsBytes();
-        simChatGPT.loadProgram(programData);
+        simulador.loadProgram(programData);
         // ignore: avoid_print
         print('Programa "program.bin" cargado en el simulador.');
       } else {
@@ -260,13 +260,43 @@ class FfiSimulationService implements SimulationService {
         // 0x004: 0x00200113  addi x2, x0, 2
         // 0x008: 0x002081b3  add  x3, x1, x2
         // 0x00c: 0x0000006f  jal  x0, 0xc  ; loop forever
-        final defaultProgram = Uint8List.fromList([
+        final defaultProgramOld = Uint8List.fromList([
           0x93, 0x00, 0x10, 0x00,
           0x13, 0x01, 0x20, 0x00,
           0xb3, 0x81, 0x20, 0x00,
           0x6f, 0x00, 0x00, 0x00,
         ]);
-        simChatGPT.loadProgram(defaultProgram);
+
+
+        // --- Programa de prueba por defecto ---
+        // Contiene instrucciones R, I, S, B (taken y not taken) y J.
+        // 0x00400000: addi x1, x0, 10
+        // 0x00400004: lui  x2, 0x10010
+        // 0x00400008: sw   x1, 0(x2)
+        // 0x0040000c: lw   x3, 0(x2)
+        // 0x00400010: add  x4, x1, x3
+        // 0x00400014: add  x5, x1, x3
+        // 0x00400018: beq  x0, x1, +12  ; branch_fail (NOT TAKEN)
+        // 0x0040001c: addi x6, x0, 100
+        // 0x00400020: beq  x4, x5, +8   ; branch_success (TAKEN)
+        // 0x00400024: branch_fail: addi x7, x0, 200
+        // 0x00400028: branch_success: addi x8, x0, 300
+        // 0x0040002c: jal  x0, -44      ; loop to start
+        final defaultProgram = Uint8List.fromList([
+          0x93, 0x00, 0xA0, 0x00, // 0x00A00093
+          0x37, 0x01, 0x01, 0x10, // 0x10010137
+          0x23, 0x20, 0x11, 0x00, // 0x00112023
+          0x83, 0x21, 0x01, 0x00, // 0x00012183
+          0x33, 0x82, 0x30, 0x00, // 0x00308233
+          0xb3, 0x82, 0x30, 0x00, // 0x003082b3
+          0x63, 0x06, 0x10, 0x00, // 0x00100663
+          0x13, 0x03, 0x40, 0x06, // 0x06400313
+          0x63, 0x04, 0x52, 0x00, // 0x00520463
+          0x93, 0x03, 0x80, 0x0C, // 0x0C800393
+          0x13, 0x04, 0xC0, 0x12, // 0x12C00413
+          0x6F, 0xF0, 0x5F, 0xFD, // 0xFD5FF06F
+        ]);
+        simulador.loadProgram(defaultProgram);
       }
     } catch (e) {
       // ignore: avoid_print
@@ -279,13 +309,13 @@ class FfiSimulationService implements SimulationService {
 
   @override
   Future<SimulationState> step() async {
-    final stateMap = simChatGPT.step();
+    final stateMap = simulador.step();
     return SimulationState.fromJson(stateMap);
   }
 
   @override
   Future<SimulationState> reset() async {
-    final stateMap = simChatGPT.reset();
+    final stateMap = simulador.reset();
     return SimulationState.fromJson(stateMap);
   }
 }

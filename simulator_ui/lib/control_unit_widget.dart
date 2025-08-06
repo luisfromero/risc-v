@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 
 class ControlUnitWidget extends StatelessWidget {
   final List<Offset> connectionPoints;
+    final bool isActive; // Para recibir si debe estar "activo" (color verde)
+
   const ControlUnitWidget({super.key,
+  
   this.connectionPoints=const [
     Offset(0, 0.8),
 
@@ -21,14 +24,18 @@ class ControlUnitWidget extends StatelessWidget {
     
     Offset(1, 0.8)
   ],
+      this.isActive = false, // Por defecto no está activo
+
   });  
 
   @override
   Widget build(BuildContext context) {
+        final Color backgroundColor = isActive ? Colors.orange.shade100 : Colors.orange.shade100.withAlpha(15);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.orange.shade100,
+        color: backgroundColor,
         border: Border.all(
           color: Colors.black,
           width: 2,

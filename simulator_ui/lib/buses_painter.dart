@@ -22,7 +22,7 @@ class BusesPainter extends CustomPainter {
 
     // 2. Dibuja las etiquetas de cada punto para depuración.
     _drawConnectionPointLabels(canvas, allPoints); // Comentado para limpiar la vista
-    _drawBuses(canvas, pointsMap);
+    _drawBusesAndValues(canvas, pointsMap);
   }
 
   /// Recopila todos los `connectionPoints` de los widgets del datapath y los
@@ -80,8 +80,8 @@ class BusesPainter extends CustomPainter {
     return allPoints;
   }
 
-  /// Dibuja todos los buses definidos en el DatapathState.
-  void _drawBuses(Canvas canvas, Map<String, ConnectionPoint> pointsMap) {
+  /// Dibuja todos los buses y sus valores si están activos.
+  void _drawBusesAndValues(Canvas canvas, Map<String, ConnectionPoint> pointsMap) {
     final paint = Paint()
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
@@ -146,6 +146,13 @@ class BusesPainter extends CustomPainter {
         canvas.drawPath(path, paint);
         _drawArrowHead(canvas, prevPoint, endPoint.position, paint);
 
+        // Dibuja el valor del bus si está activo y tiene una clave de valor.
+        if (isActive && bus.valueKey != null) {
+          final busValue = datapathState.busValues[bus.valueKey];
+          if (busValue != null) {
+            _drawBusValue(canvas, bus, pointsMap, busValue);
+          }
+        }
       }
     }
   }
@@ -178,6 +185,59 @@ class BusesPainter extends CustomPainter {
         dist += dashArray[0] + dashArray[1];
       }
     }
+  }
+
+  /// Dibuja el valor de un bus en el canvas.
+  void _drawBusValue(Canvas canvas, Bus bus, Map<String, ConnectionPoint> pointsMap, int value) {
+    final startPoint = pointsMap[bus.startPointLabel];
+    final endPoint = pointsMap[bus.endPointLabel];
+    if (startPoint == null || endPoint == null) {
+      return;
+    }
+
+    // 1. Calcular la posición para el texto.
+    // Usaremos el punto medio del segmento "central" del bus.
+    final allBusPoints = [startPoint.position, ...bus.waypoints, endPoint.position];
+    Offset textPosition;
+
+    if (allBusPoints.length < 2) return; // No se puede dibujar en un punto.
+
+    if (allBusPoints.length == 2) {
+      // Línea simple, usamos el punto medio.
+      textPosition = (allBusPoints[0] + allBusPoints[1]) / 2.0;
+    } else {
+      // Bus con waypoints, usamos el punto medio del segmento central.
+      final midIndex = (allBusPoints.length / 2).floor();
+      textPosition = (allBusPoints[midIndex - 1] + allBusPoints[midIndex]) / 2.0;
+    }
+
+    // 2. Formatear el texto del valor.
+    final valueText = '0x${value.toRadixString(16)}';
+
+    // 3. Configurar el TextPainter para dibujar el texto.
+    final textStyle = TextStyle(
+      color: Colors.blue.shade900,
+      fontSize: 11,
+      backgroundColor: const Color.fromARGB(210, 227, 242, 253), // Fondo azul claro semitransparente
+      fontWeight: FontWeight.bold,
+      fontFamily: 'monospace',
+    );
+    final textSpan = TextSpan(text: valueText, style: textStyle);
+    final textPainter = TextPainter(
+      text: textSpan,
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+
+    // 4. Dibujar el texto centrado en la posición calculada.
+    final textOffset = textPosition - Offset(textPainter.width / 2, textPainter.height / 2);
+
+    // Dibujamos un fondo redondeado para que el texto sea más legible.
+    final backgroundRect = RRect.fromLTRBAndCorners(textOffset.dx - 3, textOffset.dy - 2, textOffset.dx + textPainter.width + 3, textOffset.dy + textPainter.height + 2, topLeft: const Radius.circular(4), topRight: const Radius.circular(4), bottomLeft: const Radius.circular(4), bottomRight: const Radius.circular(4));
+    final backgroundPaint = Paint()..color = textStyle.backgroundColor!;
+    canvas.drawRRect(backgroundRect, backgroundPaint);
+    textPainter.paint(canvas, textOffset);
   }
 
   /// Dibuja las etiquetas de una lista de `ConnectionPoint` en el canvas.

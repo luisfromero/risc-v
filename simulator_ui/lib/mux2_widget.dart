@@ -18,11 +18,13 @@ class Mux2Widget extends StatelessWidget {
     ]
   });
 
-  final TextStyle estilo= const TextStyle(fontSize: 16);
+  //final TextStyle estilo=  TextStyle(fontSize: 16);
   @override
   Widget build(BuildContext context) {
     // El color dependerá de si el widget está activo o no.
-    final Color backgroundColor = isActive ? Colors.green.shade200 : Colors.blueGrey.shade100;
+    final Color backgroundColor = isActive ? Colors.green.shade200 : Colors.green.shade200.withAlpha(30);
+    final Color textColor = isActive ? Colors.black : Colors.black.withAlpha(30);
+  final TextStyle estilo=  TextStyle(fontSize: 16, color:textColor);
 
     return SizedBox(
       width: 30,
@@ -35,7 +37,7 @@ class Mux2Widget extends StatelessWidget {
           // Widget para dibujo personalizado
           CustomPaint(
             size: const Size(80, 120),
-            painter: _MuxPainter(color: backgroundColor),
+            painter: _MuxPainter(color: backgroundColor, borderColor: textColor),
           ),
           Padding(
             padding: const EdgeInsets.only(right: 15),
@@ -64,7 +66,8 @@ class Mux2Widget extends StatelessWidget {
 // Esta es la clase que realmente dibuja la forma del sumador.
 class _MuxPainter extends CustomPainter {
   final Color color;
-  _MuxPainter({required this.color});
+  final Color borderColor;
+  _MuxPainter({required this.color, required this.borderColor});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -73,7 +76,7 @@ class _MuxPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final borderPaint = Paint()
-      ..color = Colors.black
+      ..color = borderColor
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 

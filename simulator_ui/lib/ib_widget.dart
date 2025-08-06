@@ -24,6 +24,8 @@ class IBWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color backgroundColor = isActive ? Colors.green.shade200 : Colors.blueGrey.shade100;
+    final Color activeText =isActive?Colors.black:Colors.black.withAlpha(15);
+
     // Usamos un Container como base para nuestro componente.
     // Es como una caja (<div> en web) que podemos decorar.
     return Container(
@@ -33,7 +35,7 @@ class IBWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: backgroundColor,
         border: Border.all(         // Un borde negro
-          color: Colors.black,
+          color:activeText,
           width: 2,
         ),
       ),

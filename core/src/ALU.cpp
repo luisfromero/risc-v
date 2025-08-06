@@ -1,4 +1,6 @@
 #include "ALU.h"
+#include "CoreTypes.h"
+
 #include <cstdint>
 
 uint32_t ALU::calc(uint32_t opA, uint32_t opB, uint8_t funct)
@@ -22,6 +24,6 @@ uint32_t ALU::calc(uint32_t opA, uint32_t opB, uint8_t funct)
         case 0b111: // SRA
             return static_cast<uint32_t>(static_cast<int32_t>(opA) >> (opB & 0x1F));
         default:
-            return 0; // Por defecto, regresa 0
+            return INDETERMINADO; // Por defecto, regresa 0
     }
 }

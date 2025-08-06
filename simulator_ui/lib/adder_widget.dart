@@ -20,7 +20,8 @@ class AdderWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // El color dependerá de si el widget está activo o no.
-    final Color backgroundColor = isActive ? Colors.green.shade200 : Colors.blueGrey.shade100;
+    final Color backgroundColor = isActive ? Colors.green.shade200 : Colors.green.shade200.withAlpha(30);
+    final Color textColor = isActive ? Colors.black : Colors.black.withAlpha(30);
 
     return SizedBox(
       width: 60,
@@ -33,15 +34,18 @@ class AdderWidget extends StatelessWidget {
           // Widget para dibujo personalizado
           CustomPaint(
             size: const Size(80, 120),
-            painter: _AdderPainter(color: backgroundColor),
+            painter: _AdderPainter(color: backgroundColor, borderColor: textColor),
           ),
           // El símbolo '+' centrado
           Padding(
-            padding: const EdgeInsets.only(left: 15),
+            padding:  EdgeInsets.only(left: 15),
             child: Text(
               label,
               
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              style:  TextStyle(
+                color:textColor,
+                fontSize: 12, fontWeight: 
+                FontWeight.bold),
             ),
           ),
         ],
@@ -53,7 +57,8 @@ class AdderWidget extends StatelessWidget {
 // Esta es la clase que realmente dibuja la forma del sumador.
 class _AdderPainter extends CustomPainter {
   final Color color;
-  _AdderPainter({required this.color});
+  final Color borderColor;
+  _AdderPainter({required this.color, required this.borderColor});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -62,7 +67,7 @@ class _AdderPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final borderPaint = Paint()
-      ..color = Colors.black
+      ..color = borderColor
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
