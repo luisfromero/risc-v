@@ -1,98 +1,39 @@
 # Simulador Didáctico de RISC-V
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Language](https://img.shields.io/badge/language-C++%20%7C%20Python-blue)
+![Language](https://img.shields.io/badge/language-C++%20%7C%20Python%20%7C%20Dart-blue)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-Un simulador modular y didáctico de la arquitectura de conjunto de instrucciones (ISA) **RISC-V**. El proyecto está diseñado con un núcleo de alto rendimiento en C++ y una API REST en Python, permitiendo la conexión de múltiples interfaces de usuario (web, escritorio, móvil).
+Una plataforma modular y didáctica para la simulación de la arquitectura de conjunto de instrucciones (ISA) **RISC-V**. El proyecto está diseñado con una arquitectura de microservicios, incluyendo un núcleo de simulación de alto rendimiento en C++, APIs en Python (FastAPI) y una interfaz gráfica interactiva en Flutter.
+
+![Captura de pantalla del simulador](images/ui_addi.jpg?raw=true)
 
 El objetivo principal es crear una herramienta flexible para aprender sobre la arquitectura de computadores, con aplicaciones prácticas como la preparación de exámenes (inspirado en el proyecto CASIUM) o la visualización del flujo de ejecución de un programa a bajo nivel.
 
 ## 🚀 Características Clave
 
+*   **Arquitectura de Microservicios:** Componentes desacoplados (simulador, API, servicio de exámenes) para mayor escalabilidad y mantenibilidad.
 *   **Núcleo en C++:** Simulación de bajo nivel de la CPU, memoria y registros para obtener el máximo rendimiento.
-*   **API RESTful:** Una interfaz moderna y desacoplada (usando **FastAPI**) para controlar el simulador de forma remota.
-*   **Modularidad Extrema:** El núcleo es una biblioteca compartida (`.so` o `.dll`), lo que permite reutilizarlo en cualquier tipo de aplicación.
+*   **API RESTful (FastAPI):** Una interfaz moderna y desacoplada para controlar el simulador de forma remota, permitiendo la conexión de múltiples clientes.
+*   **Contenerización con Docker:** Todo el sistema está orquestado con Docker y Docker Compose para una configuración y despliegue sencillos en cualquier entorno.
+*   **Interfaz Gráfica Interactiva (Flutter):** Una UI de escritorio moderna que visualiza el datapath en tiempo real, resaltando los componentes y buses activos en cada ciclo.
+*   **Módulo de Exámenes (En desarrollo):** Un servicio dedicado para crear, gestionar y evaluar exámenes online, similar a la plataforma CASIUM.
 *   **Soporte RV32I:** Implementación progresiva del conjunto de instrucciones base de 32 bits para enteros.
-*   **Configuración Sencilla:** Preparado para compilar y depurar fácilmente con **VS Code** y **CMake**.
-*   **Dockerizado:** Totalmente containerizado con **Docker** y **Docker Compose** para un despliegue y ejecución universales.
-*   **Definición por Datos:** Las instrucciones se definen en un archivo `resources/instructions.json`, abriendo la puerta a la metaprogramación y a la fácil extensión del simulador.
 
 ## 🏗️ Arquitectura del Proyecto
 
-El proyecto sigue una filosofía de separación de incumbencias:
+El proyecto sigue una filosofía de separación de incumbencias, orquestada a través de Docker.
 
-1.  **`core/` (C++):** El corazón del simulador. Contiene la lógica pura de la máquina RISC-V. No sabe nada sobre web, APIs o interfaces de usuario. Su única misión es ejecutar código RISC-V correctamente.
-2.  **`api/` (Python):** Un servidor web ligero que carga la biblioteca C++ y la expone al mundo a través de una API REST. Gestiona las peticiones HTTP, serializa los datos a JSON y se comunica con los frontends.
-3.  **`resources/`:** Activos y datos compartidos. El fichero `instructions.json` es la "única fuente de la verdad" sobre las instrucciones soportadas.
-4.  **`frontends/` (Futuro):** Directorio destinado a albergar las diferentes interfaces de usuario (una aplicación web con React/Vue, una app de escritorio con .NET/C#, etc.).
+1.  **`core/` (C++):** El corazón del simulador. Contiene la lógica pura de la máquina RISC-V y se compila como una librería compartida (`.so` o `.dll`). No sabe nada sobre APIs o interfaces de usuario.
+2.  **`api/` (Python + FastAPI):** Un microservicio que carga la librería del `core` y la expone a través de una API REST. Gestiona las peticiones, serializa los datos a JSON y se comunica con los clientes.
+3.  **`exam_service/` (Futuro):** Un microservicio independiente que gestionará la lógica de los exámenes, usuarios y calificaciones.
+4.  **`simulator_ui/` (Flutter):** Una interfaz gráfica de escritorio que se comunica directamente con la API del simulador para una visualización detallada del datapath.
+5.  **`frontend/` (Futuro):** Directorio destinado a albergar la interfaz web principal que consumirá tanto la API del simulador como la del servicio de exámenes.
+6.  **`docker-compose.yml`:** El fichero principal que define y orquesta todos los servicios para un despliegue unificado.
 
-## 🛠️ Instalación y Uso (Local)
+## 🐳 Instalación y Uso con Docker (Recomendado)
 
-### Prerrequisitos
-*   **Compilador C++:**
-    *   **Windows:** Instalar [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/) con la carga de trabajo "Desarrollo de escritorio con C++".
-    *   **Linux/macOS:** Instalar `build-essential` (o `g++`/`clang`) y `make`.
-*   **CMake (versión 3.10+):**
-    *   Descargar desde la página oficial de CMake.
-    *   **Importante para Windows:** Durante la instalación, asegúrate de marcar la opción **"Add CMake to the system PATH for all users"** o "for current user".
-*   **Python (versión 3.10+):**
-    *   Descargar desde la página oficial de Python.
-    *   **Importante para Windows:** Durante la instalación, asegúrate de marcar la casilla **"Add Python to PATH"**.
-*   **Git:** Para clonar el repositorio.
-
-### Pasos
-
-1.  **Clonar el repositorio:**
-    ```bash
-    git clone <URL-DEL-REPOSITORIO>
-    cd riscv-simulator
-    ```
-
-2.  **Compilar el núcleo C++:**
-    Usa CMake para generar los archivos de compilación y luego compilar la biblioteca.
-
-    > **Nota para usuarios de Windows:**
-    > Para compilar, necesitas abrir una terminal de desarrollador especial. Ve al Menú Inicio de Windows, escribe **"x64 Native Tools"** y selecciona **"x64 Native Tools Command Prompt for VS"**. Ejecuta todos los comandos siguientes dentro de esta terminal.
-
-    Navega a la raíz del proyecto y ejecuta:
-
-    ```bash
-    # Crear el directorio de compilación
-    cmake -B build .
-
-    # Compilar el proyecto
-    cmake --build build
-    ```
-    Esto generará la biblioteca `libsimulator.so` (en Linux/macOS) o `simulator.dll` (en Windows) dentro del directorio `build/`.
-
-3.  **Ejecutar la API de Python:**
-    Se recomienda usar un entorno virtual.
-    ```bash
-    # Navegar al directorio de la API
-    cd api
-
-    # Crear y activar el entorno virtual
-    python -m venv venv
-    # En Linux/macOS:
-    source venv/bin/activate
-    # En Windows:
-    .\venv\Scripts\activate
-
-    # Instalar dependencias
-    pip install -r requirements.txt
-
-    # Iniciar el servidor (se recargará automáticamente con los cambios)
-    .\venv\Scripts\activate #tras una recarga
-    uvicorn --host 0.0.0.0 main:app --reload
-    ```
-    La API estará disponible en `http://localhost:8000` o cualquier otro nombre de host.
-
-
-
-## 🐳 Uso con Docker
-
-La forma más sencilla de ejecutar el proyecto sin preocuparse por las dependencias locales.
+La forma más sencilla de ejecutar toda la plataforma sin preocuparse por las dependencias locales.
 
 ### Prerrequisitos
 *   Docker
@@ -100,21 +41,78 @@ La forma más sencilla de ejecutar el proyecto sin preocuparse por las dependenc
 
 ### Pasos
 
-1.  **Construir y ejecutar el contenedor:**
+1.  **Clonar el repositorio:**
+    ```bash
+    git clone https://github.com/luisfromero/risc-v.git
+    cd risc-v.git
+    cd riscv
+    ```
+
+2.  **Construir y ejecutar los contenedores:**
     Desde la raíz del proyecto, ejecuta:
     ```bash
     docker-compose up --build
     ```
-2.  La API estará disponible en `http://localhost:8000` y el código de la API se sincronizará en tiempo real gracias al volumen montado.
+    Este comando construirá las imágenes de cada servicio (incluyendo la compilación del núcleo C++) y los levantará.
+
+3.  **Acceder a los servicios:**
+    *   **API del Simulador:** `http://localhost:8000`
+    *   **Documentación de la API (Swagger UI):** `http://localhost:8000/docs`
+
+## 🛠️ Desarrollo Local (Alternativo)
+
+Si prefieres ejecutar los servicios de forma nativa para desarrollo.
+
+### Prerrequisitos
+*   Compilador C++ (GCC/Clang/MSVC)
+*   CMake (>= 3.10)
+*   Python (>= 3.10)
+*   Flutter SDK (>= 3.0)
+
+### Pasos
+
+1.  **Compilar el núcleo C++:**
+    ```bash
+    # Desde la raíz del proyecto
+    cmake -S core -B core/build
+    cmake --build core/build
+    ```
+    Esto generará la librería compartida en `core/build/`.
+
+2.  **Ejecutar la API del Simulador:**
+    ```bash
+    # Navegar al directorio de la API
+    cd api
+
+    # (Recomendado) Crear y activar un entorno virtual
+    python -m venv venv
+    source venv/bin/activate  # En Linux/macOS
+    # venv\Scripts\activate    # En Windows
+
+    # Instalar dependencias
+    pip install -r requirements.txt
+
+    # Iniciar el servidor
+    uvicorn main:app --reload
+    ```
+
+3.  **Ejecutar la Interfaz Gráfica (Flutter):**
+    ```bash
+    # Navegar al directorio de la UI
+    cd simulator_ui
+    
+    # Ejecutar la aplicación (asume que la API está corriendo)
+    flutter run
+    ```
 
 ## 🗺️ Roadmap y Futuras Ideas
 
-- [ ] **Completar RV32I:** Implementar el conjunto de instrucciones base al completo.
-- [ ] **Extensión 'M':** Añadir soporte para las instrucciones de multiplicación y división.
-- [ ] **Frontend Web:** Desarrollar una interfaz web interactiva para visualizar los registros, la memoria y la ejecución paso a paso.
-- [ ] **Ensamblador/Desensamblador:** Crear herramientas para convertir código ensamblador a binario y viceversa directamente desde la aplicación.
-- [ ] **Sistema de Depuración:** Añadir soporte para *breakpoints* y ejecución controlada.
-- [ ] **Generador de Exámenes:** Desarrollar la lógica para crear y evaluar pruebas basadas en la ejecución de código en el simulador.
+- [ ] **Servicio de Exámenes:** Implementar la lógica para crear, realizar y calificar exámenes.
+- [ ] **Frontend Web:** Desarrollar una interfaz web con React/Vue para interactuar con la plataforma.
+- [ ] **API Gateway:** Introducir un API Gateway para gestionar el enrutamiento y la autenticación de forma centralizada.
+- [ ] **Autenticación de Usuarios:** Añadir un sistema de registro y login.
+- [ ] **Persistencia de Datos:** Integrar una base de datos (ej. PostgreSQL) para los servicios que lo requieran.
+- [ ] **Completar RV32IM:** Implementar el conjunto de instrucciones base y la extensión 'M'.
 
 ## 🤝 Contribuciones
 

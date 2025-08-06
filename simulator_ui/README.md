@@ -1,32 +1,42 @@
 # RISC-V Simulator UI
 
-Este proyecto Flutter es la interfaz gráfica (GUI) para un simulador de procesador RISC-V. Su objetivo es visualizar el estado interno del simulador y permitir una ejecución controlada paso a paso.
+Este proyecto es una interfaz gráfica de usuario (GUI) interactiva y didáctica para el [Simulador de RISC-V](../README.md), construida con el framework Flutter. Su objetivo principal es visualizar el flujo de datos y las señales de control dentro de un procesador RISC-V de ciclo único, facilitando el aprendizaje de la arquitectura de computadores.
 
-## Propósito
+![Captura de pantalla del simulador](../images/ui_addi.jpg?raw=true)
 
-La aplicación se comunicará con el núcleo del simulador (escrito en C++) a través de una DLL (Dynamic-Link Library) utilizando `dart:ffi`. Esto permitirá que la lógica de la simulación se mantenga separada de su representación visual.
+## 🚀 Características Principales
 
-## Funcionalidades Planeadas
+*   **Visualización Interactiva del Datapath:** Muestra un diagrama completo del camino de datos de un procesador RISC-V, incluyendo PC, ALU, memorias, multiplexores y banco de registros.
+*   **Resaltado de Estado en Tiempo Real:** Los componentes y buses se "iluminan" cuando están lógicamente activos y sus datos están listos en el ciclo de reloj actual. Esto permite identificar visualmente qué partes del procesador se usan para cada instrucción.
+*   **Trazado del Flujo de Datos:** Los buses activos muestran el valor hexadecimal que transportan, permitiendo seguir el flujo de la información a través del datapath.
+*   **Slider de Tiempo Intra-Ciclo:** Una característica única que permite al usuario "viajar en el tiempo" dentro de un único ciclo de reloj. Al mover el slider, se puede observar cómo las señales se propagan y los componentes se activan progresivamente según sus retardos.
 
-La interfaz de usuario ofrecerá controles para ejecutar la simulación a diferentes niveles de granularidad, por ejemplo:
+![Captura de pantalla del simulador](../images/ui_beq.jpg?raw=true)
 
--   **Siguiente Ciclo de Reloj:** Avanzar la simulación un único ciclo de reloj.
--   **Siguiente Instrucción:** Completar la ejecución de la instrucción actual.
--   **Siguiente Etapa:** Avanzar una etapa en el pipeline (en caso de un diseño segmentado) o fase (en el monociclo).
 
-La implementación final de estos controles dependerá del diseño del procesador subyacente (monociclo, multiciclo o segmentado).
+*   **Comunicación Directa con el Núcleo:** Utiliza `dart:ffi` para conectarse directamente con la librería nativa del simulador (escrita en C++), garantizando un alto rendimiento y una representación fiel de la simulación.
+*   **Controles Sencillos:** Permite ejecutar la simulación paso a paso con los botones "Clock Tick" y "Reset".
 
----
+## 🛠️ Cómo Funciona
 
-## Getting Started
+La interfaz está construida sobre varios pilares clave de Flutter:
 
-*Esta sección es la original generada por Flutter y se mantiene como referencia.*
+1.  **Gestión de Estado con `Provider`:** La clase `DatapathState` actúa como el estado central de la aplicación, notificando a la UI cada vez que el backend envía nueva información.
+2.  **Dibujo Personalizado con `CustomPainter`:** La clase `BusesPainter` es la responsable de dibujar dinámicamente todos los buses y flechas que conectan los componentes. Lee las coordenadas de los widgets en tiempo real para asegurar que las conexiones siempre sean correctas.
+3.  **Interoperabilidad con `dart:ffi`:** El servicio `FfiSimulationService` define y carga las funciones de la librería nativa (`simulator.dll` en Windows o `libsimulator.so` en Linux/macOS), permitiendo una comunicación directa y eficiente con el núcleo C++.
 
-A few resources to get you started if this is your first Flutter project:
+----
+## ⚙️ Ejecución
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Para ejecutar la interfaz, es necesario haber compilado primero el núcleo del simulador.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+1.  **Compilar el Núcleo C++:** Sigue las instrucciones del README principal para compilar el proyecto `core`. Esto generará la librería `simulator.dll` (Windows) o `libsimulator.so` (Linux/macOS).
+
+2.  **Colocar la Librería:** Asegúrate de que la librería compilada se encuentre en el directorio `simulator_ui/build/windows/runner/Debug` (o la ruta equivalente para tu sistema operativo y modo de compilación). Flutter buscará la librería en la ruta de ejecutables de la aplicación.
+
+3.  **Ejecutar la App Flutter:** Desde el directorio `simulator_ui`, ejecuta el siguiente comando:
+    ```bash
+    flutter run
+    ```
+
+

@@ -13,7 +13,7 @@ __pycache__/
 *.pyc
 
 # Entornos virtuales de Python
-/venv/
+/api/venv/
 
 /resources/secrets.json
 backups
@@ -30,3 +30,4 @@ simulator_ui/web
 docs/~$Tema 2 - Monociclo.pptx
 api/simulator.log
 simulator_ui/lib.7z
+screenshot.png
