@@ -31,3 +31,5 @@ docs/~$Tema 2 - Monociclo.pptx
 api/simulator.log
 simulator_ui/lib.7z
 screenshot.png
+simulator_ui/build.7z
+simulator_ui/pubspec.lock

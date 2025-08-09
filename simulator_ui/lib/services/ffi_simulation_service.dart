@@ -76,54 +76,35 @@ class Simulador {
     calloc.free(buffer);
   }
 
-  Map<String, dynamic> step() {
-    // 1. Ejecuta un ciclo de reloj en el simulador y obtiene el estado principal del datapath.
-    final jsonStr = simulatorStep(_sim).toDartString();
+  /// Método auxiliar para enriquecer el JSON base del simulador con datos adicionales.
+  Map<String, dynamic> _getFullState(String jsonStr) {
     final json = jsonDecode(jsonStr);
 
-    // 2. Obtiene información adicional del simulador.
+    // Obtiene información adicional del simulador.
     final instruction = simulatorGetInstructionString(_sim).toDartString();
     final pcVal = simulatorGetPc(_sim);
     final statusVal = simulatorGetStatusRegister(_sim);
     final regsList = allRegisters;
 
-    // 3. Agrega esta información al objeto JSON que se devolverá.
+    // Agrega esta información al objeto JSON.
     json['instruction'] = instruction;
-    json['pc_value'] = pcVal;
+    json['pc'] = pcVal; // La UI espera 'pc', no 'pc_value'.
     json['status_register'] = statusVal;
     json['registers'] = <String, int>{
       for (int i = 0; i < regsList.length; i++) 'x$i': regsList[i]
     };
-
-    json['control_signals'] = splitControl(json['Control']['value']);
  
     return json;
   }
 
+  Map<String, dynamic> step() {
+    final jsonStr = simulatorStep(_sim).toDartString();
+    return _getFullState(jsonStr);
+  }
+
   Map<String, dynamic> reset() {
-    // 1. Resetea el simulador y obtiene el estado principal del datapath.
-    // La función C++ reset() ya llama a step(), por lo que el estado
-    // del datapath corresponde a la primera instrucción.
     final jsonStr = simulatorReset(_sim).toDartString();
-    final json = jsonDecode(jsonStr);
-
-    // 2. Obtiene información adicional del simulador (igual que en step()).
-    final instruction = simulatorGetInstructionString(_sim).toDartString();
-    final pcVal = simulatorGetPc(_sim);
-    final statusVal = simulatorGetStatusRegister(_sim);
-    final regsList = allRegisters;
-
-    // 3. Agrega esta información al objeto JSON que se devolverá.
-    json['instruction'] = instruction;
-    json['pc_value'] = pcVal;
-    json['status_register'] = statusVal;
-    json['registers'] = <String, int>{
-      for (int i = 0; i < regsList.length; i++) 'x$i': regsList[i]
-    };
-
-    json['control_signals'] = splitControl(json['Control']['value']);
-
-    return json;
+    return _getFullState(jsonStr);
   }
 
   int get pc => simulatorGetPc(_sim);
@@ -146,36 +127,6 @@ class Simulador {
     final jsonStr = simulatorGetStateJson(_sim).toDartString();
     return jsonDecode(jsonStr);
   }
-}
-
-/// Desempaqueta la palabra de control de 16 bits en señales individuales.
-///
-/// La estructura de la palabra de control se basa en la implementación
-/// de la función `controlWord` en el backend C++:
-///
-/// ```cpp
-/// uint16_t controlWord(...) {
-///     return (info->ALUctr  & 0x7) << 13 |  // 3 bits (15-13)
-///            (info->ResSrc  & 0x3) << 11 |  // 2 bits (12-11)
-///            (info->ImmSrc  & 0x3) << 9  |  // 2 bits (10-9)
-///            (info->PCsrc   & 0x3) << 7  |  // 2 bit  (8-7)
-///            (info->BRwr    & 0x1) << 6  |  // 1 bit  (6)
-///            (info->ALUsrc  & 0x1) << 5  |  // 1 bit  (5)
-///            (info->MemWr   & 0x1) << 4;    // 1 bit  (4)
-/// }
-/// ```
-///
-/// Nota: Los bits 0-3 y 8 no se utilizan en esta codificación.
-Map<String, int> splitControl(int controlWord) {
-  return {
-    'ALUctr': (controlWord >> 13) & 0x7,
-    'ResSrc': (controlWord >> 11) & 0x3,
-    'ImmSrc': (controlWord >> 8) & 0x7,
-    'PCsrc': (controlWord >> 6) & 0x3,
-    'BRwr': (controlWord >> 5) & 0x1,
-    'ALUsrc': (controlWord >> 4) & 0x1,
-    'MemWr': (controlWord >> 3) & 0x1,
-  };
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

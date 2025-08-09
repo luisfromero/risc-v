@@ -132,6 +132,10 @@ void Simulator::step() {
     }
     current_cycle++; // Avanzamos el ciclo de instruccion//reloj
     decode_and_execute(instruction);
+    if (m_logfile.is_open()) {
+        m_logfile << "Instrucción ejecutada: 0x" << std::hex << instruction << std::dec << std::endl;
+
+    }
 }
 
 // Ejecuta un ciclo completo: fetch, decode, execute.
@@ -144,6 +148,11 @@ void Simulator::reset() {
     instructionString = "";
     // Después de resetear, ejecutamos el primer ciclo para que la UI muestre
     // el estado inicial con la primera instrucción (la de PC=0) ya procesada.
+    if (m_logfile.is_open()) {
+        m_logfile << "\n--- Reseteando ---" << std::endl;
+        m_logfile << "PC: 0x" << std::hex << pc << std::dec << std::endl;
+        m_logfile << "\n--- Localizando la primera instrucción ---" << std::endl;
+    }
     step();
 }
 
@@ -247,6 +256,7 @@ void Simulator::decode_and_execute(uint32_t instruction)
     try{
     instructionString = disassemble(instruction, info);
     datapath.instruction=instructionString;
+    strcpy(datapath.instruction_cptr,instructionString.c_str());
     }
     catch(const std::exception& e){
         m_logfile << "Error al formatear la instrucción: " << e.what() << std::endl;
@@ -264,7 +274,7 @@ void Simulator::decode_and_execute(uint32_t instruction)
                   << ", ResSrc=" << static_cast<int>(info->ResSrc) << ", ImmSrc=" << static_cast<int>(info->ImmSrc)
                   << ", type=" << info->type << std::endl;
     }
-    datapath.bus_PCsrc = {info->PCsrc,tmptime}; //El tiempo se cambia después
+    datapath.bus_PCsrc = {info->PCsrc,tmptime,true}; //El tiempo se cambia después
 
 }
     catch(const std::exception& e){
@@ -357,6 +367,7 @@ void Simulator::decode_and_execute(uint32_t instruction)
             m_logfile << "Resultado MEM: "+std::to_string(mem_read_data) << std::endl;
             m_logfile << "Resultado PC+4: "+std::to_string(pc_plus_4) << std::endl;
             m_logfile << "Resultado final: "+std::to_string(final_result) << std::endl;
+            m_logfile << "Critical Tme: "+std::to_string(datapath.criticalTime) << std::endl;
         }
 
     if (info->BRwr == 1) {
@@ -409,6 +420,7 @@ void Simulator::decode_and_execute(uint32_t instruction)
         // Para JAL, el sumador de saltos (PC + imm) SÍ está activo.
         // Lo que no se usa es el resultado de la ALU principal ni la memoria de datos.
         datapath.bus_ALU_result.is_active = false;
+        datapath.bus_Mem_address.is_active = false;
         datapath.bus_Mem_read_data.is_active = false;
     }
 

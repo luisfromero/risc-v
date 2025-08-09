@@ -217,6 +217,8 @@ bool get isPCsrcActive => _isPCsrcActive;
   Future<void> step() async {
     try {
       final newState = await _simulationService.step();
+    print("Ejecutado step()  ");
+    print(newState);
       _sliderValue = 0.0; // Reinicia el slider al principio del nuevo ciclo
       _sliderValue=newState.criticalTime.toDouble();
       _updateState(newState);
@@ -229,6 +231,8 @@ bool get isPCsrcActive => _isPCsrcActive;
   // Resetea el estado a sus valores iniciales.
   Future<void> reset() async {
     final newState = await _simulationService.reset();
+    print("Ejecutado reset()  ");
+    print(newState);
     _sliderValue = 0.0;
     _sliderValue=newState.criticalTime.toDouble();
     _updateState(newState, clearHover: true);
@@ -248,6 +252,7 @@ bool get isPCsrcActive => _isPCsrcActive;
     // --- Depuración: Imprime el tiempo crítico recibido ---
     // ignore: avoid_print
     print('Nuevo tiempo crítico recibido: $_criticalTime');
+    print('Nuevo tiempo crítico recibido: $_readyAt');
 
     _evaluateActiveComponents();
     // print("Evaluated active components with readyAt: $_readyAt"); // Opcional para depuración

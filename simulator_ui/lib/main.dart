@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:ui'; // Para FontFeature
-import 'dart:io'; 
 import 'package:provider/provider.dart';
 import 'buses_painter.dart';
 import 'datapath_state.dart';          // Importa nuestro estado
@@ -12,25 +11,18 @@ import 'mux_widget.dart';
 import 'mux2_widget.dart';
 import 'extender_widget.dart';
 import 'control_unit_widget.dart';
-import 'services/ffi_simulation_service.dart'; // Importamos la implementación FFI
-import 'package:window_size/window_size.dart';
+import 'services/simulation_service.dart';
+import 'services/get_service.dart'; // Importación condicional del servicio
+import 'platform_init.dart'; // Importación condicional para la configuración de la ventana
 
-void main() {
-    WidgetsFlutterBinding.ensureInitialized();
-
-      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      setWindowTitle('RISC-V Datapath');
-      setWindowMinSize(const Size(1500, 600));
-      setWindowMaxSize(const Size(1920, 768));
-      setWindowFrame(const Rect.fromLTWH(100, 100, 1500, 768)); // posición y tamaño inicial
-    }
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await setupWindow(); // Ahora esperamos a que la ventana se configure
 
   runApp(
     ChangeNotifierProvider(
       // Creamos el estado y le "inyectamos" el servicio de simulación.
-      // Si quisiéramos usar una API, solo cambiaríamos FfiSimulationService()
-      // por ApiSimulationService() aquí.
-      create: (context) => DatapathState(FfiSimulationService())..initialize(),
+      create: (context) => DatapathState(getSimulationService())..initialize(),
       child: const MyApp(),
     ),
   );

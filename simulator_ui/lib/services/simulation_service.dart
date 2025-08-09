@@ -27,9 +27,18 @@ class SimulationState {
 
   /// Crea un SimulationState a partir de un mapa JSON.
   factory SimulationState.fromJson(Map<String, dynamic> json) {
+    // Determina dónde buscar los datos del datapath. La API los anida bajo "datapath",
+    // mientras que FFI los deja en la raíz. Este código maneja ambos casos.
+    final Map<String, dynamic> datapathJson;
+    if (json.containsKey('datapath') && json['datapath'] is Map<String, dynamic>) {
+      datapathJson = json['datapath'] as Map<String, dynamic>;
+    } else {
+      datapathJson = json;
+    }
+
     // Helper para extraer de forma segura el 'ready_at' de una señal del JSON.
     int getReadyAt(String key) {
-      final signal = json[key];
+      final signal = datapathJson[key];
       if (signal is Map<String, dynamic>) {
         return signal['ready_at'] as int? ?? 0;
       }
@@ -38,7 +47,7 @@ class SimulationState {
 
     // Helper para extraer de forma segura el 'is_active' de una señal del JSON.
     bool getIsActive(String key) {
-      final signal = json[key];
+      final signal = datapathJson[key];
       if (signal is Map<String, dynamic>) {
         return signal['is_active'] as bool? ?? false;
       }
@@ -47,7 +56,7 @@ class SimulationState {
 
     // Helper para extraer de forma segura el 'value' de una señal del JSON.
     int getValue(String key) {
-      final signal = json[key];
+      final signal = datapathJson[key];
       if (signal is Map<String, dynamic>) {
         return signal['value'] as int? ?? 0;
       }
@@ -110,14 +119,39 @@ class SimulationState {
       // Extrae los nuevos campos del JSON.
       instruction: json['instruction'] as String? ?? '',
       instructionValue: getValue('Instr'),
-      criticalTime: json['CriticalTime'] as int? ?? 0,
+      criticalTime: json['criticaltime'] as int? ?? 0,
       statusRegister: json['status_register'] as int? ?? 0,
-      pcValue: json['PC']['value'] as int? ?? 0,
+      pcValue: json['pc'] as int? ?? 0,
       registers: Map<String, int>.from(json['registers'] as Map? ?? {}),
       readyAt: readyAtMap,
       activePaths: activePathsMap,
       busValues: busValuesMap,
     );
+  }
+
+  @override
+  String toString() {
+    // Helper para formatear un mapa en una cadena legible, ideal para depuración.
+    String formatMap(Map<String, dynamic> map) {
+      if (map.isEmpty) return '    (empty)';
+      return map.entries.map((e) {
+        var value = e.value;
+        if (value is int) {
+          return '    ${e.key.padRight(20)}: ${value.toString().padLeft(4)} (0x${value.toRadixString(16)})';
+        }
+        return '    ${e.key.padRight(20)}: $value';
+      }).join('\n');
+    }
+
+    return '''
+--- SimulationState ---
+  Instruction: "$instruction" (0x${instructionValue.toRadixString(16)})
+  PC: 0x${pcValue.toRadixString(16)}
+  CriticalTime: $criticalTime
+  Active Paths:\n${formatMap(activePaths)}\n
+  Ready At:\n${formatMap(readyAt)}\n
+  Registers: {${registers.length} regs}
+-----------------------''';
   }
 }
 

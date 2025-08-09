@@ -39,7 +39,8 @@ using json = nlohmann::json;
             {"PC_next", {{"value", state.bus_PC_next.value}, {"ready_at", state.bus_PC_next.ready_at}, {"is_active", state.bus_PC_next.is_active}}},
             {"branch_taken", {{"value", state.bus_branch_taken.value}, {"ready_at", state.bus_branch_taken.ready_at}, {"is_active", state.bus_branch_taken.is_active}}},
             {"instruction",state.instruction},
-            {"CriticalTime", state.criticalTime}  };
+            {"instruction_cptr",state.instruction_cptr},
+            {"criticaltime", state.criticalTime}  };
 
         json_str = j.dump();
         return json_str.c_str();
@@ -70,14 +71,14 @@ extern "C" {
         if (!sim_ptr) return "{}";
         static_cast<Simulator*>(sim_ptr)->reset();
         DatapathState state = static_cast<Simulator*>(sim_ptr)->get_datapath_state();
-        return jsonFromState(state);
+        return jsonFromState(state); // fastapi no lo usa; prefiere llamar a state después
     }
 
     SIMULATOR_API const char*  Simulator_step(void* sim_ptr) {
         if (!sim_ptr) return "{}";
         static_cast<Simulator*>(sim_ptr)->step();
         DatapathState state = static_cast<Simulator*>(sim_ptr)->get_datapath_state();
-        return jsonFromState(state);
+        return jsonFromState(state); // fastapi no lo usa; prefiere llamar a state después
     }
 
     SIMULATOR_API uint32_t Simulator_get_pc(void* sim_ptr) {

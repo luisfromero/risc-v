@@ -85,6 +85,7 @@ struct DatapathState {
     Signal<bool>     bus_branch_taken;   // ¿Se tomó un salto condicional?
     uint32_t criticalTime;
     std::string instruction;
+    char instruction_cptr[256];
     
 
 };
