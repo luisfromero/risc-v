@@ -4,6 +4,8 @@ import 'dart:io'; // Para comprobar el sistema operativo
 import 'dart:typed_data'; // Para Uint8List
 import 'package:ffi/ffi.dart';
 import 'simulation_service.dart';
+import '../simulation_mode.dart';
+
 
 ///////////////////////////////////////////////////////////////////////////////////////
 //Opcion chatgpt
@@ -14,14 +16,14 @@ typedef SimulatorNew = Pointer<Void> Function(int memSize, int modelType);
 typedef SimulatorDeleteNative = Void Function(Pointer<Void>);
 typedef SimulatorDelete = void Function(Pointer<Void>);
 
-typedef SimulatorLoadProgramNative = Void Function(Pointer<Void>, Pointer<Uint8>, IntPtr);
-typedef SimulatorLoadProgram = void Function(Pointer<Void>, Pointer<Uint8>, int);
+typedef SimulatorLoadProgramNative = Void Function(Pointer<Void>, Pointer<Uint8>, IntPtr, Int32);
+typedef SimulatorLoadProgram = void Function(Pointer<Void>, Pointer<Uint8>, int,int);
 
 typedef SimulatorStepNative = Pointer<Utf8> Function(Pointer<Void>);
 typedef SimulatorStep = Pointer<Utf8> Function(Pointer<Void>);
 
-typedef SimulatorResetNative = Pointer<Utf8> Function(Pointer<Void>);
-typedef SimulatorReset = Pointer<Utf8> Function(Pointer<Void>);
+typedef SimulatorResetNative = Pointer<Utf8> Function(Pointer<Void>, Int32);
+typedef SimulatorReset = Pointer<Utf8> Function(Pointer<Void>, int);
 
 typedef SimulatorGetInstructionStringNative = Pointer<Utf8> Function(Pointer<Void>);
 typedef SimulatorGetInstructionString = Pointer<Utf8> Function(Pointer<Void>);
@@ -69,10 +71,10 @@ class Simulador {
     simulatorDelete(_sim);
   }
 
-  void loadProgram(Uint8List programData) {
+  void loadProgram(Uint8List programData, int mode) {
     final buffer = calloc<Uint8>(programData.length);
     buffer.asTypedList(programData.length).setAll(0, programData);
-    simulatorLoadProgram(_sim, buffer, programData.length);
+    simulatorLoadProgram(_sim, buffer, programData.length,mode);
     calloc.free(buffer);
   }
 
@@ -98,13 +100,26 @@ class Simulador {
   }
 
   Map<String, dynamic> step() {
-    final jsonStr = simulatorStep(_sim).toDartString();
-    return _getFullState(jsonStr);
+    try {
+      final json = simulatorStep(_sim);
+      final jsonStr = json.toDartString();
+      return _getFullState(jsonStr);
+    } catch (e) {
+      // ignore: avoid_print
+      print("Error during FFI step call: $e");
+      rethrow;
+    }
   }
 
-  Map<String, dynamic> reset() {
-    final jsonStr = simulatorReset(_sim).toDartString();
-    return _getFullState(jsonStr);
+  Map<String, dynamic> reset(int mode) {
+    try {
+      final jsonStr = simulatorReset(_sim, mode).toDartString();
+      return _getFullState(jsonStr);
+    } catch (e) {
+      // ignore: avoid_print
+      print("Error during FFI reset call: $e");
+      rethrow;
+    }
   }
 
   int get pc => simulatorGetPc(_sim);
@@ -154,7 +169,8 @@ class FfiSimulationService implements SimulationService {
           .lookup<NativeFunction<SimulatorLoadProgramNative>>('Simulator_load_program')
           .asFunction();
       simulatorReset = _simulatorLib
-          .lookup<NativeFunction<SimulatorResetNative>>('Simulator_reset')
+          // Nota: He cambiado el nombre para no romper la función original.
+          .lookup<NativeFunction<SimulatorResetNative>>('Simulator_reset_with_model')
           .asFunction();
       simulatorStep = _simulatorLib
           .lookup<NativeFunction<SimulatorStepNative>>('Simulator_step')
@@ -198,7 +214,7 @@ class FfiSimulationService implements SimulationService {
       final programFile = File('../core/program.bin');
       if (await programFile.exists()) {
         final programData = await programFile.readAsBytes();
-        simulador.loadProgram(programData);
+        simulador.loadProgram(programData,0);
         // ignore: avoid_print
         print('Programa "program.bin" cargado en el simulador.');
       } else {
@@ -235,10 +251,11 @@ class FfiSimulationService implements SimulationService {
         // 0x0040002c: jal  x0, -44      ; loop to start
         final defaultProgram = Uint8List.fromList([
           0x93, 0x00, 0xA0, 0x00, // 0x00A00093
-          0x37, 0x01, 0x01, 0x10, // 0x10010137
+          0x13, 0x01, 0x40, 0x01, // 0x01400113
           0x23, 0x20, 0x11, 0x00, // 0x00112023
           0x83, 0x21, 0x01, 0x00, // 0x00012183
-          0x33, 0x82, 0x30, 0x00, // 0x00308233
+          0x37, 0x11, 0x40, 0x00, // 
+          0x33, 0x02, 0x30, 0x00, // 0x00308233
           0xb3, 0x82, 0x30, 0x00, // 0x003082b3
           0x63, 0x06, 0x10, 0x00, // 0x00100663
           0x13, 0x03, 0x40, 0x06, // 0x06400313
@@ -247,7 +264,7 @@ class FfiSimulationService implements SimulationService {
           0x13, 0x04, 0xC0, 0x12, // 0x12C00413
           0x6F, 0xF0, 0x5F, 0xFD, // 0xFD5FF06F
         ]);
-        simulador.loadProgram(defaultProgram);
+        simulador.loadProgram(defaultProgram,0);
       }
     } catch (e) {
       // ignore: avoid_print
@@ -265,8 +282,8 @@ class FfiSimulationService implements SimulationService {
   }
 
   @override
-  Future<SimulationState> reset() async {
-    final stateMap = simulador.reset();
+  Future<SimulationState> reset({required SimulationMode mode}) async {
+    final stateMap = simulador.reset(mode.index);
     return SimulationState.fromJson(stateMap);
   }
 }

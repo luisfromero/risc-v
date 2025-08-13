@@ -7,8 +7,8 @@
 // Modos de pipeline para configurar el simulador
 enum class PipelineModel {
     SingleCycle = 0,  // Modelo didáctico monociclo con memorias separadas
-    MultiCycle = 1,     // Modelo multiciclo con memorias separadas
-    PipeLined = 2,     // Modelo segmentado 
+    PipeLined = 1,     // Modelo segmentado 
+    MultiCycle = 2,     // Modelo multiciclo con memorias separadas
     General = 3        // Modelo general con cachés. Simula risc-v sin microarquitectura
 };
 
@@ -25,7 +25,7 @@ struct InstructionInfo {
     std::string instr; // Mnemónico
     uint8_t PCsrc;     // 0 = pc+4, 1 = salto, 2 reg
     uint8_t BRwr;      // 1 = escribir en reg
-    uint8_t ALUsrc;    // 0 = reg, 1 = inm
+    uint8_t ALUsrc;    // 0 = reg, 1 = inm  posiblemente ampliable ¿cortocircuito?
     uint8_t ALUctr;    // 3 bits para la ALU (según tu tabla de ALU)
     uint8_t MemWr;     // 1=escribir en MEM
     uint8_t ResSrc;    // 0=ALU, 1=MEM, 2=PC+4
@@ -33,6 +33,7 @@ struct InstructionInfo {
     uint32_t mask;
     uint32_t value;
     char type;
+    uint8_t cycles;  // Número de ciclos para el modo multiciclo
     
 };
 
@@ -67,6 +68,13 @@ struct DatapathState {
     // --- Unidad de control ---
     Signal<uint16_t> bus_Control;        // Palabra de control (como combinación de señales)
     Signal<uint8_t> bus_PCsrc;        // Palabra de control (como combinación de señales)
+    Signal<uint8_t> bus_ALUsrc;        // Palabra de control (como combinación de señales)
+    Signal<uint8_t> bus_ResSrc;        // Palabra de control (como combinación de señales)
+    Signal<uint8_t> bus_ALUctr;        // Palabra de control (como combinación de señales)
+    Signal<uint8_t> bus_ImmSrc;        // Palabra de control (como combinación de señales)
+    Signal<uint8_t> bus_BRwr;        // Palabra de control (como combinación de señales)
+    Signal<uint8_t> bus_MemWr;        // Palabra de control (como combinación de señales)
+
     
 
     // --- Memoria de datos ---
@@ -84,8 +92,8 @@ struct DatapathState {
 
     Signal<bool>     bus_branch_taken;   // ¿Se tomó un salto condicional?
     uint32_t criticalTime;
-    std::string instruction;
+    uint32_t total_micro_cycles;
+    //std::string instruction;
     char instruction_cptr[256];
-    
 
 };

@@ -77,6 +77,12 @@ class DatapathState(ctypes.Structure):
         ("ALU_zero", Signal_bool),
         ("Control", Signal_u16),
         ("PCsrc", Signal_u8),
+        ("ALUsrc", Signal_u8),
+        ("ResSrc", Signal_u8),
+        ("ImmSrc", Signal_u8),
+        ("ALUctr", Signal_u8),
+        ("BRwr", Signal_bool),
+        ("MemWr", Signal_bool   ),
         # --- Campos que faltaban ---
         ("Mem_address", Signal_u32),
         ("Mem_write_data", Signal_u32),
@@ -88,7 +94,8 @@ class DatapathState(ctypes.Structure):
         ("PC_next", Signal_u32),
         ("branch_taken", Signal_bool),
         ("criticaltime", ctypes.c_uint32),
-        ("instruction", ctypes.c_wchar_p),
+        ("total_micro_cycles", ctypes.c_uint32),
+        # ("instruction", ctypes.c_wchar_p),
         ("instruction_cptr", ctypes.c_char * 256), # Usar un buffer de tamaño fijo para evitar punteros colgantes
     ]
 
@@ -100,7 +107,7 @@ core_lib.Simulator_new.restype = ctypes.c_void_p
 core_lib.Simulator_delete.argtypes = [ctypes.c_void_p]
 core_lib.Simulator_delete.restype = None
 
-core_lib.Simulator_load_program.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t]
+core_lib.Simulator_load_program.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t, ctypes.c_int]
 core_lib.Simulator_load_program.restype = None
 
 core_lib.Simulator_step.argtypes = [ctypes.c_void_p]
@@ -108,6 +115,9 @@ core_lib.Simulator_step.restype = ctypes.c_char_p
 
 core_lib.Simulator_reset.argtypes = [ctypes.c_void_p]
 core_lib.Simulator_reset.restype = ctypes.c_char_p
+
+core_lib.Simulator_reset_with_model.argtypes = [ctypes.c_void_p, ctypes.c_int]
+core_lib.Simulator_reset_with_model.restype = ctypes.c_char_p
 
 core_lib.Simulator_get_pc.argtypes = [ctypes.c_void_p]
 core_lib.Simulator_get_pc.restype = ctypes.c_uint32
@@ -127,13 +137,14 @@ class Simulator:
     """Wrapper de Python para el simulador C++."""
     def __init__(self, mem_size: int = 1024 * 1024, model: int = 0):
         # model: 3=General, 0=SingleCycle, etc. Ver Simulator.h
+        self.model = model
         self.obj = core_lib.Simulator_new(mem_size, model)
         if not self.obj:
             raise MemoryError("No se pudo crear el objeto Simulator en C++.")
 
     def load_program(self, program: bytes):
         prog_array = (ctypes.c_uint8 * len(program))(*program)
-        core_lib.Simulator_load_program(self.obj, prog_array, len(program))
+        core_lib.Simulator_load_program(self.obj, prog_array, len(program), self.model)
 
     def step(self):
         print("Llamando al step de la dll...")
@@ -142,6 +153,11 @@ class Simulator:
     def reset(self):
         print("Llamando al reset de la dll...")
         return core_lib.Simulator_reset(self.obj).decode('utf-8')
+
+    def reset_with_model(self, model: int):
+        print("Llamando al reset de la dll...")
+        return core_lib.Simulator_reset_with_model(self.obj, model).decode('utf-8')
+
 
     def get_pc(self) -> int:
         return core_lib.Simulator_get_pc(self.obj)
@@ -200,7 +216,7 @@ class ControlSignalsModel(BaseModel):
     ImmSrc: int
     PCsrc: int
     BRwr: bool
-    ALUsrc: bool
+    ALUsrc: int
     MemWr: bool
     ready_at: int
     is_active: bool
@@ -210,8 +226,9 @@ class SimulatorStateModel(BaseModel):
     pc: int = Field(..., description="Contador de programa actual (en hexadecimal).")
     instruction: str = Field(..., description="Instrucción actual desensamblada.")
     status_register: int = Field(..., description="Registro de estado (ej. 'mstatus').")
-    critical_time: int = Field(..., description="Ruta crítica en nanosegundos para el ciclo actual.")
+    # critical_time: int = Field(..., description="Ruta crítica en nanosegundos para el ciclo actual.")
     criticaltime: int = Field(..., description="Ruta crítica en nanosegundos para el ciclo actual.")
+    totalMicroCycles: int = Field(..., description="Número de ciclos totales de microarquitectura.")
     control_signals: ControlSignalsModel = Field(..., description="Señales de control generadas.")
     registers: dict[str, int] = Field(..., description="Estado de los 32 registros generales (con nombres ABI).")
     datapath: dict[str, SignalModel] = Field(..., description="Estado de todas las señales del datapath.")
@@ -235,6 +252,7 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
     instruction_string = datapath_c_struct.instruction_cptr.decode('utf-8').strip('\x00')
     critical_time = datapath_c_struct.criticaltime
     criticaltime = datapath_c_struct.criticaltime
+    total_micro_cycles=datapath_c_struct.total_micro_cycles;
 
     reg_map = {f"x{i} ({ABI_NAMES[i]})": val for i, val in enumerate(registers)}
 
@@ -242,14 +260,7 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
     # Decodificar las señales de control desde el entero de 16 bits.
     # NOTA: El orden y tamaño de los bits es una suposición.
     # Se debe ajustar para que coincida con la implementación C++.
-    # Suposición (de LSB a MSB):
-    # [0]    MemWr  (1 bit)
-    # [1]    ALUsrc (1 bit)
-    # [2]    BRwr   (1 bit)
-    # [4:3]  PCsrc  (2 bits)
-    # [6:5]  ImmSrc (2 bits)
-    # [8:7]  ResSrc (2 bits)
-    # [12:9] ALUctr (4 bits)
+
     control_signal = datapath_c_struct.Control
     control_value = control_signal.value
 
@@ -258,9 +269,9 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
         ResSrc=(control_value >> 11) & 0x3,
         ImmSrc=(control_value >> 8) & 0x7,
         PCsrc=(control_value >> 6) & 0x3,
-        BRwr=bool((control_value >> 5) & 0x1),
-        ALUsrc=bool((control_value >> 4) & 0x1),
-        MemWr=bool((control_value >> 3) & 0x1),
+        ALUsrc=int((control_value >> 4) & 0x1), # dejo un bit posible ampliacion
+        BRwr=bool((control_value >> 3) & 0x1),        
+        MemWr=bool((control_value >> 2) & 0x1),
         ready_at=control_signal.ready_at,
         is_active=control_signal.is_active
     )
@@ -286,7 +297,7 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
             ready_at=signal.ready_at,
             is_active=signal.is_active
         )
-
+# Esto es al final lo importante
     return SimulatorStateModel(
         model=model_name,
         # pc=f"0x{pc:08x}",
@@ -294,10 +305,12 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
         instruction=instruction_string,
         # status_register=f"0x{status:08x}",
         status_register = status,
-        critical_time=critical_time,
+        # critical_time=critical_time,
         criticaltime=critical_time,
+        totalMicroCycles=total_micro_cycles,
         control_signals=control_signals_model,
         registers=reg_map,
+
         datapath=datapath_model
     )
 
@@ -327,6 +340,7 @@ simulator_instance = {"sim": Simulator(model=3), "model_name": "General"} # Gene
 # end:
 #   j end               # infinite loop
 program_bytes = bytes([
+    0x23, 0x20, 0x05, 0x00,  # sw x5, 0(x0)
     0x93, 0x02, 0x00, 0x00,  # addi x5, x0, 0
     0x13, 0x03, 0x90, 0x00,  # addi x6, x0, 9
     0x93, 0x03, 0x00, 0x00,  # addi x7, x0, 0
@@ -335,11 +349,12 @@ program_bytes = bytes([
     0xe3, 0x1c, 0x73, 0xfe,  # bne x6, x7, loop
     0x6f, 0x00, 0x00, 0x00,  # end: j end
 ])
+
 simulator_instance["sim"].load_program(program_bytes)
 
 # Modelo para la petición de reset
 class ResetConfig(BaseModel):
-    model: Literal['SingleCycle','MultiCycle','PipeLined','General'] = 'SingleCycle'
+    model: Literal['SingleCycle','PipeLined','MultiCycle','General'] = 'SingleCycle'
     load_test_program: bool = True
 
 @app.post("/reset", response_model=SimulatorStateModel, summary="Reinicia el simulador a un estado inicial")
@@ -350,7 +365,7 @@ def reset_simulator(config: ResetConfig = ResetConfig()) -> SimulatorStateModel:
     - **load_test_program**: Si es true, carga el programa de prueba inicial.
     """
     with simulator_lock:
-        model_map = {'SingleCycle': 0,'MultiCycle': 1,'PipeLined': 2, 'General': 3, }
+        model_map = {'SingleCycle': 0,'PipeLined': 1,'MultiCycle': 2, 'General': 3, }
         model_id = model_map[config.model]
         print("Llamando a Simulator_reset...")
 
@@ -364,13 +379,14 @@ def reset_simulator(config: ResetConfig = ResetConfig()) -> SimulatorStateModel:
             print("Cargado programa por defecto...")
             
         # Ejecuta el primer paso para tener un estado inicial y luego lo devuelve completo
-        simulator_instance["sim"].reset()
+        simulator_instance["sim"].reset_with_model(model_id)
+        print();
         sim = simulator_instance["sim"]
         model_name = simulator_instance["model_name"]
         print("Ejecutado reset (incluye step)...")
         return _get_full_state_data(sim, model_name)
 
-@app.get("/step", response_model=SimulatorStateModel, summary="Ejecutar un ciclo de instrucción")
+@app.post("/step", response_model=SimulatorStateModel, summary="Ejecutar un ciclo de instrucción")
 def execute_step() -> SimulatorStateModel:
     """Ejecuta un paso y devuelve el nuevo estado de los registros."""
     with simulator_lock:

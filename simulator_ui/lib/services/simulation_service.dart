@@ -1,5 +1,6 @@
 /// Define el "contrato" que cualquier proveedor de simulación (sea FFI, API, etc.)
 /// debe cumplir. La UI solo interactuará con esta clase abstracta.
+import '../simulation_mode.dart';
 
 /// Un objeto simple para contener el estado de la simulación en un instante dado.
 class SimulationState {
@@ -12,6 +13,8 @@ class SimulationState {
   final Map<String, int> readyAt;
   final Map<String, bool> activePaths;
   final Map<String, int> busValues;
+  // --- Campos para Multiciclo ---
+  final int totalMicroCycles;
 
   SimulationState({
     this.instruction = '',
@@ -23,6 +26,7 @@ class SimulationState {
     this.readyAt = const {},
     this.activePaths = const {},
     this.busValues = const {},
+    this.totalMicroCycles = 0,
   });
 
   /// Crea un SimulationState a partir de un mapa JSON.
@@ -35,6 +39,14 @@ class SimulationState {
     } else {
       datapathJson = json;
     }
+
+    datapathJson['control_ALUctr'] = datapathJson['Control']['value'] >> 13 & 7;
+    datapathJson['control_ResSrc'] = datapathJson['Control']['value'] >> 11 & 3;
+    datapathJson['control_ImmSrc'] = datapathJson['Control']['value'] >> 8 & 7;
+    datapathJson['control_PCsrc'] = datapathJson['Control']['value'] >> 6 & 3;
+    datapathJson['control_BRwr'] = datapathJson['Control']['value'] >> 4 & 1;
+    datapathJson['control_ALUsrc'] = datapathJson['Control']['value'] >> 3 & 1;
+    datapathJson['control_MemWr'] = datapathJson['Control']['value'] >> 2 & 1;
 
     // Helper para extraer de forma segura el 'ready_at' de una señal del JSON.
     int getReadyAt(String key) {
@@ -75,6 +87,7 @@ class SimulationState {
       'alu_result_bus': getReadyAt('ALU_result'),
       'branch_target_bus': getReadyAt('PC_dest'),
       'mem_read_data_bus': getReadyAt('Mem_read_data'),
+      'mem_write_data_bus': getReadyAt('Mem_write_data'),
       'mux_wb_bus': getReadyAt('C'),          // Mux para Write Back
       'mux_pc_bus': getReadyAt('PC_next'),    // Mux para PC
       'mux_alu_b_bus': getReadyAt('ALU_B'),   // Mux para entrada B del ALU´
@@ -92,6 +105,7 @@ class SimulationState {
       'alu_result_bus': getIsActive('ALU_result'),
       'branch_target_bus': getIsActive('PC_dest'),
       'mem_read_data_bus': getIsActive('Mem_read_data'),
+      'mem_write_data_bus': getIsActive('Mem_write_data'),
       'mux_wb_bus': getIsActive('C'),
       'mux_pc_bus': getIsActive('PC_next'),
       'mux_alu_b_bus': getIsActive('ALU_B'),
@@ -107,13 +121,29 @@ class SimulationState {
       'alu_result_bus': getValue('ALU_result'),
       'branch_target_bus': getValue('PC_dest'),
       'mem_read_data_bus': getValue('Mem_read_data'),
+      'mem_write_data_bus': getValue('Mem_write_data'),
       'mux_wb_bus': getValue('C'),
       'mux_pc_bus': getValue('PC_next'),
       'mux_alu_b_bus': getValue('ALU_B'),
       'da_bus':getValue('DA'),
       'db_bus':getValue('DB'),
       'dc_bus':getValue('DC'),
+      'control_PCsrc':getValue('PCsrc'),
+      'control_ALUctr':getValue('ALUctr '),
+      'control_ResSrc':getValue('ResSrc'),
+      'control_ImmSrc':getValue('ImmSrc'),
+      'control_PCsrc':datapathJson['control_PCsrc'] as int? ?? 0,
+      'control_BRwr':datapathJson['control_BRwr'] as int? ?? 0,
+      'control_ALUsrc':datapathJson['control_ALUsrc'] as int? ?? 0,
+      'control_MemWr':datapathJson['control_MemWr'] as int? ?? 0,    
+      'control_ResSrc':datapathJson['control_ResSrc'] as int? ?? 0,
+      'control_ALUctr':datapathJson['control_ALUctr'] as int? ?? 0,
+
     };
+
+    // --- Campos para Multiciclo (opcionales) ---
+    final int totalMicroCycles = json['totalMicroCycles'] as int? ?? 0;
+
 
     return SimulationState(
       // Extrae los nuevos campos del JSON.
@@ -126,6 +156,7 @@ class SimulationState {
       readyAt: readyAtMap,
       activePaths: activePathsMap,
       busValues: busValuesMap,
+      totalMicroCycles: totalMicroCycles,
     );
   }
 
@@ -163,5 +194,5 @@ abstract class SimulationService {
   Future<SimulationState> step();
 
   /// Resetea la simulación a su estado inicial.
-  Future<SimulationState> reset();
+  Future<SimulationState> reset({required SimulationMode mode});
 }

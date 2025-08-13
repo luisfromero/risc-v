@@ -15,15 +15,15 @@
 class SIMULATOR_API Simulator {
 public:
     // El constructor ahora acepta un modelo de pipeline.
-    Simulator(size_t mem_size, PipelineModel model = PipelineModel::General);
+    Simulator(size_t mem_size, PipelineModel model = PipelineModel::SingleCycle);
 
     // Carga un programa en la memoria.
-    void load_program(const std::vector<uint8_t>& program);
+    void load_program(const std::vector<uint8_t>& program, PipelineModel model = PipelineModel::SingleCycle );
 
     // Ejecuta un solo ciclo de instrucción.
     void step();
 
-    void reset();
+    void reset(PipelineModel model = PipelineModel::SingleCycle);
     
     // Devuelve el estado actual para la API.
     uint32_t get_pc() const;
@@ -63,7 +63,7 @@ private:
     Adder4 adder4;
     ControlUnit control_unit;
 
-
+    int total_micro_cycles=5;
     
 
 
@@ -74,6 +74,9 @@ private:
     // Funciones privadas para el ciclo
     uint32_t fetch();
     void decode_and_execute(uint32_t instruction);
+    void simulate_single_cycle(uint32_t instruction);
+    void simulate_multi_cycle(uint32_t instruction);
+
     std::string disassemble(uint32_t instruction, const InstructionInfo* info) const;
     std::string instructionString ="nop";
 

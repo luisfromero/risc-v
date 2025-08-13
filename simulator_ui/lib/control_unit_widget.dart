@@ -17,7 +17,7 @@ class ControlUnitWidget extends StatelessWidget {
     Offset(0.37, 1),
     Offset(0.557, 1),
     Offset(0.66, 1),
-    Offset(0.71, 1),
+    Offset(0.725, 1),
     Offset(0.82, 1),
     Offset(0.975, 1),
 

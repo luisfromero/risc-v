@@ -33,3 +33,5 @@ simulator_ui/lib.7z
 screenshot.png
 simulator_ui/build.7z
 simulator_ui/pubspec.lock
+/gitignore/
+riscv.7z

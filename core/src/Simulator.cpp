@@ -110,14 +110,17 @@ Simulator::Simulator(size_t mem_size, PipelineModel model)
 }
 
 // Carga un programa en la memoria del simulador.
-void Simulator::load_program(const std::vector<uint8_t>& program) {
+void Simulator::load_program(const std::vector<uint8_t>& program, PipelineModel model) {
     // La carga depende del modo de pipeline.
     if (model == PipelineModel::General) {
+        m_logfile << "\n--- Programa cargado en memoria (modo general)" << program[0] << " ---" << std::endl;
         memory.load_program(program, 0);
     } else {
         // En modo didáctico, el programa se carga en la memoria de instrucciones.
         // La memoria de datos permanece vacía inicialmente.
         i_mem.load_program(program, 0);
+        m_logfile << "\n--- Programa cargado en memoria (modo didactico) " << program[0] << " ---" << std::endl;
+
     }
 }
 
@@ -127,19 +130,21 @@ void Simulator::step() {
     if (m_logfile.is_open()) {
         m_logfile << "\n--- Ciclo " << current_cycle << " ---" << std::endl;
         m_logfile << "PC: 0x" << std::hex << pc << std::dec << std::endl;
-        m_logfile << "Instrucción leída: 0x" << std::hex << instruction << std::dec << std::endl;
+        m_logfile << "Instruccion leída: 0x" << std::hex << instruction << std::dec << std::endl;
 
     }
     current_cycle++; // Avanzamos el ciclo de instruccion//reloj
     decode_and_execute(instruction);
     if (m_logfile.is_open()) {
-        m_logfile << "Instrucción ejecutada: 0x" << std::hex << instruction << std::dec << std::endl;
+        m_logfile << "Instruccion ejecutada: 0x" << std::hex << instruction << std::dec << std::endl;
 
     }
 }
 
 // Ejecuta un ciclo completo: fetch, decode, execute.
-void Simulator::reset() {
+void Simulator::reset(PipelineModel model) {
+    // Actualizamos el modelo del simulador con el que nos pasan.
+    this->model = model;
     pc = 0;
     current_cycle = 0;
     status_reg = 0;
@@ -149,9 +154,10 @@ void Simulator::reset() {
     // Después de resetear, ejecutamos el primer ciclo para que la UI muestre
     // el estado inicial con la primera instrucción (la de PC=0) ya procesada.
     if (m_logfile.is_open()) {
+        m_logfile << "Model:" << (int) model << std::endl;
         m_logfile << "\n--- Reseteando ---" << std::endl;
         m_logfile << "PC: 0x" << std::hex << pc << std::dec << std::endl;
-        m_logfile << "\n--- Localizando la primera instrucción ---" << std::endl;
+        m_logfile << "\n--- Localizando la primera instruccion ---" << std::endl;
     }
     step();
 }
@@ -188,7 +194,10 @@ uint32_t Simulator::fetch() {
         return i_cache.read_word(pc);
     } else {
         // En modo didáctico, lee directamente de la memoria de instrucciones.
-        return i_mem.read_word(pc);
+            m_logfile << "Model:" << (int) model << std::endl;
+            uint32_t instruction=i_mem.read_word(pc);
+            m_logfile << "Instrucción:" << (int) instruction << std::endl;
+        return instruction;
     }
     
 }
@@ -199,14 +208,24 @@ uint16_t controlWord(const InstructionInfo* info) {
            (info->ResSrc & 0x3) << 11 |  // 2 bits
            (info->ImmSrc & 0x7) << 8  |  // 3 bits
            (info->PCsrc  & 0x3) << 6  |  // 2 bit
-           (info->BRwr   & 0x1) << 5  |  // 1 bit
-           (info->ALUsrc & 0x1) << 4  |  // 1 bit
-           (info->MemWr  & 0x1) << 3;    // 1 bit
+           (info->ALUsrc   & 0x1) << 4  |  // 1 bit
+           (info->BRwr & 0x1) << 3  |  // 1 bit
+           (info->MemWr  & 0x1) << 2 | 0;    // 1 bit
 }
 
 
 void Simulator::decode_and_execute(uint32_t instruction)
 {
+    m_logfile << "Model:" << (int) model << std::endl;
+    if (model == PipelineModel::MultiCycle) {
+        simulate_multi_cycle(instruction);
+    } else {
+        // Por defecto, o para SingleCycle, usamos la simulación original.
+        simulate_single_cycle(instruction);
+    }
+}
+
+void Simulator::simulate_single_cycle(uint32_t instruction) {
     // --- INICIO DEL CICLO (t=0) ---
     // La única señal estable al inicio del ciclo es el PC.
     // Le ponemos 1 ps para ver su aparición
@@ -255,7 +274,8 @@ void Simulator::decode_and_execute(uint32_t instruction)
 
     try{
     instructionString = disassemble(instruction, info);
-    datapath.instruction=instructionString;
+    //datapath.instruction=instructionString;
+    datapath.total_micro_cycles = info->cycles;
     strcpy(datapath.instruction_cptr,instructionString.c_str());
     }
     catch(const std::exception& e){
@@ -306,7 +326,7 @@ void Simulator::decode_and_execute(uint32_t instruction)
 
         // 3. EJECUCIÓN (ALU)
     // Mux para la entrada B de la ALU
-    uint32_t alu_op_b =mux_B.select(rs2_val,imm_ext,info->ALUsrc)   ;
+    uint32_t alu_op_b =mux_B.select(imm_ext,rs2_val,info->ALUsrc)   ;
     uint32_t tmptime3=std::max(std::max(datapath.bus_B.ready_at,datapath.bus_immExt.ready_at),datapath.bus_Control.ready_at) + mux_B.get_delay();
     datapath.bus_ALU_B = {alu_op_b,tmptime3};
 
@@ -415,6 +435,8 @@ void Simulator::decode_and_execute(uint32_t instruction)
         datapath.bus_PC_dest.is_active = false;       // El sumador de saltos no se usa.
     } else if (info->type == 'B') { // Branches (BEQ, etc.)
         datapath.bus_Mem_read_data.is_active = false; // No se accede a la memoria de datos.
+        datapath.bus_PC_plus4.is_active=true;
+
         datapath.bus_C.is_active = false;             // No hay resultado que escribir en los registros.
     } else if (info->type == 'J' || info->instr == "jalr") { // Jumps
         // Para JAL, el sumador de saltos (PC + imm) SÍ está activo.
@@ -422,6 +444,7 @@ void Simulator::decode_and_execute(uint32_t instruction)
         datapath.bus_ALU_result.is_active = false;
         datapath.bus_Mem_address.is_active = false;
         datapath.bus_Mem_read_data.is_active = false;
+        datapath.bus_PC_plus4.is_active=true;
     }
 
 
@@ -432,4 +455,140 @@ void Simulator::decode_and_execute(uint32_t instruction)
 
 
     pc = next_pc;
+}
+
+void Simulator::simulate_multi_cycle(uint32_t instruction) {
+    // En multiciclo, el estado se construye a lo largo de varios ciclos.
+    // Aquí, para la visualización, calculamos el estado final de todos los buses
+    // y asignamos el microciclo (0-4) en el que se activan a 'ready_at'.
+
+    // --- Decodificación inicial para obtener información ---
+    datapath = {}; // Limpiar datapath para el nuevo estado
+    const InstructionInfo* info = control_unit.decode(instruction);
+    if (!info) {
+        pc += 4; // Tratar como NOP
+        instructionString = disassemble(instruction, nullptr);
+        strcpy(datapath.instruction_cptr, instructionString.c_str());
+        datapath.total_micro_cycles = 1;
+        return;
+    }
+
+    instructionString = disassemble(instruction, info);
+    strcpy(datapath.instruction_cptr, instructionString.c_str());
+    datapath.total_micro_cycles = info->cycles;
+
+    // --- Valores que se propagan a través de los ciclos ---
+    uint32_t rs1_addr = (instruction >> 15) & 0x1F;
+    uint32_t rs2_addr = (instruction >> 20) & 0x1F;
+    uint32_t rd_addr  = (instruction >> 7)  & 0x1F;
+    uint32_t rs1_val = register_file.readA(rs1_addr);
+    uint32_t rs2_val = register_file.readB(rs2_addr);
+    uint32_t imm_ext = sign_extender.extender(instruction, info->ImmSrc); // Se calcula en ID, pero lo necesitamos antes.
+    uint32_t pc_plus_4 = pc + 4;
+
+    // --- MICRO-CICLO 0: IF (Instruction Fetch) ---
+    // El PC se usa para leer la memoria de instrucciones.
+    datapath.bus_PC = { pc, 0 };
+    datapath.bus_Instr = { instruction, 0 };
+    datapath.bus_PC_plus4 = { pc_plus_4, 0 };
+
+    // --- MICRO-CICLO 1: ID (Instruction Decode & Register Fetch) ---
+    // Se decodifica la instrucción y se leen los registros.
+    datapath.bus_DA = { (uint8_t)rs1_addr, 1 };
+    datapath.bus_DB = { (uint8_t)rs2_addr, 1 };
+    datapath.bus_DC = { (uint8_t)rd_addr, 1 };
+    datapath.bus_Opcode = { (uint8_t)(instruction & 0x3F), 1 };
+    datapath.bus_funct3 = { (uint8_t)((instruction >> 12) & 0x07), 1 };
+    datapath.bus_funct7 = { (uint8_t)((instruction >> 25) & 0x7F), 1 };
+    datapath.bus_A = { rs1_val, 1 };
+    datapath.bus_B = { rs2_val, 1 };
+    datapath.bus_imm = { instruction, 1 };
+    datapath.bus_immExt = { imm_ext, 1 };
+    datapath.bus_Control = { controlWord(info), 1 };
+    // Las señales de control individuales también están listas en este ciclo.
+    datapath.bus_PCsrc = {info->PCsrc, 1};
+    datapath.bus_ALUsrc = {info->ALUsrc, 1};
+    datapath.bus_ResSrc = {info->ResSrc, 1};
+    datapath.bus_ImmSrc = {info->ImmSrc, 1};
+    datapath.bus_ALUctr = {info->ALUctr, 1};
+    datapath.bus_BRwr = {info->BRwr, 1};
+    datapath.bus_MemWr = {info->MemWr, 1};
+
+    // --- MICRO-CICLO 2: EX (Execute) ---
+    // La ALU realiza la operación.
+    const uint32_t alu_op_a = (info->type == 'U') ? 0 : rs1_val;
+    const uint32_t alu_op_b = mux_B.select(rs2_val, imm_ext, info->ALUsrc);
+    const uint32_t alu_result = alu.calc(alu_op_a, alu_op_b, info->ALUctr);
+    const bool alu_zero = (alu_result == 0);
+    const uint32_t branch_target = pc + imm_ext;
+
+    datapath.bus_ALU_A = { alu_op_a, 2 };
+    datapath.bus_ALU_B = { alu_op_b, 2 };
+    datapath.bus_ALU_result = { alu_result, 2 };
+    datapath.bus_ALU_zero = { alu_zero, 2 };
+    datapath.bus_PC_dest = { branch_target, 2 };
+
+    // --- Lógica variable para los ciclos 3 y 4 ---
+    uint32_t mem_read_data = 0x00FABADA;
+    uint32_t final_result = 0x00FABADA;
+    uint32_t next_pc;
+
+    // Por defecto, las rutas de memoria y escritura no están activas.
+    datapath.bus_Mem_address.is_active = false;
+    datapath.bus_Mem_write_data.is_active = false;
+    datapath.bus_Mem_read_data.is_active = false;
+    datapath.bus_C.is_active = false;
+
+    if (info->type == 'R' || info->instr == "addi") { // R-Type o ADDI (4 ciclos)
+        // Ciclo 3: WB
+        final_result = alu_result;
+        datapath.bus_C = { final_result, 3 };
+        datapath.bus_C.is_active = true;
+        if (info->BRwr == 1) register_file.write(rd_addr, final_result);
+        next_pc = pc_plus_4;
+
+    } else if (info->instr == "lw") { // LW (5 ciclos)
+        // Ciclo 3: MEM
+        datapath.bus_Mem_address = { alu_result, 3, true };
+        mem_read_data = d_mem.read_word(alu_result);
+        datapath.bus_Mem_read_data = { mem_read_data, 3, true };
+        // Ciclo 4: WB
+        final_result = mem_read_data;
+        datapath.bus_C = { final_result, 4 };
+        datapath.bus_C.is_active = true;
+        if (info->BRwr == 1) register_file.write(rd_addr, final_result);
+        next_pc = pc_plus_4;
+
+    } else if (info->instr == "sw") { // SW (4 ciclos)
+        // Ciclo 3: MEM
+        datapath.bus_Mem_address = { alu_result, 3, true };
+        datapath.bus_Mem_write_data = { rs2_val, 3, true };
+        d_mem.write_word(alu_result, rs2_val);
+        next_pc = pc_plus_4;
+
+    } else if (info->type == 'B') { // BEQ (3 ciclos)
+        // Ciclo 2: EX/Branch completion
+        bool take_branch = (alu_result == 0);
+        datapath.bus_branch_taken = { take_branch, 2 };
+        next_pc = take_branch ? branch_target : pc_plus_4;
+
+    } else { // Jumps, etc. (Tratamiento genérico, se puede refinar)
+        // Asumimos 4 ciclos por defecto para JAL, etc.
+        final_result = mux_C.select(alu_result, mem_read_data, pc_plus_4, 0, info->ResSrc);
+        datapath.bus_C = { final_result, 3 };
+        datapath.bus_C.is_active = info->BRwr;
+        if (info->BRwr == 1) register_file.write(rd_addr, final_result);
+        bool take_branch = (info->PCsrc == 1 || (info->type == 'B' && alu_zero));
+        datapath.bus_branch_taken = { take_branch, 2 };
+        next_pc = take_branch ? branch_target : pc_plus_4;
+    }
+
+    // El PC se actualiza al final del último microciclo de la instrucción anterior.
+    datapath.bus_PC_next = { next_pc, (uint32_t)(info->cycles - 1) };
+
+    // Actualizamos el PC para el siguiente ciclo de instrucción.
+    pc = next_pc;
+
+    // El tiempo crítico no es tan relevante en multiciclo, pero lo ponemos al final.
+    datapath.criticalTime = info->cycles;
 }

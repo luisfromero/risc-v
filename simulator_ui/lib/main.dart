@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:namer_app/reg_widget.dart';
 import 'dart:ui'; // Para FontFeature
 import 'package:provider/provider.dart';
 import 'buses_painter.dart';
@@ -13,6 +14,7 @@ import 'extender_widget.dart';
 import 'control_unit_widget.dart';
 import 'services/simulation_service.dart';
 import 'services/get_service.dart'; // Importación condicional del servicio
+import 'simulation_mode.dart';
 import 'platform_init.dart'; // Importación condicional para la configuración de la ventana
 
 void main() async {
@@ -39,10 +41,23 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('RISC-V Datapath'),
+          // Usamos un Row en el title para centrar el contador de ciclos
+          // sin afectar al layout de los actions.
+          title: Row(
+            children: [
+              const Text('RISC-V Datapath'),
+              const Spacer(),
+              if (datapathState.simulationMode == SimulationMode.multiCycle)
+                Text(
+                  'Cycle: ${datapathState.currentMicroCycle + 1} / ${datapathState.totalMicroCycles}',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
+                ),
+              const Spacer(),
+            ],
+          ),
           backgroundColor: Colors.blueGrey,
           actions: [
-            // --- CAMBIO 1: AÑADIDO ---
             // Widget para mostrar las coordenadas del ratón en la barra superior.
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -62,7 +77,29 @@ class MyApp extends StatelessWidget {
                   style: const TextStyle(fontSize: 16),
                 ),
               ),
-            )
+            ),
+                      // --- Selector de modo de simulación ---
+            Row(
+              children: [
+                for (final mode in SimulationMode.values)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(mode.label, style: const TextStyle(color: Colors.white)),
+                      Radio<SimulationMode>(
+                        value: mode,
+                        groupValue: datapathState.simulationMode,
+                        onChanged: (SimulationMode? value) => datapathState.setSimulationMode(value),
+                        activeColor: Colors.white,
+                        fillColor: MaterialStateProperty.all(Colors.white70),
+
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+            const SizedBox(width: 20), // Espacio entre el selector y las coordenadas
+
           ],
         ),
         // Usamos un Column para añadir el Slider debajo del Stack
@@ -87,16 +124,41 @@ class MyApp extends StatelessWidget {
                     label: const Text('Clock Tick'),
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade100, foregroundColor: Colors.black),
                   ),
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 20), // Espacio antes de la Unidad de Control
                   // Widget de la Unidad de Control
-                  SizedBox(
+                  SizedBox( // Mantenemos el SizedBox para fijar el tamaño de la ControlUnit
                     width: 1070,
                     height: 90,
                     child: ControlUnitWidget(
                       key: datapathState.controlUnitKey,
                       isActive: datapathState.isControlActive,
-                      ), // Quitamos 'const' para poder usar la key
+                    ),
                   ),
+                  const SizedBox(width: 10), // Espacio entre la unidad de control y los checkboxes
+                  // Checkboxes de depuración, ahora fuera del SizedBox
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: datapathState.showConnectionLabels,
+                            onChanged: (value) => datapathState.setShowConnectionLabels(value),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          const Text('Show connectors', style: TextStyle(fontSize: 10)),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Checkbox(value: false, onChanged: null, visualDensity: VisualDensity.compact),
+                          const Text('Show values', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                        ],
+                      ),
+                    ],
+                  ),
+
                 ],
               ),
             ),
@@ -124,11 +186,11 @@ class MyApp extends StatelessWidget {
                       top: 220,
                       left: 60,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('Mux '),
+                        onEnter: (_) => datapathState.setHoverInfo('MuxPC'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: MuxWidget(
                           key: datapathState.mux2Key,
-                          value: 3,
+                          value: datapathState.busValues['control_PCsrc'] ?? 0,
                           isActive: datapathState.isMux2Active,
                         ),
                       ),
@@ -147,6 +209,21 @@ class MyApp extends StatelessWidget {
                         ),
                       ),
                     ),
+                    Positioned(
+                      top: 250,
+                      left: 740,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (B)'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: RegWidget(
+                          key: datapathState.pipereg_b_Key,
+                          label: 'B',
+                          height: 50,
+                          isActive: datapathState.isRegFileActive,
+                        ),
+                      ),
+                    ),
+
                     // --- Sumador del PC ---
                     Positioned(
                       top: 90,
@@ -201,39 +278,6 @@ class MyApp extends StatelessWidget {
                         child: Text("4 (0x00000004)")
                       ),
                     ),
-                    // --- Z ---
-                    Positioned(
-                      top: 230,
-                      left: 1040,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('flag Z'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: Text("Z")
-                      ),
-                    ),
-                    // --- Instruction Labels ---
-                    Positioned(
-                      top: 400,
-                      left: 1050,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            datapathState.instruction,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontFamily: 'monospace',
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '${datapathState.instructionValue.toRadixString(2).padLeft(32, '0')}',
-                            style: const TextStyle(fontSize: 20, fontFamily: 'monospace'),
-                          ),
-                        ],
-                      ),
-                    ),
                     // --- Instruction Buffer ---
                     Positioned(
                       top: 160,
@@ -247,6 +291,95 @@ class MyApp extends StatelessWidget {
                         ),
                       ),
                     ),
+
+                    // --- Pipeline Registers RE/DE ---
+                    Positioned(
+                      top: 130,
+                      left: 520,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('FD0'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: RegWidget(
+                          key: datapathState.pipereg_fd0_Key,
+                          label: 'FD0',
+                          height: 40,
+                          isActive: datapathState.isPcAdderActive,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 420,
+                      left: 520,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('FD1'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: RegWidget(
+                          key: datapathState.pipereg_fd1_Key,
+                          label: 'FD1',
+                          height: 40,
+                          isActive: datapathState.isPcAdderActive,
+                        ),
+                      ),
+                    ),
+
+                    // --- Banco de Registros ---
+                    Positioned(
+                      top: 200,
+                      left: 620,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('Banco de Registros'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: MemoryUnitWidget(
+                          key: datapathState.registerFileKey,
+                          label: 'Register\nFile',
+                          width: 100,
+                          isActive: datapathState.isRegFileActive,
+                          height: 120,
+                          // 7 Puntos para el Banco de Registros
+                          connectionPoints: const [
+                            Offset(0,0.2),
+                            Offset(0,0.4),
+                            Offset(0,0.6),
+                            Offset(0,0.8),
+                            Offset(0.5,0),
+                            Offset(1,0.25),
+                            Offset(1,0.65),
+                            Offset(1.5,0.65),
+                            ],
+                        ),
+                      ),
+                    ),
+
+                    // --- Pipeline Registers ---
+                    Positioned(
+                      top: 130,
+                      left: 740,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (PC)'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: RegWidget(
+                          key: datapathState.pipereg_de0_Key,
+                          label: 'DE0',
+                          isActive: datapathState.isPcAdderActive,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 160,
+                      left: 740,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (A,B,destRegName,immExt)'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: RegWidget(
+                          label:'DE1',
+                          height: 262,
+                          key: datapathState.pipereg_de1_Key,
+                          isActive: datapathState.isIBActive,
+                          connectionPoints: const [Offset(0, 0.269),Offset(0, 0.453),Offset(0, 0.7115),Offset(0, 0.846),Offset(1, 0.269),Offset(1, 0.453),Offset(1, 0.7115),Offset(1, 0.846)],
+                        ),
+                      ),
+                    ),
+
                     // --- Sumador de Saltos (Branch) ---
                     Positioned(
                       top: 350,
@@ -293,38 +426,113 @@ class MyApp extends StatelessWidget {
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: Mux2Widget(
                           key: datapathState.mux3Key,
-                          value: 3,
+                          value: datapathState.busValues['control_ALUsrc'] ?? 0,
                           isActive: datapathState.isMux3Active,
+                          labels: ['0', '1', '2', ' '],
                         ),
                       ),
                     ),
-                    // --- Banco de Registros ---
+                    
+                    // --- Pipeline Registers ---
                     Positioned(
-                      top: 200,
-                      left: 620,
+                      top: 130,
+                      left: 1020,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('Banco de Registros'),
+                        onEnter: (_) => datapathState.setHoverInfo('EX/ME Register (PC)'),
                         onExit: (_) => datapathState.setHoverInfo(''),
-                        child: MemoryUnitWidget(
-                          key: datapathState.registerFileKey,
-                          label: 'Register\nFile',
-                          width: 100,
-                          isActive: datapathState.isRegFileActive,
-                          height: 120,
-                          // 7 Puntos para el Banco de Registros
-                          connectionPoints: const [
-                            Offset(0,0.2),
-                            Offset(0,0.4),
-                            Offset(0,0.6),
-                            Offset(0,0.8),
-                            Offset(0.5,0),
-                            Offset(1,0.25),
-                            Offset(1,0.65),
-                            Offset(1.5,0.65),
-                            ],
+                        child: RegWidget(
+                          key: datapathState.pipereg_em0_Key,
+                          label: 'EM0',
+                          isActive: datapathState.isPcAdderActive,
                         ),
                       ),
                     ),
+                    Positioned(
+                      top: 160,
+                      left: 1020,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('EX/ME Register (ALU result, B, destRegName)'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: RegWidget(
+                          label:'EM1',
+                          height: 262,
+                          key: datapathState.pipereg_em1_Key,
+                          isActive: datapathState.isIBActive,
+                          connectionPoints: const [Offset(0, 0.315),Offset(0, 0.384),Offset(0, 0.654),Offset(0, 0.7115),Offset(1, 0.315),Offset(1, 0.384),Offset(1, 0.654),Offset(1, 0.7115)],
+                        ),
+                      ),
+                    ),
+
+                    // --- Pipeline Registers ---
+                    Positioned(
+                      top: 130,
+                      left: 1220,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('ME/WR Register (PC)'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: RegWidget(
+                          key: datapathState.pipereg_mw0_Key,
+                          label: 'MW0',
+                          isActive: datapathState.isPcAdderActive,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 160,
+                      left: 1220,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('ME/WR Register (ALU result, Read mem, Dest reg name)'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: RegWidget(
+                          label:'MW1',
+                          height: 262,
+                          key: datapathState.pipereg_mw1_Key,
+                          isActive: datapathState.isIBActive,
+                          connectionPoints: const [Offset(0, 0.0577),Offset(0, 0.423),Offset(0, 0.7115),Offset(1, 0.0577),Offset(1, 0.423),Offset(1, 0.7115)],
+
+                        ),
+                      ),
+                    ),
+
+ 
+
+
+
+                    // --- Z ---
+                    Positioned(
+                      top: 220,
+                      left: 1040,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('flag Z'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: Text("Z")
+                      ),
+                    ),
+                    // --- Instruction Labels ---
+                    Positioned(
+                      top: 430,
+                      left: 1030,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            datapathState.instruction,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '${datapathState.instructionValue.toRadixString(2).padLeft(32, '0')}',
+                            style: const TextStyle(fontSize: 20, fontFamily: 'monospace'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+
                     // --- Extender ---
                     Positioned(
                       top: 364,
@@ -365,17 +573,18 @@ class MyApp extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // --- Mux1 result ---
+                    // --- MuxC result ---
                     Positioned(
                       top: 220,
                       left: 1300,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('Mux1'),
+                        onEnter: (_) => datapathState.setHoverInfo('MuxC'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: MuxWidget(
-                          key: datapathState.mux1Key,
-                          value: 0,
-                          isActive: datapathState.isMux1Active,
+                          key: datapathState.muxCKey,
+                          value: datapathState.busValues['control_ResSrc'] ?? 0,
+                          isActive: datapathState.isMuxCActive,
+                          labels: ['2', '1', '0', ' '],
                         ),
                       ),
                     ),
@@ -383,22 +592,23 @@ class MyApp extends StatelessWidget {
                 ),
               ),
             ),
-            // --- Slider ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-              child: Slider(
-                value: datapathState.sliderValue,
-                min: 0,
-                max: datapathState.criticalTime.toDouble(),
-                // divisions no puede ser 0. Si criticalTime es 0, lo dejamos en null (continuo).
-                divisions: datapathState.criticalTime > 0 ? datapathState.criticalTime : null,
-                label: datapathState.sliderValue.round().toString(),
-                onChanged: (double value) {
-                  // Llama al método para actualizar el estado del slider
-                  datapathState.setSliderValue(value);
-                },
+            // --- Slider (solo visible en modo single-cycle) ---
+            if (datapathState.simulationMode == SimulationMode.singleCycle)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                child: Slider(
+                  value: datapathState.sliderValue,
+                  min: 0,
+                  max: datapathState.criticalTime.toDouble(),
+                  // divisions no puede ser 0. Si criticalTime es 0, lo dejamos en null (continuo).
+                  divisions: datapathState.criticalTime > 0 ? datapathState.criticalTime : null,
+                  label: datapathState.sliderValue.round().toString(),
+                  onChanged: (double value) {
+                    // Llama al método para actualizar el estado del slider
+                    datapathState.setSliderValue(value);
+                  },
+                ),
               ),
-            ),
           ],
         ),
       ),

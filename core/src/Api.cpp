@@ -30,6 +30,12 @@ using json = nlohmann::json;
             {"ALU_zero", {{"value", state.bus_ALU_zero.value}, {"ready_at", state.bus_ALU_zero.ready_at}, {"is_active", state.bus_ALU_zero.is_active}}},
             {"Control", {{"value", state.bus_Control.value}, {"ready_at", state.bus_Control.ready_at}, {"is_active", state.bus_Control.is_active}}},
             {"PCsrc", {{"value", state.bus_PCsrc.value}, {"ready_at", state.bus_PCsrc.ready_at}, {"is_active", state.bus_PCsrc.is_active}}},
+            {"ALUsrc", {{"value", state.bus_ALUsrc.value}, {"ready_at", state.bus_ALUsrc.ready_at}, {"is_active", state.bus_ALUsrc.is_active}}},
+            {"ResSrc", {{"value", state.bus_ResSrc.value}, {"ready_at", state.bus_ResSrc.ready_at}, {"is_active", state.bus_ResSrc.is_active}}},
+            {"ImmSrc", {{"value", state.bus_ImmSrc.value}, {"ready_at", state.bus_ImmSrc.ready_at}, {"is_active", state.bus_ImmSrc.is_active}}},
+            {"ALUctr", {{"value", state.bus_ALUctr.value}, {"ready_at", state.bus_ALUctr.ready_at}, {"is_active", state.bus_ALUctr.is_active}}},
+            {"BRwr", {{"value", state.bus_BRwr.value}, {"ready_at", state.bus_BRwr.ready_at}, {"is_active", state.bus_BRwr.is_active}}},
+            {"MemWr", {{"value", state.bus_MemWr.value}, {"ready_at", state.bus_MemWr.ready_at}, {"is_active", state.bus_MemWr.is_active}}},
             {"Mem_address", {{"value", state.bus_Mem_address.value}, {"ready_at", state.bus_Mem_address.ready_at}, {"is_active", state.bus_Mem_address.is_active}}},
             {"Mem_write_data", {{"value", state.bus_Mem_write_data.value}, {"ready_at", state.bus_Mem_write_data.ready_at}, {"is_active", state.bus_Mem_write_data.is_active}}},
             {"Mem_read_data", {{"value", state.bus_Mem_read_data.value}, {"ready_at", state.bus_Mem_read_data.ready_at}, {"is_active", state.bus_Mem_read_data.is_active}}},
@@ -38,9 +44,11 @@ using json = nlohmann::json;
             {"PC_dest", {{"value", state.bus_PC_dest.value}, {"ready_at", state.bus_PC_dest.ready_at}, {"is_active", state.bus_PC_dest.is_active}}},
             {"PC_next", {{"value", state.bus_PC_next.value}, {"ready_at", state.bus_PC_next.ready_at}, {"is_active", state.bus_PC_next.is_active}}},
             {"branch_taken", {{"value", state.bus_branch_taken.value}, {"ready_at", state.bus_branch_taken.ready_at}, {"is_active", state.bus_branch_taken.is_active}}},
-            {"instruction",state.instruction},
+            {"criticaltime", state.criticalTime},
+            {"total_micro_cycles",state.total_micro_cycles},
+            //{"instruction",state.instruction},
             {"instruction_cptr",state.instruction_cptr},
-            {"criticaltime", state.criticalTime}  };
+        };
 
         json_str = j.dump();
         return json_str.c_str();
@@ -61,17 +69,26 @@ extern "C" {
         delete static_cast<Simulator*>(sim_ptr);
     }
 
-    SIMULATOR_API void Simulator_load_program(void* sim_ptr, const uint8_t* program_data, size_t data_size) {
+    SIMULATOR_API void Simulator_load_program(void* sim_ptr, const uint8_t* program_data, size_t data_size, int mode_int) {
         if (!sim_ptr) return;
         const std::vector<uint8_t> program(program_data, program_data + data_size);
-        static_cast<Simulator*>(sim_ptr)->load_program(program);
+        static_cast<Simulator*>(sim_ptr)->load_program(program,static_cast<PipelineModel>(mode_int));
     }
 
     SIMULATOR_API const char* Simulator_reset(void* sim_ptr) {
         if (!sim_ptr) return "{}";
+        // Llama a reset sin argumentos, usando el valor por defecto (SingleCycle) que hemos definido en Simulator.h
         static_cast<Simulator*>(sim_ptr)->reset();
         DatapathState state = static_cast<Simulator*>(sim_ptr)->get_datapath_state();
         return jsonFromState(state); // fastapi no lo usa; prefiere llamar a state después
+    }
+
+    // Nueva función para que la UI pueda especificar el modo al resetear.
+    SIMULATOR_API const char* Simulator_reset_with_model(void* sim_ptr, int mode_int) {
+        if (!sim_ptr) return "{}";
+        static_cast<Simulator*>(sim_ptr)->reset(static_cast<PipelineModel>(mode_int));
+        DatapathState state = static_cast<Simulator*>(sim_ptr)->get_datapath_state();
+        return jsonFromState(state);
     }
 
     SIMULATOR_API const char*  Simulator_step(void* sim_ptr) {

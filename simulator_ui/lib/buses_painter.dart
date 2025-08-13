@@ -21,7 +21,9 @@ class BusesPainter extends CustomPainter {
     final pointsMap = {for (var p in allPoints) p.label: p};
 
     // 2. Dibuja las etiquetas de cada punto para depuración.
-    _drawConnectionPointLabels(canvas, allPoints); // Comentado para limpiar la vista
+    if (datapathState.showConnectionLabels) {
+      _drawConnectionPointLabels(canvas, allPoints);
+    }
     _drawBusesAndValues(canvas, pointsMap);
   }
 
@@ -67,7 +69,7 @@ class BusesPainter extends CustomPainter {
     extractPoints(datapathState.pcAdderKey, 'NPC');
     extractPoints(datapathState.branchAdderKey, 'BR');
     extractPoints(datapathState.aluKey, 'ALU');
-    extractPoints(datapathState.mux1Key, 'M1');
+    extractPoints(datapathState.muxCKey, 'M1');
     extractPoints(datapathState.mux2Key, 'M2');
     extractPoints(datapathState.mux3Key, 'M3');
     extractPoints(datapathState.instructionMemoryKey, 'IM');
@@ -76,6 +78,17 @@ class BusesPainter extends CustomPainter {
     extractPoints(datapathState.controlUnitKey, 'CU');
     extractPoints(datapathState.extenderKey, 'EXT');
     extractPoints(datapathState.ibKey, 'IB');
+    
+    //Pipeline Registers
+    extractPoints(datapathState.pipereg_fd0_Key, 'FD0');//Fetch decode
+    extractPoints(datapathState.pipereg_fd1_Key, 'FD1');//Fetch decode
+    extractPoints(datapathState.pipereg_de0_Key, 'DE0');//Fetch decode
+    extractPoints(datapathState.pipereg_em0_Key, 'EM0');//Fetch decode
+    extractPoints(datapathState.pipereg_em1_Key, 'EM1');//Fetch decode
+    extractPoints(datapathState.pipereg_mw0_Key, 'MW0');//Fetch decode
+    extractPoints(datapathState.pipereg_mw1_Key, 'MW1');//Fetch decode
+    extractPoints(datapathState.pipereg_de1_Key, 'DE1');//Decode execute
+
 
     return allPoints;
   }

@@ -2,10 +2,12 @@
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../simulation_mode.dart';
 import 'simulation_service.dart';
 
 class ApiSimulationService implements SimulationService {
   final String _baseUrl = 'http://localhost:8000'; // URL de tu API
+  SimulationMode _currentMode = SimulationMode.singleCycle;
 
   @override
   Future<void> initialize() async {
@@ -16,7 +18,17 @@ class ApiSimulationService implements SimulationService {
 
   @override
   Future<SimulationState> step() async {
-    final response = await http.get(Uri.parse('$_baseUrl/step'));
+    // Para el modo multiciclo, es probable que el backend necesite saber el modo
+    // en cada paso para devolver el número total de microciclos.
+    const modelMap = {
+      SimulationMode.singleCycle: 'SingleCycle',
+      SimulationMode.pipeline: 'PipeLined',
+      SimulationMode.multiCycle: 'MultiCycle',
+    };
+    final modelName = modelMap[_currentMode] ?? 'SingleCycle';
+
+    final response = await http.post(Uri.parse('$_baseUrl/step'),
+        headers: {'Content-Type': 'application/json'}, body: jsonEncode({'model': modelName}));
     if (response.statusCode == 200) {
       return SimulationState.fromJson(jsonDecode(response.body));
     } else {
@@ -27,8 +39,22 @@ class ApiSimulationService implements SimulationService {
   }
 
   @override
-  Future<SimulationState> reset() async {
-    final response = await http.post(Uri.parse('$_baseUrl/reset'));
+  Future<SimulationState> reset({required SimulationMode mode}) async {
+    _currentMode = mode; // Guardamos el modo actual para usarlo en step()
+    // Mapea el enum de Dart al string que espera la API de Python.
+    const modelMap = {
+      SimulationMode.singleCycle: 'SingleCycle',
+      SimulationMode.pipeline: 'PipeLined',
+      SimulationMode.multiCycle: 'MultiCycle',
+      //SimulationMode.general: 'General',
+    };
+    final modelName = modelMap[mode] ?? 'SingleCycle';
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/reset'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'model': modelName}),
+    );
     if (response.statusCode == 200) {
       return SimulationState.fromJson(jsonDecode(response.body));
     } else {

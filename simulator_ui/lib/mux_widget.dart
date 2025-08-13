@@ -4,11 +4,13 @@ class MuxWidget extends StatelessWidget {
   final int value;
   final bool isActive; // Para recibir si debe estar "activo" (color verde)
   final List<Offset> connectionPoints;
+  final List<String> labels;
 
   const MuxWidget({
     super.key,
     required this.value,
     this.isActive = false, // Por defecto no está activo
+    this.labels = const ['0', '1', '2', '3'],
     // Por defecto, 3 puntos: dos entradas a la izquierda/abajo y una salida a la derecha.
     this.connectionPoints = const [
       Offset(0,0.1),
@@ -18,6 +20,9 @@ class MuxWidget extends StatelessWidget {
       Offset(0.35,0),
       Offset(1,0.5),],
   });
+
+  // Verificación para asegurar que la lista de etiquetas tenga 4 elementos.
+  bool get _hasValidLabels => labels.length == 4;
 
   @override
   Widget build(BuildContext context) {
@@ -42,15 +47,12 @@ class MuxWidget extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.only(right: 20),
-            child: 
-            Column(
-              children: [
-                Text("0",style:estilo),
-                Text("1",style:estilo),
-                Text("2",style:estilo),
-                Text("3",style:estilo),
-              ],
-            ),
+            child: !_hasValidLabels
+                ? const Icon(Icons.error, color: Colors.red)
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: labels.map((label) => Text(label, style: estilo)).toList(),
+                  ),
           ),
 
           Padding(
