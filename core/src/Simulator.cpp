@@ -217,7 +217,11 @@ uint16_t controlWord(const InstructionInfo* info) {
 void Simulator::decode_and_execute(uint32_t instruction)
 {
     m_logfile << "Model:" << (int) model << std::endl;
-    if (model == PipelineModel::MultiCycle) {
+    if (model == PipelineModel::PipeLined) {
+        // La simulación segmentada no se basa en una sola instrucción, sino en el estado de los registros.
+        // La instrucción 'fetch' es solo para la primera etapa.
+        simulate_pipeline();
+    } else if (model == PipelineModel::MultiCycle) {
         simulate_multi_cycle(instruction);
     } else {
         // Por defecto, o para SingleCycle, usamos la simulación original.
@@ -461,6 +465,7 @@ void Simulator::simulate_multi_cycle(uint32_t instruction) {
     // En multiciclo, el estado se construye a lo largo de varios ciclos.
     // Aquí, para la visualización, calculamos el estado final de todos los buses
     // y asignamos el microciclo (0-4) en el que se activan a 'ready_at'.
+    // Se refiere a ciclo; no a etapa
 
     // --- Decodificación inicial para obtener información ---
     datapath = {}; // Limpiar datapath para el nuevo estado
@@ -589,6 +594,90 @@ void Simulator::simulate_multi_cycle(uint32_t instruction) {
     // Actualizamos el PC para el siguiente ciclo de instrucción.
     pc = next_pc;
 
+    // --- Salidas de Registros de Pipeline (para visualización en modo multiciclo) ---
+    // Estos buses simulan la salida de los registros de segmentación en el ciclo *siguiente*
+    // a donde se calculan sus entradas.
+
+    strcpy(datapath.Pipe_IF_instruction_cptr, instructionString.c_str());
+    strcpy(datapath.Pipe_ID_instruction_cptr, instructionString.c_str());
+    strcpy(datapath.Pipe_EX_instruction_cptr, instructionString.c_str());
+    strcpy(datapath.Pipe_MEM_instruction_cptr, instructionString.c_str());
+    strcpy(datapath.Pipe_WB_instruction_cptr, instructionString.c_str());
+
+
+
+    // IF/ID (listo en ciclo 1)
+    datapath.Pipe_IF_ID_Instr = { instruction, 0 };
+    datapath.Pipe_IF_ID_NPC = { pc_plus_4, 0 };
+    datapath.Pipe_IF_ID_PC = { pc, 0 };
+
+    // ID/EX (listo en ciclo 2)    datapath.Pipe_ID_EX_Control = { controlWord(info), 2 };
+
+    datapath.Pipe_ID_EX_Control = { controlWord(info), 1 };
+    datapath.Pipe_ID_EX_NPC = { pc_plus_4, 1 };
+    datapath.Pipe_ID_EX_A = { alu_op_a, 1 }; // alu_op_a es rs1_val (o 0 para LUI)
+    datapath.Pipe_ID_EX_B = { rs2_val, 1 };
+    datapath.Pipe_ID_EX_RD = { (uint8_t)rd_addr, 1 };
+    datapath.Pipe_ID_EX_Imm = { imm_ext, 1 };
+    datapath.Pipe_ID_EX_PC = { pc, 1 };
+
+    // EX/MEM (listo en ciclo 3)
+    bool esSW=info->instr == "sw";
+    bool noesJ=info->type != 'J';
+    datapath.Pipe_EX_MEM_Control = { controlWord(info), 2 };
+    datapath.Pipe_EX_MEM_NPC = { pc_plus_4, 2,noesJ };
+    datapath.Pipe_EX_MEM_ALU_result = { alu_result, 2 };
+    datapath.Pipe_EX_MEM_B = { rs2_val, 2 ,esSW};
+    datapath.Pipe_EX_MEM_RD = { (uint8_t)rd_addr, 2,!esSW}; // RD solo se usa en LW/R-Type, no en SW};
+
+    // MEM/WB (listo en ciclo 4 para LW, 3 para R-Type)
+    // El bus C ya tiene el tiempo correcto, así que lo copiamos.
+    uint8_t cuando=(uint8_t) ((info->instr != "lw")?3:4);
+    bool noesSW=info->instr != "sw";
+    bool noesLW=info->instr != "lw";
+    bool noesB=info->type != 'B';
+
+    datapath.Pipe_MEM_WB_Control = { controlWord(info), cuando };
+    datapath.Pipe_MEM_WB_NPC = { pc_plus_4,cuando, noesJ };
+    datapath.Pipe_MEM_WB_ALU_result = {alu_result,cuando,noesSW&&noesLW&&noesB};
+    datapath.Pipe_MEM_WB_RM = { (uint32_t)mem_read_data,cuando ,!noesLW};
+    datapath.Pipe_MEM_WB_RD = { (uint8_t)rd_addr,cuando ,noesSW};
+
     // El tiempo crítico no es tan relevante en multiciclo, pero lo ponemos al final.
     datapath.criticalTime = info->cycles;
+}
+
+void Simulator::simulate_pipeline() {
+    // Esta función simulará un ciclo de reloj en el datapath segmentado.
+    // Moverá los datos a través de las 5 etapas (IF, ID, EX, MEM, WB)
+    // y actualizará los registros de segmentación al final.
+
+    // --- Lógica de la etapa WB (Write Back) ---
+    // ...
+
+    // --- Lógica de la etapa MEM (Memory Access) ---
+    // ...
+
+    // --- Lógica de la etapa EX (Execute) ---
+    // ...
+
+    // --- Lógica de la etapa ID (Instruction Decode) ---
+    // ...
+
+    // --- Lógica de la etapa IF (Instruction Fetch) ---
+    // ...
+
+    // --- Actualización de los registros de segmentación al final del ciclo ---
+    // mem_wb_reg = ... (datos de la etapa MEM)
+    // ex_mem_reg = ... (datos de la etapa EX)
+    // id_ex_reg = ... (datos de la etapa ID)
+    // if_id_reg = ... (datos de la etapa IF)
+
+    instructionString = "Empty stage";
+    strcpy(datapath.Pipe_IF_instruction_cptr, instructionString.c_str());
+    strcpy(datapath.Pipe_ID_instruction_cptr, instructionString.c_str());
+    strcpy(datapath.Pipe_EX_instruction_cptr, instructionString.c_str());
+    strcpy(datapath.Pipe_MEM_instruction_cptr, instructionString.c_str());
+    strcpy(datapath.Pipe_WB_instruction_cptr, instructionString.c_str());
+
 }

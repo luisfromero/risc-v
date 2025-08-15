@@ -95,6 +95,7 @@ class DatapathState extends ChangeNotifier {
   final pipereg_em0_Key = GlobalKey();
   final pipereg_mw0_Key = GlobalKey();
   final pipereg_de1_Key = GlobalKey();
+  final pipereg_de2_Key = GlobalKey();
   final pipereg_b_Key = GlobalKey();
 
   final pipereg_em1_Key = GlobalKey();
@@ -107,6 +108,13 @@ class DatapathState extends ChangeNotifier {
   int _statusRegister = 0;
   Map<String, int> _registers = {};
   Map<String, int> _busValues = {};
+
+  // --- Pipeline Instruction Strings ---
+  String _pipeIfInstruction = "ToDo";
+  String _pipeIdInstruction = "ToDo";
+  String _pipeExInstruction = "ToDo";
+  String _pipeMemInstruction = "ToDo";
+  String _pipeWbInstruction = "ToDo";
 
   final Map<String,int> _control_signals={};
 
@@ -127,6 +135,12 @@ class DatapathState extends ChangeNotifier {
   Map<String, int> get registers => _registers;
   Map<String, int> get busValues => _busValues;
   Map<String, bool> get activePaths => _activePaths;
+
+  String get pipeIfInstruction => _pipeIfInstruction;
+  String get pipeIdInstruction => _pipeIdInstruction;
+  String get pipeExInstruction => _pipeExInstruction;
+  String get pipeMemInstruction => _pipeMemInstruction;
+  String get pipeWbInstruction => _pipeWbInstruction;
 
   bool get isPcAdderActive => _isPcAdderActive;
   bool get isBranchAdderActive => _isBranchAdderActive;
@@ -200,7 +214,7 @@ bool get isPCsrcActive => _isPCsrcActive;
       _currentMicroCycle++;
       if (_currentMicroCycle >= _totalMicroCycles) {
         // Si completamos los micro-ciclos, pedimos la siguiente instrucción.
-        final newState = await _simulationService.step();
+        final newState = await _simulationService.step(); // TODO: Aquí hay un error 405
         _updateState(newState); // Esto resetea _currentMicroCycle a 0 y actualiza el estado.
       } else {
         // Si solo avanzamos un micro-ciclo, actualizamos la vista sin llamar al backend.
@@ -210,7 +224,7 @@ bool get isPCsrcActive => _isPCsrcActive;
     } else {
       // Lógica para monociclo o para el primer paso de multiciclo
       try {
-        final newState = await _simulationService.step();
+        final newState = await _simulationService.step(); // TODO: Aquí hay un error 405
         print("Ejecutado step()  ");
         print(newState);
         _sliderValue=newState.criticalTime.toDouble();
@@ -245,6 +259,13 @@ bool get isPCsrcActive => _isPCsrcActive;
     _currentMicroCycle = 0; // Siempre empezamos en el micro-ciclo 0 de una nueva instrucción.
     _busValues = simState.busValues;
     _criticalTime = simState.criticalTime > 0 ? simState.criticalTime : 100;
+
+    _pipeIfInstruction = simState.pipeIfInstructionCptr;
+    _pipeIdInstruction = simState.pipeIdInstructionCptr;
+    _pipeExInstruction = simState.pipeExInstructionCptr;
+    _pipeMemInstruction = simState.pipeMemInstructionCptr;
+    _pipeWbInstruction = simState.pipeWbInstructionCptr;
+
     // --- Depuración: Imprime el tiempo crítico recibido ---
     // ignore: avoid_print
     print('Nuevo tiempo crítico recibido: $_criticalTime');
@@ -286,6 +307,8 @@ bool get isPCsrcActive => _isPCsrcActive;
         _buses.addAll(_getSingleCycleBuses());
         break;
       case SimulationMode.multiCycle:
+        _buses.addAll(_getMultiCycleBuses()); 
+        break;
       case SimulationMode.pipeline:
         _buses.addAll(_getPipelineBuses()); // Usamos la misma para multi y pipe por ahora
         break;
@@ -335,54 +358,122 @@ bool get isPCsrcActive => _isPCsrcActive;
     ];
   }
 
+
+  
+
   /// Devuelve la lista de buses para el datapath segmentado (pipeline).
   List<Bus> _getPipelineBuses() {
     // Copiamos la base del monociclo y la modificamos.
-    // ¡Aquí es donde se ve la potencia de este enfoque!
     final pipelineBuses = _getSingleCycleBuses();
-
-    // Ejemplo: Redirigir el bus del sumador del PC para que pase por el registro de pipeline NPC1.
-    // 1. Eliminamos el bus directo del sumador al Mux.
-    //pipelineBuses.removeWhere((bus) => bus.startPointLabel == 'NPC-4' && bus.endPointLabel == 'M2-0');
-    
-    pipelineBuses.removeWhere((bus) => bus.startPointLabel == 'IB-6' && bus.endPointLabel == 'RF-2'); //Redibujamos bus para que propage registro destino
-
-    if(false){
-    
-    pipelineBuses.removeWhere((bus) => bus.startPointLabel == 'NPC-4' && bus.endPointLabel == 'M1-0'); //Redibujamos bus para que propage registro destino
-    pipelineBuses.removeWhere((bus) => bus.startPointLabel == 'EXT-2' && bus.endPointLabel == 'BR-0'); //Redibujamos bus para que propage registro destino
-    pipelineBuses.removeWhere((bus) => bus.startPointLabel == 'PC-2' && bus.endPointLabel == 'BR-1'); //Redibujamos bus para que propage registro destino
-    pipelineBuses.removeWhere((bus) => bus.startPointLabel == 'RF-5' && bus.endPointLabel == 'ALU-0'); //Redibujamos bus para que propage registro destino
-    pipelineBuses.removeWhere((bus) => bus.startPointLabel == 'RF-6' && bus.endPointLabel == 'M3-0'); //Redibujamos bus para que propage registro destino
-    pipelineBuses.removeWhere((bus) => bus.startPointLabel == 'RF-7' && bus.endPointLabel == 'DM-1'); //Redibujamos bus para que propage registro destino
-    pipelineBuses.removeWhere((bus) => bus.startPointLabel == 'ALU-4' && bus.endPointLabel == 'DM-0'); //Redibujamos bus para que propage registro destino
-    pipelineBuses.removeWhere((bus) => bus.startPointLabel == 'ALU-5' && bus.endPointLabel == 'M1-1'); //Redibujamos bus para que propage registro destino
-    pipelineBuses.removeWhere((bus) => bus.startPointLabel == 'DM-3' && bus.endPointLabel == 'M1-2'); //Redibujamos bus para que propage registro destino
-    }
-
-    pipelineBuses.addAll([
-       // solo para ver por donde Bus(startPointLabel: 'IB-6', endPointLabel: 'RF-2', isActive: (s) => s.isIMemActive,width: 2, valueKey: 'dc_bus',size: 5,waypoints:List.of([const Offset(545,272),const Offset(545,345),const Offset(1430,345),const Offset(1430,510),const Offset(590,510),const Offset(590,272)])),
-       Bus(startPointLabel: 'IB-6', endPointLabel: 'DE1-2', isActive: (s) => s.isIMemActive,width: 2, valueKey: 'dc_bus',size: 5,waypoints:List.of([const Offset(545,272),const Offset(545,345)])),
-       Bus(startPointLabel: 'DE1-6', endPointLabel: 'EM1-3', isActive: (s) => s.isIMemActive,width: 2, valueKey: 'dc_bus',size: 5),
-       Bus(startPointLabel: 'EM1-7', endPointLabel: 'MW1-2', isActive: (s) => s.isIMemActive,width: 2, valueKey: 'dc_bus',size: 5),
-       Bus(startPointLabel: 'MW1-5', endPointLabel: 'RF-2', isActive: (s) => s.isIMemActive,width: 2, valueKey: 'dc_bus',size: 5,waypoints:List.of([const Offset(1430,345),const Offset(1430,510),const Offset(590,510),const Offset(590,272)])),
-
-    ]);
-
-    pipelineBuses.removeWhere((bus)=>bus.isControl);
-
-    // 2. Añadimos los nuevos buses que pasan por el registro.
-    //if(true)
-    pipelineBuses.addAll([
-      // Sumador del PC -> Registro NPC1
-      //Bus(startPointLabel: 'NPC-4',endPointLabel: 'FD0-0',isActive: (s) => s.isPcAdderActive,valueKey: 'npc_bus',),
-      // Registro NPC1 -> Mux del PC
-      //Bus(startPointLabel: 'FD0-1',endPointLabel: 'M2-0',isActive: (s) => s.isPcAdderActive, valueKey: 'npc_bus',waypoints: [const Offset(535, 80), const Offset(20, 80), const Offset(20, 228)],),
-    ]);
-
+    removePipelineDestinationBuses(pipelineBuses); // Elimina buses de propagación de registro destino
+    addPipelineBuses(pipelineBuses); // Añade buses de propagación de registro destino
     return pipelineBuses;
   }
 
+  List<Bus> _getMultiCycleBuses() {
+    // Copiamos la base del monociclo y la modificamos.
+    final pipelineBuses = _getSingleCycleBuses();
+    removeMultiCycleBuses(pipelineBuses); // Elimina buses de propagación de registro destino
+    addMultiCycleBuses(pipelineBuses); // Añade buses de propagación de registro destino
+    return pipelineBuses;
+  }
+
+
+
+
+  /// Elimina buses en pipeline y multiciclo para ser reemplazados por nuevos buses
+  void removeMultiCycleBuses(List<Bus> buses) {
+
+    buses.removeWhere((bus)=>bus.isControl);
+
+    buses.removeWhere((bus) => bus.startPointLabel == 'RF-5' && bus.endPointLabel == 'ALU-0');
+    buses.removeWhere((bus) => bus.startPointLabel == 'RF-6' && bus.endPointLabel == 'M3-0');
+    buses.removeWhere((bus) => bus.startPointLabel == 'RF-7' && bus.endPointLabel == 'DM-1');
+    buses.removeWhere((bus) => bus.startPointLabel == 'DM-3' && bus.endPointLabel == 'M1-2');
+  }
+
+  /// Añade buses de propagación de registro destino en pipeline y multiciclo
+  void addMultiCycleBuses(List<Bus> buses) {
+        buses.addAll([
+        
+        Bus(startPointLabel: 'RF-5', endPointLabel: 'DE1-0', isActive: (s) => s.isComponentReady('Pipe_IF_ID_Instr'), valueKey: 'Pipe_IF_ID_Instr'),
+        Bus(startPointLabel: 'DE1-4', endPointLabel: 'ALU-0', isActive: (s) => s.isComponentReady('Pipe_ID_EX_A'), valueKey: 'Pipe_ID_EX_A'),
+
+        Bus(startPointLabel: 'RF-6', endPointLabel: 'DE1-1', isActive: (s) => s.isComponentReady('Pipe_IF_ID_Instr'), valueKey: 'Pipe_IF_ID_Instr'),
+        Bus(startPointLabel: 'DE1-5', endPointLabel: 'M3-0', isActive: (s) => s.isComponentReady('Pipe_ID_EX_B'), valueKey: 'Pipe_ID_EX_B'),
+        
+        Bus(startPointLabel: 'RF-7', endPointLabel: 'EM1-2', isActive: (s) => s.isComponentReady('Pipe_ID_EX_B'), valueKey: 'Pipe_ID_EX_B',waypoints:List.of([const Offset(770,331)])),
+        Bus(startPointLabel: 'EM1-6', endPointLabel: 'DM-1', isActive: (s) => s.isComponentReady('Pipe_EX_MEM_B'), valueKey: 'Pipe_EX_MEM_B',waypoints:List.of([const Offset(1070,331),const Offset(1070,290)])),
+        
+        Bus(startPointLabel: 'DM-3', endPointLabel: 'MW1-1', isActive: (s) => s.isComponentReady('Pipe_EX_MEM_B'), valueKey: 'mem_read_data_bus'),
+        Bus(startPointLabel: 'MW1-4', endPointLabel: 'M1-2', isActive: (s) => s.isComponentReady('Pipe_MEM_WB_RM'), valueKey: 'Pipe_MEM_WB_RM'),
+        
+
+        ]);
+  }
+
+
+  /// Elimina buses en pipeline para ser reemplazados por nuevos buses
+  void removePipelineDestinationBuses(List<Bus> buses) {
+    removeMultiCycleBuses(buses);
+
+    //Resueltos
+    buses.removeWhere((bus) => bus.startPointLabel == 'IB-6' && bus.endPointLabel == 'RF-2'); //Redibujamos bus para que propage registro destino
+
+
+    buses.removeWhere((bus) => bus.startPointLabel == 'NPC-4' && bus.endPointLabel == 'M1-0');
+    buses.removeWhere((bus) => bus.startPointLabel == 'PC-2' && bus.endPointLabel == 'BR-1');
+    buses.removeWhere((bus) => bus.startPointLabel == 'ALU-4' && bus.endPointLabel == 'DM-0');
+    buses.removeWhere((bus) => bus.startPointLabel == 'ALU-5' && bus.endPointLabel == 'M1-1');
+    buses.removeWhere((bus) => bus.startPointLabel == 'EXT-2' && bus.endPointLabel == 'BR-0');
+    buses.removeWhere((bus) => bus.startPointLabel == 'M2-5' && bus.endPointLabel == 'PC-0');    
+  }
+
+
+  void addPipelineBuses(List<Bus> buses) {
+
+        addMultiCycleBuses(buses);
+        buses.addAll([
+      
+       // --- Propagación del registro de destino (rd) ---
+       Bus(startPointLabel: 'IB-6', endPointLabel: 'DE1-2', isActive: (s) => s.isComponentReady('Pipe_IF_ID_Instr'),width: 2, valueKey: 'Pipe_IF_ID_Instr',size: 5,waypoints:List.of([const Offset(545,272),const Offset(545,345)])),
+       Bus(startPointLabel: 'DE1-6', endPointLabel: 'EM1-3', isActive: (s) => s.isComponentReady('Pipe_ID_EX_RD'),width: 2, valueKey: 'Pipe_ID_EX_RD',size: 5),
+       Bus(startPointLabel: 'EM1-7', endPointLabel: 'MW1-2', isActive: (s) => s.isComponentReady('Pipe_EX_MEM_RD'),width: 2, valueKey: 'Pipe_EX_MEM_RD',size: 5), // El valor se propaga
+       Bus(startPointLabel: 'MW1-5', endPointLabel: 'RF-2', isActive: (s) => s.isComponentReady('Pipe_MEM_WB_RD'),width: 2, valueKey: 'Pipe_MEM_WB_RD',size: 5,waypoints:List.of([const Offset(1430,345),const Offset(1430,510),const Offset(590,510),const Offset(590,272)])),
+
+    //Bus(startPointLabel: 'NPC-4', endPointLabel: 'M1-0', isActive: (s) => s.isPcAdderActive,waypoints: List.of([const Offset(1270,150),const Offset(1270,228)] ), valueKey: 'npc_bus'),
+      
+        Bus(startPointLabel: 'NPC-4', endPointLabel: 'FD0-0', isActive: (s) => true, valueKey: 'npc_bus'),
+        Bus(startPointLabel: 'FD0-1', endPointLabel: 'DE0-0', isActive: (s) => s.isComponentReady('Pipe_IF_ID_NPC'), valueKey: 'Pipe_IF_ID_NPC'),
+        Bus(startPointLabel: 'DE0-1', endPointLabel: 'EM0-0', isActive: (s) => s.isComponentReady('Pipe_ID_EX_NPC'), valueKey: 'Pipe_ID_EX_NPC'),
+        Bus(startPointLabel: 'EM0-1', endPointLabel: 'MW0-0', isActive: (s) => s.isComponentReady('Pipe_EX_MEM_NPC'), valueKey: 'Pipe_EX_MEM_NPC'),
+        Bus(startPointLabel: 'MW0-1', endPointLabel: 'M1-0', isActive: (s) => s.isComponentReady('Pipe_MEM_WB_NPC'), valueKey: 'Pipe_MEM_WB_NPC',waypoints:List.of([const Offset(1270,150),const Offset(1270,228)])),
+
+    //Bus(startPointLabel: 'PC-2', endPointLabel: 'BR-1', isActive: (s) => s.isPCActive,waypoints: List.of([const Offset(260,440)]), valueKey: 'pc_bus'),
+
+        Bus(startPointLabel: 'PC-2', endPointLabel: 'FD1-0', isActive: (s) => true, valueKey: 'pc_bus',waypoints:List.of([const Offset(260,440)])),
+        Bus(startPointLabel: 'FD1-1', endPointLabel: 'DE2-0', isActive: (s) => s.isComponentReady('Pipe_ID_EX_PC'), valueKey: 'Pipe_ID_EX_PC'),
+        Bus(startPointLabel: 'DE2-1', endPointLabel: 'BR-1', isActive: (s) => s.isComponentReady('Pipe_ID_EX_PC'), valueKey: 'Pipe_ID_EX_PC'),
+
+    //Bus(startPointLabel: 'ALU-5', endPointLabel: 'M1-1', isActive: (s) => s.isAluActive,waypoints: List.of([const Offset(1070,175),const Offset(1250,175),const Offset(1250,248)]), valueKey: 'alu_result_bus'),
+        Bus(startPointLabel: 'ALU-5', endPointLabel: 'MW1-0', isActive: (s) => s.isComponentReady('Pipe_EX_MEM_ALU_result'), valueKey: 'Pipe_EX_MEM_ALU_result',waypoints:List.of([const Offset(1070,175)])),
+        Bus(startPointLabel: 'MW1-3', endPointLabel: 'M1-1', isActive: (s) => s.isComponentReady('Pipe_MEM_WB_ALU_result'), valueKey: 'Pipe_MEM_WB_ALU_result',waypoints:List.of([const Offset(1250,175),const Offset(1250,248)])),
+
+
+    //Bus(startPointLabel: 'ALU-4', endPointLabel: 'DM-0', isActive: (s) => s.isAluActive, valueKey: 'alu_result_bus'),
+        Bus(startPointLabel: 'ALU-4', endPointLabel: 'EM1-1', isActive: (s) => s.isComponentReady('alu_result_bus'), valueKey: 'alu_result_bus'),
+        Bus(startPointLabel: 'EM1-5', endPointLabel: 'DM-0', isActive: (s) => s.isComponentReady('Pipe_EX_MEM_ALU_result'), valueKey: 'Pipe_EX_MEM_ALU_result'),
+
+    //Bus(startPointLabel: 'EXT-2', endPointLabel: 'BR-0', isActive: (s) => s.isExtenderActive, valueKey: 'immediate_bus'),
+        Bus(startPointLabel: 'EXT-2', endPointLabel: 'DE1-3', isActive: (s) => s.isComponentReady('immediate_bus'), valueKey: 'immediate_bus'),
+        Bus(startPointLabel: 'DE1-7', endPointLabel: 'BR-0', isActive: (s) => s.isComponentReady('Pipe_ID_EX_Imm'), valueKey: 'Pipe_ID_EX_Imm',waypoints:List.of([])),
+
+    //Bus(startPointLabel: 'M2-5', endPointLabel: 'PC-0', isActive: (s) => s.isMux2Active, valueKey: 'mux_pc_bus'),
+        Bus(startPointLabel: 'M2-5', endPointLabel: 'PC-0', isActive: (s) => s.isMux2Active, valueKey: 'mux_pc_bus'),  //Ejemplo de borrar un mismo bus y sustituirlo por otro para cambiar el comportamiento con el pipeline
+
+    ]);
+
+  }
 
 
 
@@ -392,21 +483,21 @@ bool get isPCsrcActive => _isPCsrcActive;
     if (_simulationMode == SimulationMode.multiCycle) {
       // Lógica para Multiciclo: se basa en el micro-ciclo actual.
       // Usamos el `ready_at` que ahora contiene el número de microciclo.
-      _isPCActive = _isComponentReady('pc_bus');
-      _isPcAdderActive = _isComponentReady('npc_bus');
-      _isIMemActive = _isComponentReady('instruction_bus');
-      _isIBActive = _isComponentReady('instruction_bus');
-      _isControlActive = _isComponentReady('control_bus');
-      _isPCsrcActive = _isComponentReady('pcsrc_bus');
-      _isRegFileActive = _isComponentReady('rd1_bus') || _isComponentReady('rd2_bus');
-      _isExtenderActive = _isComponentReady('immediate_bus');
-      _isAluActive = _isComponentReady('alu_result_bus');
-      _isBranchAdderActive = _isComponentReady('branch_target_bus');
+      _isPCActive = isComponentReady('pc_bus');
+      _isPcAdderActive = isComponentReady('npc_bus');
+      _isIMemActive = isComponentReady('instruction_bus');
+      _isIBActive = isComponentReady('instruction_bus');
+      _isControlActive = isComponentReady('control_bus');
+      _isPCsrcActive = isComponentReady('pcsrc_bus');
+      _isRegFileActive = isComponentReady('rd1_bus') || isComponentReady('rd2_bus');
+      _isExtenderActive = isComponentReady('immediate_bus');
+      _isAluActive = isComponentReady('alu_result_bus');
+      _isBranchAdderActive = isComponentReady('branch_target_bus');
       // La memoria de datos está activa si se lee O se escribe, y la ruta correspondiente está activa.
-      _isDMemActive = (_isComponentReady('mem_read_data_bus')&& _isInstruction('lw')) || (_isComponentReady('mem_write_data_bus')&& _isInstruction('sw'));
-      _isMuxCActive = _isComponentReady('mux_wb_bus');
-      _isMux2Active = _isComponentReady('mux_pc_bus');
-      _isMux3Active = _isComponentReady('mux_alu_b_bus');
+      _isDMemActive = (isComponentReady('mem_read_data_bus')&& _isInstruction('lw')) || (isComponentReady('mem_write_data_bus')&& _isInstruction('sw'));
+      _isMuxCActive = isComponentReady('mux_wb_bus');
+      _isMux2Active = isComponentReady('mux_pc_bus');
+      _isMux3Active = isComponentReady('mux_alu_b_bus');
     } else {
       // Lógica original para Monociclo: se basa en el slider.
       _evaluateSingleCycleActiveComponents();
@@ -442,8 +533,8 @@ bool get isPCsrcActive => _isPCsrcActive;
   }
 
   // Helper para multiciclo
-  bool _isComponentReady(String componentName) {
-    final readyAtCycle = _readyAt[componentName] ?? 99; // Un ciclo inalcanzable
+  bool isComponentReady(String componentName) {
+    final readyAtCycle = _readyAt[componentName] ?? 999; // Un ciclo inalcanzable
     return _currentMicroCycle >= readyAtCycle;
   }
 

@@ -83,11 +83,12 @@ class BusesPainter extends CustomPainter {
     extractPoints(datapathState.pipereg_fd0_Key, 'FD0');//Fetch decode
     extractPoints(datapathState.pipereg_fd1_Key, 'FD1');//Fetch decode
     extractPoints(datapathState.pipereg_de0_Key, 'DE0');//Fetch decode
+    extractPoints(datapathState.pipereg_de1_Key, 'DE1');//Fetch decode
+    extractPoints(datapathState.pipereg_de2_Key, 'DE2');//Fetch decode
     extractPoints(datapathState.pipereg_em0_Key, 'EM0');//Fetch decode
     extractPoints(datapathState.pipereg_em1_Key, 'EM1');//Fetch decode
     extractPoints(datapathState.pipereg_mw0_Key, 'MW0');//Fetch decode
     extractPoints(datapathState.pipereg_mw1_Key, 'MW1');//Fetch decode
-    extractPoints(datapathState.pipereg_de1_Key, 'DE1');//Decode execute
 
 
     return allPoints;

@@ -45,9 +45,41 @@ using json = nlohmann::json;
             {"PC_next", {{"value", state.bus_PC_next.value}, {"ready_at", state.bus_PC_next.ready_at}, {"is_active", state.bus_PC_next.is_active}}},
             {"branch_taken", {{"value", state.bus_branch_taken.value}, {"ready_at", state.bus_branch_taken.ready_at}, {"is_active", state.bus_branch_taken.is_active}}},
             {"criticaltime", state.criticalTime},
-            {"total_micro_cycles",state.total_micro_cycles},
-            //{"instruction",state.instruction},
+            {"totalMicroCycles",state.total_micro_cycles},
             {"instruction_cptr",state.instruction_cptr},
+
+            {"Pipe_IF_instruction_cptr",state.Pipe_IF_instruction_cptr},
+            {"Pipe_ID_instruction_cptr",state.Pipe_ID_instruction_cptr},
+            {"Pipe_EX_instruction_cptr",state.Pipe_EX_instruction_cptr},
+            {"Pipe_MEM_instruction_cptr",state.Pipe_MEM_instruction_cptr},
+            {"Pipe_WB_instruction_cptr",state.Pipe_WB_instruction_cptr},
+            
+            // --- Pipeline Registers ---
+            {"Pipe_IF_ID_Instr", {{"value", state.Pipe_IF_ID_Instr.value}, {"ready_at", state.Pipe_IF_ID_Instr.ready_at}, {"is_active", state.Pipe_IF_ID_Instr.is_active}}},
+            {"Pipe_IF_ID_NPC", {{"value", state.Pipe_IF_ID_NPC.value}, {"ready_at", state.Pipe_IF_ID_NPC.ready_at}, {"is_active", state.Pipe_IF_ID_NPC.is_active}}},
+            {"Pipe_IF_ID_PC", {{"value", state.Pipe_IF_ID_PC.value}, {"ready_at", state.Pipe_IF_ID_PC.ready_at}, {"is_active", state.Pipe_IF_ID_PC.is_active}}},
+
+            {"Pipe_ID_EX_Control", {{"value", state.Pipe_ID_EX_Control.value}, {"ready_at", state.Pipe_ID_EX_Control.ready_at}, {"is_active", state.Pipe_ID_EX_Control.is_active}}},
+            {"Pipe_ID_EX_A", {{"value", state.Pipe_ID_EX_A.value}, {"ready_at", state.Pipe_ID_EX_A.ready_at}, {"is_active", state.Pipe_ID_EX_A.is_active}}},
+            {"Pipe_ID_EX_B", {{"value", state.Pipe_ID_EX_B.value}, {"ready_at", state.Pipe_ID_EX_B.ready_at}, {"is_active", state.Pipe_ID_EX_B.is_active}}},
+            {"Pipe_ID_EX_RD", {{"value", state.Pipe_ID_EX_RD.value}, {"ready_at", state.Pipe_ID_EX_RD.ready_at}, {"is_active", state.Pipe_ID_EX_RD.is_active}}},
+            {"Pipe_ID_EX_Imm", {{"value", state.Pipe_ID_EX_Imm.value}, {"ready_at", state.Pipe_ID_EX_Imm.ready_at}, {"is_active", state.Pipe_ID_EX_Imm.is_active}}},
+            {"Pipe_ID_EX_NPC", {{"value", state.Pipe_ID_EX_NPC.value}, {"ready_at", state.Pipe_ID_EX_NPC.ready_at}, {"is_active", state.Pipe_ID_EX_NPC.is_active}}},
+            {"Pipe_ID_EX_PC", {{"value", state.Pipe_ID_EX_PC.value}, {"ready_at", state.Pipe_ID_EX_PC.ready_at}, {"is_active", state.Pipe_ID_EX_PC.is_active}}},
+
+            {"Pipe_EX_MEM_Control", {{"value", state.Pipe_EX_MEM_Control.value}, {"ready_at", state.Pipe_EX_MEM_Control.ready_at}, {"is_active", state.Pipe_EX_MEM_Control.is_active}}},
+            {"Pipe_EX_MEM_NPC", {{"value", state.Pipe_EX_MEM_NPC.value}, {"ready_at", state.Pipe_EX_MEM_NPC.ready_at}, {"is_active", state.Pipe_EX_MEM_NPC.is_active}}},
+            {"Pipe_EX_MEM_ALU_result", {{"value", state.Pipe_EX_MEM_ALU_result.value}, {"ready_at", state.Pipe_EX_MEM_ALU_result.ready_at}, {"is_active", state.Pipe_EX_MEM_ALU_result.is_active}}},
+            {"Pipe_EX_MEM_B", {{"value", state.Pipe_EX_MEM_B.value}, {"ready_at", state.Pipe_EX_MEM_B.ready_at}, {"is_active", state.Pipe_EX_MEM_B.is_active}}},
+            {"Pipe_EX_MEM_RD", {{"value", state.Pipe_EX_MEM_RD.value}, {"ready_at", state.Pipe_EX_MEM_RD.ready_at}, {"is_active", state.Pipe_EX_MEM_RD.is_active}}},
+
+            {"Pipe_MEM_WB_Control", {{"value", state.Pipe_MEM_WB_Control.value}, {"ready_at", state.Pipe_MEM_WB_Control.ready_at}, {"is_active", state.Pipe_MEM_WB_Control.is_active}}},
+            {"Pipe_MEM_WB_NPC", {{"value", state.Pipe_MEM_WB_NPC.value}, {"ready_at", state.Pipe_MEM_WB_NPC.ready_at}, {"is_active", state.Pipe_MEM_WB_NPC.is_active}}},
+            {"Pipe_MEM_WB_RM", {{"value", state.Pipe_MEM_WB_RM.value}, {"ready_at", state.Pipe_MEM_WB_RM.ready_at}, {"is_active", state.Pipe_MEM_WB_RM.is_active}}},
+            {"Pipe_MEM_WB_RD", {{"value", state.Pipe_MEM_WB_RD.value}, {"ready_at", state.Pipe_MEM_WB_RD.ready_at}, {"is_active", state.Pipe_MEM_WB_RD.is_active}}},
+            {"Pipe_MEM_WB_ALU_result", {{"value", state.Pipe_MEM_WB_ALU_result.value}, {"ready_at", state.Pipe_MEM_WB_ALU_result.ready_at}, {"is_active", state.Pipe_MEM_WB_ALU_result.is_active}}}
+
+
         };
 
         json_str = j.dump();

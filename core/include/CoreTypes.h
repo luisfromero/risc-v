@@ -37,6 +37,42 @@ struct InstructionInfo {
     
 };
 
+// --- Estructuras para los Registros de Segmentación (Pipeline) ---
+// Contienen los datos que se almacenan entre etapas.
+
+struct IF_ID_Register {
+    uint32_t instr = 0;
+    uint32_t npc = 0; // Next PC (PC+4)
+};
+
+struct ID_EX_Register {
+    uint16_t control = 0;
+    uint32_t pc_plus_4 = 0;
+    uint32_t a = 0;
+    uint32_t b = 0;
+    uint32_t imm = 0;
+    uint8_t rs1 = 0;
+    uint8_t rs2 = 0;
+    uint8_t rd = 0;
+};
+
+struct EX_MEM_Register {
+    uint16_t control = 0;
+    uint32_t alu_result = 0;
+    uint32_t b = 0;
+    uint8_t rd = 0;
+    bool alu_zero = false;
+    uint32_t branch_target = 0;
+};
+
+struct MEM_WB_Register {
+    uint16_t control = 0;
+    uint32_t mem_read_data = 0;
+    uint32_t alu_result = 0;
+    uint8_t rd = 0;
+};
+
+
 
 
 
@@ -95,5 +131,42 @@ struct DatapathState {
     uint32_t total_micro_cycles;
     //std::string instruction;
     char instruction_cptr[256];
+
+    // --- Buses de Salida de los Registros de Segmentación ---
+
+    char Pipe_IF_instruction_cptr[256];
+    char Pipe_ID_instruction_cptr[256];
+    char Pipe_EX_instruction_cptr[256];
+    char Pipe_MEM_instruction_cptr[256];
+    char Pipe_WB_instruction_cptr[256];
+
+
+    // IF/ID Stage
+    Signal<uint32_t> Pipe_IF_ID_Instr;
+    Signal<uint32_t> Pipe_IF_ID_NPC; // PC + 4
+    Signal<uint32_t> Pipe_IF_ID_PC;
+
+    // ID/EX Stage
+    Signal<uint16_t> Pipe_ID_EX_Control;
+    Signal<uint32_t> Pipe_ID_EX_NPC; // PC + 4
+    Signal<uint32_t> Pipe_ID_EX_A;
+    Signal<uint32_t> Pipe_ID_EX_B;
+    Signal<uint8_t>  Pipe_ID_EX_RD; // Nombre registro destino
+    Signal<uint32_t> Pipe_ID_EX_Imm; // Inmediato extendido
+    Signal<uint32_t> Pipe_ID_EX_PC;
+
+    // EX/MEM Stage
+    Signal<uint16_t> Pipe_EX_MEM_Control;
+    Signal<uint32_t> Pipe_EX_MEM_NPC; // PC + 4
+    Signal<uint32_t> Pipe_EX_MEM_ALU_result;
+    Signal<uint32_t> Pipe_EX_MEM_B;
+    Signal<uint8_t>  Pipe_EX_MEM_RD; // Nombre registro destino
+
+    // MEM/WB Stage
+    Signal<uint16_t> Pipe_MEM_WB_Control; 
+    Signal<uint32_t> Pipe_MEM_WB_NPC;  // PC + 4
+    Signal<uint32_t> Pipe_MEM_WB_ALU_result; 
+    Signal<uint32_t> Pipe_MEM_WB_RM; // Memoria
+    Signal<uint8_t> Pipe_MEM_WB_RD; // Nombre registro destino
 
 };

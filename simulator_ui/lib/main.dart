@@ -37,6 +37,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final datapathState = Provider.of<DatapathState>(context);
 
+    bool isSingleCycleMode = datapathState.simulationMode == SimulationMode.singleCycle;
+    bool isPipelineMode = datapathState.simulationMode == SimulationMode.pipeline;
+    
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
@@ -209,20 +212,6 @@ class MyApp extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Positioned(
-                      top: 250,
-                      left: 740,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (B)'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: RegWidget(
-                          key: datapathState.pipereg_b_Key,
-                          label: 'B',
-                          height: 50,
-                          isActive: datapathState.isRegFileActive,
-                        ),
-                      ),
-                    ),
 
                     // --- Sumador del PC ---
                     Positioned(
@@ -304,6 +293,7 @@ class MyApp extends StatelessWidget {
                           label: 'FD0',
                           height: 40,
                           isActive: datapathState.isPcAdderActive,
+                          visibility: isPipelineMode,
                         ),
                       ),
                     ),
@@ -311,13 +301,14 @@ class MyApp extends StatelessWidget {
                       top: 420,
                       left: 520,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('FD1'),
+                        onEnter: (_) => datapathState.setHoverInfo('IF/DE Register (PC)'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_fd1_Key,
                           label: 'FD1',
                           height: 40,
                           isActive: datapathState.isPcAdderActive,
+                          visibility: isPipelineMode,
                         ),
                       ),
                     ),
@@ -361,6 +352,8 @@ class MyApp extends StatelessWidget {
                           key: datapathState.pipereg_de0_Key,
                           label: 'DE0',
                           isActive: datapathState.isPcAdderActive,
+                          visibility: isPipelineMode,
+
                         ),
                       ),
                     ),
@@ -375,7 +368,23 @@ class MyApp extends StatelessWidget {
                           height: 262,
                           key: datapathState.pipereg_de1_Key,
                           isActive: datapathState.isIBActive,
-                          connectionPoints: const [Offset(0, 0.269),Offset(0, 0.453),Offset(0, 0.7115),Offset(0, 0.846),Offset(1, 0.269),Offset(1, 0.453),Offset(1, 0.7115),Offset(1, 0.846)],
+                          visibility: !isSingleCycleMode,
+                          connectionPoints: const [Offset(0, 0.269),Offset(0, 0.453),Offset(0, 0.7115),Offset(0, 0.838),Offset(1, 0.269),Offset(1, 0.453),Offset(1, 0.7115),Offset(1, 0.838)],
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 420,
+                      left: 740,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (PC)'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: RegWidget(
+                          key: datapathState.pipereg_de2_Key,
+                          label: 'DE2',
+                          height: 40,
+                          isActive: datapathState.isRegFileActive,
+                          visibility: isPipelineMode,
                         ),
                       ),
                     ),
@@ -444,6 +453,7 @@ class MyApp extends StatelessWidget {
                           key: datapathState.pipereg_em0_Key,
                           label: 'EM0',
                           isActive: datapathState.isPcAdderActive,
+                          visibility: isPipelineMode,
                         ),
                       ),
                     ),
@@ -458,41 +468,12 @@ class MyApp extends StatelessWidget {
                           height: 262,
                           key: datapathState.pipereg_em1_Key,
                           isActive: datapathState.isIBActive,
+                          visibility: !isSingleCycleMode,
                           connectionPoints: const [Offset(0, 0.315),Offset(0, 0.384),Offset(0, 0.654),Offset(0, 0.7115),Offset(1, 0.315),Offset(1, 0.384),Offset(1, 0.654),Offset(1, 0.7115)],
                         ),
                       ),
                     ),
 
-                    // --- Pipeline Registers ---
-                    Positioned(
-                      top: 130,
-                      left: 1220,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('ME/WR Register (PC)'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: RegWidget(
-                          key: datapathState.pipereg_mw0_Key,
-                          label: 'MW0',
-                          isActive: datapathState.isPcAdderActive,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 160,
-                      left: 1220,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('ME/WR Register (ALU result, Read mem, Dest reg name)'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: RegWidget(
-                          label:'MW1',
-                          height: 262,
-                          key: datapathState.pipereg_mw1_Key,
-                          isActive: datapathState.isIBActive,
-                          connectionPoints: const [Offset(0, 0.0577),Offset(0, 0.423),Offset(0, 0.7115),Offset(1, 0.0577),Offset(1, 0.423),Offset(1, 0.7115)],
-
-                        ),
-                      ),
-                    ),
 
  
 
@@ -509,28 +490,76 @@ class MyApp extends StatelessWidget {
                       ),
                     ),
                     // --- Instruction Labels ---
-                    Positioned(
-                      top: 430,
-                      left: 1030,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            datapathState.instruction,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontFamily: 'monospace',
-                              fontWeight: FontWeight.bold,
+                    if (!isPipelineMode)
+                      Positioned(
+                        top: 540,
+                        left: 800,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              datapathState.instruction,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontFamily: 'monospace',
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '${datapathState.instructionValue.toRadixString(2).padLeft(32, '0')}',
-                            style: const TextStyle(fontSize: 20, fontFamily: 'monospace'),
-                          ),
-                        ],
+                            const SizedBox(height: 6),
+                            Text(
+                              '${datapathState.instructionValue.toRadixString(2).padLeft(32, '0')}',
+                              style: const TextStyle(fontSize: 20, fontFamily: 'monospace'),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+
+                    // --- Pipeline Instruction Labels ---
+                    if (isPipelineMode)
+                      Positioned(
+                        top: 540,
+                        left: 300,
+                        child: Text(
+                          datapathState.pipeIfInstruction,
+                          style: const TextStyle(fontSize: 24, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    if (isPipelineMode)
+                      Positioned(
+                        top: 540,
+                        left: 550,
+                        child: Text(
+                          datapathState.pipeIdInstruction,
+                          style: const TextStyle(fontSize: 24, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    if (isPipelineMode)
+                      Positioned(
+                        top: 540,
+                        left: 800,
+                        child: Text(
+                          datapathState.pipeExInstruction,
+                          style: const TextStyle(fontSize: 24, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    if (isPipelineMode)
+                      Positioned(
+                        top: 540,
+                        left: 1050,
+                        child: Text(
+                          datapathState.pipeMemInstruction,
+                          style: const TextStyle(fontSize: 24, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    if (isPipelineMode)
+                      Positioned(
+                        top: 540,
+                        left: 1300,
+                        child: Text(
+                          datapathState.pipeWbInstruction,
+                          style: const TextStyle(fontSize: 24, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     
 
                     // --- Extender ---
@@ -573,6 +602,41 @@ class MyApp extends StatelessWidget {
                         ),
                       ),
                     ),
+
+                    // --- Pipeline Registers ---
+                    Positioned(
+                      top: 130,
+                      left: 1220,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('ME/WR Register (PC)'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: RegWidget(
+                          key: datapathState.pipereg_mw0_Key,
+                          label: 'MW0',
+                          isActive: datapathState.isPcAdderActive,
+                          visibility: isPipelineMode,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 160,
+                      left: 1220,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('ME/WR Register (ALU result, Read mem, Dest reg name)'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: RegWidget(
+                          label:'MW1',
+                          height: 262,
+                          key: datapathState.pipereg_mw1_Key,
+                          isActive: datapathState.isIBActive,
+                          visibility: !isSingleCycleMode,
+                          connectionPoints: const [Offset(0, 0.0577),Offset(0, 0.412),Offset(0, 0.7115),Offset(1, 0.0577),Offset(1, 0.412),Offset(1, 0.7115)],
+
+                        ),
+                      ),
+                    ),
+
+
                     // --- MuxC result ---
                     Positioned(
                       top: 220,

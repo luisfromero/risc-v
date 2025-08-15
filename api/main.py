@@ -57,6 +57,8 @@ class Signal_u8(ctypes.Structure):
 class Signal_bool(ctypes.Structure):
     _fields_ = [("value", ctypes.c_bool), ("ready_at", ctypes.c_uint32), ("is_active", ctypes.c_bool)]
 
+
+# El orden debe coincidir exactamente con el orden de los campos en la estructura C++
 class DatapathState(ctypes.Structure):
     _fields_ = [
         ("PC", Signal_u32),
@@ -79,10 +81,10 @@ class DatapathState(ctypes.Structure):
         ("PCsrc", Signal_u8),
         ("ALUsrc", Signal_u8),
         ("ResSrc", Signal_u8),
-        ("ImmSrc", Signal_u8),
         ("ALUctr", Signal_u8),
-        ("BRwr", Signal_bool),
-        ("MemWr", Signal_bool   ),
+        ("ImmSrc", Signal_u8),
+        ("BRwr", Signal_u8),
+        ("MemWr", Signal_u8),
         # --- Campos que faltaban ---
         ("Mem_address", Signal_u32),
         ("Mem_write_data", Signal_u32),
@@ -97,6 +99,39 @@ class DatapathState(ctypes.Structure):
         ("total_micro_cycles", ctypes.c_uint32),
         # ("instruction", ctypes.c_wchar_p),
         ("instruction_cptr", ctypes.c_char * 256), # Usar un buffer de tamaño fijo para evitar punteros colgantes
+        ("Pipe_IF_instruction_cptr", ctypes.c_char * 256),
+        ("Pipe_ID_instruction_cptr", ctypes.c_char * 256),
+        ("Pipe_EX_instruction_cptr", ctypes.c_char * 256),
+        ("Pipe_MEM_instruction_cptr", ctypes.c_char * 256),
+        ("Pipe_WB_instruction_cptr", ctypes.c_char * 256),
+
+        # --- Buses de Salida de los Registros de Segmentación ---
+        ("Pipe_IF_ID_Instr", Signal_u32),
+        ("Pipe_IF_ID_NPC", Signal_u32),
+        ("Pipe_IF_ID_PC", Signal_u32),
+        
+
+        ("Pipe_ID_EX_Control", Signal_u16),
+        ("Pipe_ID_EX_NPC", Signal_u32),
+        ("Pipe_ID_EX_A", Signal_u32),
+        ("Pipe_ID_EX_B", Signal_u32),
+        ("Pipe_ID_EX_RD", Signal_u8),
+        ("Pipe_ID_EX_Imm", Signal_u32),
+        ("Pipe_ID_EX_PC", Signal_u32),
+
+
+        ("Pipe_EX_MEM_Control", Signal_u16),
+        ("Pipe_EX_MEM_NPC", Signal_u32),
+        ("Pipe_EX_MEM_ALU_result", Signal_u32),
+        ("Pipe_EX_MEM_B", Signal_u32),
+        ("Pipe_EX_MEM_RD", Signal_u8),
+
+        ("Pipe_MEM_WB_Control", Signal_u16),
+        ("Pipe_MEM_WB_NPC", Signal_u32),
+        ("Pipe_MEM_WB_ALU_result", Signal_u32),
+        ("Pipe_MEM_WB_RM", Signal_u32),
+        ("Pipe_MEM_WB_RD", Signal_u8),
+
     ]
 
 # --- Paso 3: Definir los prototipos de las funciones C ---
