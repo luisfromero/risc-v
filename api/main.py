@@ -170,6 +170,9 @@ core_lib.Simulator_get_all_registers.restype = None
 core_lib.Simulator_get_datapath_state.argtypes = [ctypes.c_void_p]
 core_lib.Simulator_get_datapath_state.restype = DatapathState
 
+core_lib.Simulator_get_d_mem.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t]
+core_lib.Simulator_get_d_mem.restype = None
+
 # --- Paso 4: Crear una clase Python que envuelva la lógica C++ ---
 
 class Simulator:
@@ -218,6 +221,12 @@ class Simulator:
     def get_datapath_state(self) -> DatapathState:
         print("Llamando al get_datapath_state de la dll...")
         return core_lib.Simulator_get_datapath_state(self.obj)
+
+    def get_d_mem(self) -> list[int]:
+        """Obtiene el contenido de la memoria de datos (256 bytes)."""
+        buffer = (ctypes.c_uint8 * 256)()
+        core_lib.Simulator_get_d_mem(self.obj, buffer, 256)
+        return list(buffer)
 
     def __del__(self):
         if hasattr(self, 'obj') and self.obj:
@@ -387,6 +396,8 @@ program_bytes = bytes([
     0x23, 0x20, 0x05, 0x00,  # sw x5, 0(x0)
     0x93, 0x02, 0x00, 0x00,  # addi x5, x0, 0
     0x13, 0x03, 0x90, 0x00,  # addi x6, x0, 9
+    0x23, 0xa0, 0x52, 0x00,  # sw x5, 0(x5)
+    0x23, 0x20, 0x63, 0x00,  # sw x6, 0(x6)
     0x93, 0x03, 0x00, 0x00,  # addi x7, x0, 0
     0xb3, 0x82, 0x62, 0x00,  # loop: add x5, x5, x6
     0x13, 0x03, 0xf3, 0xff,  # addi x6, x6, -1
@@ -447,3 +458,10 @@ def execute_step_back() -> SimulatorStateModel:
         sim = simulator_instance["sim"]
         model_name = simulator_instance["model_name"]
         return _get_full_state_data(sim, model_name)    
+
+@app.get("/memory/data", response_model=list[int], summary="Obtener el contenido de la memoria de datos")
+def get_data_memory():
+    """Devuelve los 256 bytes de la memoria de datos del modo didáctico."""
+    with simulator_lock:
+        sim = simulator_instance["sim"]
+        return sim.get_d_mem()

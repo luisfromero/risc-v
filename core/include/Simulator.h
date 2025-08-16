@@ -57,6 +57,9 @@ public:
     
     const RegisterFile& get_registers() const;
 
+    // Devuelve el contenido de la memoria de datos (para modo didáctico).
+    const std::vector<uint8_t>& get_d_mem() const;
+
 private:
     uint32_t pc; // Program Counter
     uint32_t pc_delay=1; 
@@ -100,7 +103,7 @@ private:
     void decode_and_execute(uint32_t instruction);
     void simulate_single_cycle(uint32_t instruction);
     void simulate_multi_cycle(uint32_t instruction);
-    void simulate_pipeline();
+    void simulate_pipeline(uint32_t instruction);
 
     std::string disassemble(uint32_t instruction, const InstructionInfo* info) const;
     std::string instructionString ="nop";

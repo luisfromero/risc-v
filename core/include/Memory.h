@@ -19,8 +19,14 @@ public:
     // Lee un bloque de memoria. Usado por la caché para manejar fallos.
     void read_block(uint32_t base_address, std::vector<uint8_t>& buffer);
 
+    
+
     void set_delay(uint32_t new_delay) { delay = new_delay; }
+
     uint32_t get_delay() const { return delay; }
+
+    // Devuelve una referencia constante al vector de datos interno.
+    const std::vector<uint8_t>& get_data() const { return mem; }
 
 private:
     uint32_t delay=50;

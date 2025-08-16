@@ -182,4 +182,17 @@ extern "C" {
         return instruction_str.c_str();
     }
 
+    SIMULATOR_API void Simulator_get_d_mem(void* sim_ptr, uint8_t* buffer_out, size_t buffer_size) {
+        if (!sim_ptr || !buffer_out) return;
+
+        const auto& d_mem_data = static_cast<Simulator*>(sim_ptr)->get_d_mem();
+        
+        // Nos aseguramos de no escribir más allá del tamaño del buffer proporcionado.
+        size_t bytes_to_copy = std::min(d_mem_data.size(), buffer_size);
+        
+        if (bytes_to_copy > 0) {
+            std::memcpy(buffer_out, d_mem_data.data(), bytes_to_copy);
+        }
+    }
+
 }

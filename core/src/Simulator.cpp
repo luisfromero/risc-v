@@ -224,6 +224,11 @@ const RegisterFile& Simulator::get_registers() const {
     return register_file;
 }
 
+// Devuelve el contenido de la memoria de datos (para modo didáctico).
+const std::vector<uint8_t>& Simulator::get_d_mem() const {
+    return d_mem.get_data();
+}
+
 // Fase de Fetch: Lee la siguiente instrucción de la memoria.
 uint32_t Simulator::fetch() {
     // Lee una palabra de 32 bits (4 bytes) desde la caché de instrucciones.
@@ -257,7 +262,7 @@ void Simulator::decode_and_execute(uint32_t instruction)
     if (model == PipelineModel::PipeLined) {
         // La simulación segmentada no se basa en una sola instrucción, sino en el estado de los registros.
         // La instrucción 'fetch' es solo para la primera etapa.
-        simulate_pipeline();
+        simulate_pipeline(instruction);
     } else if (model == PipelineModel::MultiCycle) {
         simulate_multi_cycle(instruction);
     } else {
@@ -419,7 +424,7 @@ void Simulator::simulate_single_cycle(uint32_t instruction) {
 
     // 5. ESCRITURA (WRITE-BACK)
     // Mux para el resultado final
-    uint32_t  final_result=mux_C.select(alu_result,mem_read_data,pc_plus_4,INDETERMINADO,info->ResSrc);
+    uint32_t  final_result=mux_C.select(mem_read_data,alu_result,pc_plus_4,INDETERMINADO,info->ResSrc);
     criticalTime=std::max(std::max(std::max(datapath.bus_ALU_result.ready_at,datapath.bus_Mem_read_data.ready_at),datapath.bus_Control.ready_at),datapath.bus_PC_plus4.ready_at)+mux_C.get_delay();
     datapath.bus_C = {final_result,criticalTime};
     datapath.criticalTime=criticalTime+register_file.get_write_delay();
@@ -684,37 +689,23 @@ void Simulator::simulate_multi_cycle(uint32_t instruction) {
     datapath.criticalTime = info->cycles;
 }
 
-void Simulator::simulate_pipeline() {
-    // Esta función simulará un ciclo de reloj en el datapath segmentado.
-    // Moverá los datos a través de las 5 etapas (IF, ID, EX, MEM, WB)
-    // y actualizará los registros de segmentación al final.
+void Simulator::simulate_pipeline(uint32_t instruction) {
+    // --- Simulación básica de las etapas IF y propagación de instructionString ---
+    // 2. Decodificación mínima para obtener el mnemónico
+    const InstructionInfo* info = control_unit.decode(instruction);
+    std::string fetchedInstr = disassemble(instruction, info);
 
-    // --- Lógica de la etapa WB (Write Back) ---
-    // ...
-
-    // --- Lógica de la etapa MEM (Memory Access) ---
-    // ...
-
-    // --- Lógica de la etapa EX (Execute) ---
-    // ...
-
-    // --- Lógica de la etapa ID (Instruction Decode) ---
-    // ...
-
-    // --- Lógica de la etapa IF (Instruction Fetch) ---
-    // ...
-
-    // --- Actualización de los registros de segmentación al final del ciclo ---
-    // mem_wb_reg = ... (datos de la etapa MEM)
-    // ex_mem_reg = ... (datos de la etapa EX)
-    // id_ex_reg = ... (datos de la etapa ID)
-    // if_id_reg = ... (datos de la etapa IF)
-
-    instructionString = "Empty stage";
+    // 3. Propagación de instructionString por las etapas del pipeline
+    // En una implementación real, cada etapa tendría su propio registro y lógica
+    // Aquí solo propagamos el string por las 5 etapas
+    instructionString = fetchedInstr;
+    strcpy(datapath.Pipe_WB_instruction_cptr, datapath.Pipe_MEM_instruction_cptr);    
+    strcpy(datapath.Pipe_MEM_instruction_cptr, datapath.Pipe_EX_instruction_cptr);
+    strcpy(datapath.Pipe_EX_instruction_cptr, datapath.Pipe_ID_instruction_cptr);
+    strcpy(datapath.Pipe_ID_instruction_cptr, datapath.Pipe_IF_instruction_cptr);
     strcpy(datapath.Pipe_IF_instruction_cptr, instructionString.c_str());
-    strcpy(datapath.Pipe_ID_instruction_cptr, instructionString.c_str());
-    strcpy(datapath.Pipe_EX_instruction_cptr, instructionString.c_str());
-    strcpy(datapath.Pipe_MEM_instruction_cptr, instructionString.c_str());
-    strcpy(datapath.Pipe_WB_instruction_cptr, instructionString.c_str());
 
+
+    // Avanzar el PC (solo para la demo, normalmente el PC se actualiza en WB)
+    pc += 4;
 }
