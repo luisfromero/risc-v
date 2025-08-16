@@ -236,6 +236,28 @@ bool get isPCsrcActive => _isPCsrcActive;
     }
   }
 
+  // Retrocede un ciclo de reloj.
+  Future<void> stepBack() async {
+    // En multiciclo, si no estamos en el primer microciclo, simplemente
+    // retrocedemos uno localmente para la visualización.
+    if (_simulationMode == SimulationMode.multiCycle && _currentMicroCycle > 0) {
+      _currentMicroCycle--;
+      _evaluateActiveComponents();
+      notifyListeners();
+    } else {
+      // Para monociclo, pipeline, o al inicio de una instrucción multiciclo,
+      // llamamos al backend para que restaure el estado anterior completo.
+      try {
+        final newState = await _simulationService.stepBack();
+        _sliderValue = newState.criticalTime.toDouble();
+        _updateState(newState);
+      } catch (e) {
+        // ignore: avoid_print
+        print("Error during stepBack: $e");
+      }
+    }
+  }
+
   // Resetea el estado a sus valores iniciales.
   Future<void> reset() async {
     final newState = await _simulationService.reset(mode: _simulationMode);

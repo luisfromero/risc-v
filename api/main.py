@@ -148,6 +148,10 @@ core_lib.Simulator_load_program.restype = None
 core_lib.Simulator_step.argtypes = [ctypes.c_void_p]
 core_lib.Simulator_step.restype = ctypes.c_char_p
 
+
+core_lib.Simulator_step_back.argtypes = [ctypes.c_void_p]
+core_lib.Simulator_step_back.restype = ctypes.c_char_p
+
 core_lib.Simulator_reset.argtypes = [ctypes.c_void_p]
 core_lib.Simulator_reset.restype = ctypes.c_char_p
 
@@ -184,6 +188,11 @@ class Simulator:
     def step(self):
         print("Llamando al step de la dll...")
         return core_lib.Simulator_step(self.obj).decode('utf-8')
+
+    def step_back(self):
+        print("Llamando al step back de la dll...")
+        return core_lib.Simulator_step_back(self.obj).decode('utf-8')
+
 
     def reset(self):
         print("Llamando al reset de la dll...")
@@ -429,3 +438,12 @@ def execute_step() -> SimulatorStateModel:
         sim = simulator_instance["sim"]
         model_name = simulator_instance["model_name"]
         return _get_full_state_data(sim, model_name)
+    
+@app.post("/step_back", response_model=SimulatorStateModel, summary="Ejecutar un ciclo de instrucción")
+def execute_step_back() -> SimulatorStateModel:
+    """Ejecuta un paso y devuelve el nuevo estado de los registros."""
+    with simulator_lock:
+        simulator_instance["sim"].step_back()
+        sim = simulator_instance["sim"]
+        model_name = simulator_instance["model_name"]
+        return _get_full_state_data(sim, model_name)    

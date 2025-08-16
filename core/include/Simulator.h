@@ -2,6 +2,7 @@
 #include "RegisterFile.h"
 #include "Cache.h"
 #include <cstdint>
+#include <string>
 #include <fstream>
 #include <vector>
 #include "Mux.h"
@@ -11,6 +12,26 @@
 #include "ControlUnit.h"
 #include "CoreTypes.h"
 #include "CoreExport.h"
+
+// Estructura para guardar una "instantánea" del estado del simulador.
+struct StateSnapshot {
+    uint32_t pc;
+    RegisterFile register_file; // Copia completa del banco de registros
+    DatapathState datapath;     // Copia completa del estado del datapath
+    uint64_t current_cycle;
+    std::string instructionString;
+    Memory d_mem;               // Copia de la memoria de datos
+
+    // Constructor explícito para inicializar todos los miembros.
+    // Necesario porque Memory no tiene un constructor por defecto.
+    StateSnapshot(uint32_t p, const RegisterFile& rf, const DatapathState& dp, uint64_t cc, const std::string& is, const Memory& dm)
+        : pc(p), register_file(rf), datapath(dp), current_cycle(cc), instructionString(is), d_mem(dm) {}
+
+    // Constructor por defecto para que std::vector pueda manejarlo.
+    // Inicializamos d_mem con un tamaño por defecto (256, como en el simulador).
+    StateSnapshot() : d_mem(256) {}
+};
+
 
 class SIMULATOR_API Simulator {
 public:
@@ -22,6 +43,9 @@ public:
 
     // Ejecuta un solo ciclo de instrucción.
     void step();
+
+    // Retrocede un ciclo en la simulación.
+    void step_back();
 
     void reset(PipelineModel model = PipelineModel::SingleCycle);
     
@@ -80,6 +104,10 @@ private:
 
     std::string disassemble(uint32_t instruction, const InstructionInfo* info) const;
     std::string instructionString ="nop";
+
+    // --- Historial para rebobinado ---
+    std::vector<StateSnapshot> history;
+    size_t history_pointer;
 
     // --- Tabla de decodificación ---
     // La estructura y la tabla se mueven dentro de la clase para que tengan

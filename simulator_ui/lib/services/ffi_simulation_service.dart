@@ -22,6 +22,9 @@ typedef SimulatorLoadProgram = void Function(Pointer<Void>, Pointer<Uint8>, int,
 typedef SimulatorStepNative = Pointer<Utf8> Function(Pointer<Void>);
 typedef SimulatorStep = Pointer<Utf8> Function(Pointer<Void>);
 
+typedef SimulatorStepBackNative = Pointer<Utf8> Function(Pointer<Void>);
+typedef SimulatorStepBack = Pointer<Utf8> Function(Pointer<Void>);
+
 typedef SimulatorResetNative = Pointer<Utf8> Function(Pointer<Void>, Int32);
 typedef SimulatorReset = Pointer<Utf8> Function(Pointer<Void>, int);
 
@@ -51,6 +54,7 @@ late final SimulatorDelete simulatorDelete;
 late final SimulatorLoadProgram simulatorLoadProgram;
 late final SimulatorReset simulatorReset;
 late final SimulatorStep simulatorStep;
+late final SimulatorStepBack simulatorStepBack;
 late final SimulatorGetInstructionString simulatorGetInstructionString;
 late final SimulatorGetPc simulatorGetPc;
 late final SimulatorGetStatusRegister simulatorGetStatusRegister;
@@ -107,6 +111,18 @@ class Simulador {
     } catch (e) {
       // ignore: avoid_print
       print("Error during FFI step call: $e");
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic> stepBack() {
+    try {
+      final json = simulatorStepBack(_sim);
+      final jsonStr = json.toDartString();
+      return _getFullState(jsonStr);
+    } catch (e) {
+      // ignore: avoid_print
+      print("Error during FFI step_back call: $e");
       rethrow;
     }
   }
@@ -174,6 +190,9 @@ class FfiSimulationService implements SimulationService {
           .asFunction();
       simulatorStep = _simulatorLib
           .lookup<NativeFunction<SimulatorStepNative>>('Simulator_step')
+          .asFunction();
+      simulatorStepBack = _simulatorLib
+          .lookup<NativeFunction<SimulatorStepBackNative>>('Simulator_step_back')
           .asFunction();
       simulatorGetInstructionString = _simulatorLib
           .lookup<NativeFunction<SimulatorGetInstructionStringNative>>(
@@ -278,6 +297,12 @@ class FfiSimulationService implements SimulationService {
   @override
   Future<SimulationState> step() async {
     final stateMap = simulador.step();
+    return SimulationState.fromJson(stateMap);
+  }
+
+  @override
+  Future<SimulationState> stepBack() async {
+    final stateMap = simulador.stepBack();
     return SimulationState.fromJson(stateMap);
   }
 

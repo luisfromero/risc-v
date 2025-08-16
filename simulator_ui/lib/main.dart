@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:namer_app/reg_widget.dart';
+import 'package:flutter/services.dart'; // Para RawKeyboard
 import 'dart:ui'; // Para FontFeature
 import 'package:provider/provider.dart';
 import 'buses_painter.dart';
@@ -121,11 +122,23 @@ class MyApp extends StatelessWidget {
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade100, foregroundColor: Colors.black),
                   ),
                   const SizedBox(width: 10),
-                  ElevatedButton.icon(
-                    onPressed: () => Provider.of<DatapathState>(context, listen: false).step(),
-                    icon: const Icon(Icons.timer),
-                    label: const Text('Clock Tick'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade100, foregroundColor: Colors.black),
+                  Tooltip(
+                    message: 'Step forward (Long press or Ctrl+Click to step back)',
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        // Comprueba si la tecla Control (izquierda o derecha) está pulsada
+                        final isControlPressed = HardwareKeyboard.instance.isControlPressed;
+                        if (isControlPressed) {
+                          datapathState.stepBack();
+                        } else {
+                          datapathState.step();
+                        }
+                      },
+                      onLongPress: () => datapathState.stepBack(),
+                      icon: const Icon(Icons.timer),
+                      label: const Text('Clock Tick'),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade100, foregroundColor: Colors.black),
+                    ),
                   ),
                   const SizedBox(width: 20), // Espacio antes de la Unidad de Control
                   // Widget de la Unidad de Control

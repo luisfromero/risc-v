@@ -3,10 +3,10 @@
 #include <stdexcept>
 #include <algorithm> // Para std::max
 #include <sstream>
+#include <vector>
 
 #define DELAY_Z_AND 1
 #define DELAY_PC 1
-
 
 // (Puedes ponerlo como un método privado o función estática)
 std::string Simulator::disassemble(uint32_t instruction, const InstructionInfo* info) const {
@@ -89,10 +89,11 @@ Simulator::Simulator(size_t mem_size, PipelineModel model)
       register_file(),
       model(model),
       memory(mem_size),
-      i_cache(256, 16, memory),
-      d_cache(256, 16, memory),
+      i_cache(256, 16, memory),//No usado
+      d_cache(256, 16, memory),//No usado
       i_mem(256), // Memoria de instrucciones para modo didáctico
       d_mem(256),  // Memoria de datos para modo didáctico
+      history_pointer(0),
       datapath{}
 {
     // El PC se inicializa en 0.
@@ -106,6 +107,9 @@ Simulator::Simulator(size_t mem_size, PipelineModel model)
       // Abrir el fichero de log. Se sobreescribirá en cada nueva ejecución.
       m_logfile.open("simulator.log", std::ios::out | std::ios::trunc);
       m_logfile << "--- Log del Simulador RISC-V ---" << std::endl;
+
+      // Reservar espacio para el historial para evitar realojamientos frecuentes
+      history.reserve(1024);
       
 }
 
@@ -126,6 +130,16 @@ void Simulator::load_program(const std::vector<uint8_t>& program, PipelineModel 
 
 // Ejecuta un ciclo completo: fetch, decode, execute.
 void Simulator::step() {
+    // Si hemos retrocedido y ahora avanzamos, se crea una nueva línea de tiempo.
+    // Se borra el historial "futuro" que ya no es válido.
+    if (history_pointer < history.size()) {
+        history.resize(history_pointer);
+    }
+
+    // Guardar el estado actual ANTES de ejecutar el ciclo.
+    history.emplace_back(pc, register_file, datapath, current_cycle, instructionString, d_mem);
+    history_pointer++;
+
     uint32_t instruction = fetch();
     if (m_logfile.is_open()) {
         m_logfile << "\n--- Ciclo " << current_cycle << " ---" << std::endl;
@@ -153,6 +167,11 @@ void Simulator::reset(PipelineModel model) {
     instructionString = "";
     // Después de resetear, ejecutamos el primer ciclo para que la UI muestre
     // el estado inicial con la primera instrucción (la de PC=0) ya procesada.
+
+    // Limpiar el historial
+    history.clear();
+    history_pointer = 0;
+
     if (m_logfile.is_open()) {
         m_logfile << "Model:" << (int) model << std::endl;
         m_logfile << "\n--- Reseteando ---" << std::endl;
@@ -162,7 +181,25 @@ void Simulator::reset(PipelineModel model) {
     step();
 }
 
+// Retrocede un ciclo en la simulación.
+void Simulator::step_back() {
+    if (history_pointer == 0) {
+        // No se puede retroceder más allá del estado inicial.
+        return;
+    }
 
+    // Mover el puntero al estado anterior.
+    history_pointer--;
+
+    // Restaurar el estado desde la instantánea.
+    const auto& snapshot = history[history_pointer];
+    pc = snapshot.pc;
+    register_file = snapshot.register_file; // Restaura la copia completa
+    datapath = snapshot.datapath;
+    current_cycle = snapshot.current_cycle;
+    instructionString = snapshot.instructionString;
+    d_mem = snapshot.d_mem; // Restaurar la memoria de datos
+}
 
 // Devuelve el valor actual del Program Counter.
 uint32_t Simulator::get_pc() const {

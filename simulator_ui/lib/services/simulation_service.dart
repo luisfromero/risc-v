@@ -290,6 +290,9 @@ abstract class SimulationService {
   /// Ejecuta un ciclo de reloj y devuelve el nuevo estado.
   Future<SimulationState> step();
 
+  /// Retrocede un ciclo de reloj y devuelve el estado anterior.
+  Future<SimulationState> stepBack();
+
   /// Resetea la simulación a su estado inicial.
   Future<SimulationState> reset({required SimulationMode mode});
 }

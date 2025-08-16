@@ -82,18 +82,18 @@ Si prefieres ejecutar los servicios de forma nativa para desarrollo.
 2.  **Ejecutar la API del Simulador:**
     ```bash
     # Navegar al directorio de la API
-    cd api
+    cd api 
 
     # (Recomendado) Crear y activar un entorno virtual
     python -m venv venv
     source venv/bin/activate  # En Linux/macOS
-    # venv\Scripts\activate    # En Windows
+    # .\venv\Scripts\activate    # En Windows
 
     # Instalar dependencias
     pip install -r requirements.txt
 
     # Iniciar el servidor
-    uvicorn main:app --reload
+    uvicorn --host 0.0.0.0 --port 8000 main:app --reload
     ```
 
 3.  **Ejecutar la Interfaz Gráfica (Flutter):**

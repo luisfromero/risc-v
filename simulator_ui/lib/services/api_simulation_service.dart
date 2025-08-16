@@ -39,6 +39,20 @@ class ApiSimulationService implements SimulationService {
   }
 
   @override
+  Future<SimulationState> stepBack() async {
+    final response = await http.post(Uri.parse('$_baseUrl/step_back'),
+        headers: {'Content-Type': 'application/json'});
+    if (response.statusCode == 200) {
+      return SimulationState.fromJson(jsonDecode(response.body));
+    } else {
+      // ignore: avoid_print
+      print(
+          'Error en la API /step_back: ${response.statusCode}\n${response.body}');
+      throw Exception('Failed to call step_back API: ${response.statusCode}');
+    }
+  }
+
+  @override
   Future<SimulationState> reset({required SimulationMode mode}) async {
     _currentMode = mode; // Guardamos el modo actual para usarlo en step()
     // Mapea el enum de Dart al string que espera la API de Python.

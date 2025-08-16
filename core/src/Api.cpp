@@ -130,6 +130,13 @@ extern "C" {
         return jsonFromState(state); // fastapi no lo usa; prefiere llamar a state después
     }
 
+    SIMULATOR_API const char* Simulator_step_back(void* sim_ptr) {
+        if (!sim_ptr) return "{}";
+        static_cast<Simulator*>(sim_ptr)->step_back();
+        DatapathState state = static_cast<Simulator*>(sim_ptr)->get_datapath_state();
+        return jsonFromState(state);
+    }
+
     SIMULATOR_API uint32_t Simulator_get_pc(void* sim_ptr) {
         if (!sim_ptr) return 0;
         return static_cast<Simulator*>(sim_ptr)->get_pc();
