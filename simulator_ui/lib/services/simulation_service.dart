@@ -81,7 +81,11 @@ class SimulationState {
     int getValue(String key) {
       final signal = datapathJson[key];
       if (signal is Map<String, dynamic>) {
-        return signal['value'] as int? ?? 0;
+        final value = signal['value'];
+        if (value is bool) {
+          return value ? 1 : 0;
+        }
+        return value as int? ?? 0;
       }
       return 0;
     }
@@ -96,6 +100,7 @@ class SimulationState {
       'rd2_bus': getReadyAt('B'),
       'immediate_bus': getReadyAt('immExt'),
       'alu_result_bus': getReadyAt('ALU_result'),
+      'flagZ': getReadyAt('ALU_zero'),
       'branch_target_bus': getReadyAt('PC_dest'),
       'mem_read_data_bus': getReadyAt('Mem_read_data'),
       'mem_write_data_bus': getReadyAt('Mem_write_data'),
@@ -149,6 +154,7 @@ class SimulationState {
       'mux_wb_bus': getIsActive('C'),
       'mux_pc_bus': getIsActive('PC_next'),
       'mux_alu_b_bus': getIsActive('ALU_B'),
+      'flagZ': getIsActive('ALU_zero'),
 
       // --- Pipeline Registers ---
       // IF/ID Stage
@@ -197,10 +203,16 @@ class SimulationState {
       'da_bus':getValue('DA'),
       'db_bus':getValue('DB'),
       'dc_bus':getValue('DC'),
-      'control_PCsrc':getValue('PCsrc'),
-      'control_ALUctr':getValue('ALUctr '),
-      'control_ResSrc':getValue('ResSrc'),
-      'control_ImmSrc':getValue('ImmSrc'),
+      
+      //'control_PCsrc':getValue('PCsrc'),
+      //'control_ALUctr':getValue('ALUctr '),
+      //'control_ResSrc':getValue('ResSrc'),
+      //'control_ImmSrc':getValue('ImmSrc'),
+      'opcode': getValue('opcode'),
+      'func3': getValue('funct3'),
+      'func7': getValue('funct7'),
+      'flagZ': getValue('ALU_zero'),
+
       'control_PCsrc':datapathJson['control_PCsrc'] as int? ?? 0,
       'control_BRwr':datapathJson['control_BRwr'] as int? ?? 0,
       'control_ALUsrc':datapathJson['control_ALUsrc'] as int? ?? 0,

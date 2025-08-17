@@ -285,7 +285,7 @@ class MyApp extends StatelessWidget {
                       top: 160,
                       left: 520,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('Instruction Bus'),
+                        onEnter: (_) => datapathState.setHoverInfo('Instruction Buffer/Register'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: IBWidget(
                           key: datapathState.ibKey,
@@ -665,6 +665,14 @@ class MyApp extends StatelessWidget {
                         ),
                       ),
                     ),
+
+                    // --- Tooltip Flotante ---
+                    // Se muestra solo si hay información de hover y se dibuja encima de todo.
+                    if (datapathState.hoverInfo.isNotEmpty)
+                      FloatingTooltip(
+                        message: datapathState.hoverInfo,
+                        position: datapathState.mousePosition,
+                      ),
                   ],
                 ),
               ),
@@ -687,6 +695,42 @@ class MyApp extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Un widget que muestra un texto en una caja semitransparente, posicionado
+/// de forma absoluta. Sigue al cursor del ratón.
+class FloatingTooltip extends StatelessWidget {
+  final String message;
+  final Offset position;
+
+  const FloatingTooltip({
+    super.key,
+    required this.message,
+    required this.position,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Usamos un Positioned para colocar el tooltip en las coordenadas del ratón.
+    return Positioned(
+      left: position.dx + 15, // Pequeño offset para que no tape el cursor.
+      top: position.dy + 15,
+      // IgnorePointer evita que el tooltip intercepte eventos del ratón.
+      child: IgnorePointer(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.85),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            message,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+          ),
         ),
       ),
     );

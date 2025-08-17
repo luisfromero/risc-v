@@ -1,13 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'dart:ui' as ui;
 import 'datapath_state.dart';
-
-/// Un punto de conexión con una etiqueta y una posición global.
-class ConnectionPoint {
-  final String label;
-  final Offset position; // Posición local relativa al área del painter (el Stack)
-  ConnectionPoint(this.label, this.position);
-}
 
 class BusesPainter extends CustomPainter {
   final DatapathState datapathState;
@@ -16,86 +10,21 @@ class BusesPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Obtiene todos los puntos de conexión con sus coordenadas globales.
-    final allPoints = _getAllConnectionPoints();
-    final pointsMap = {for (var p in allPoints) p.label: p};
+    // 1. Obtiene el mapa de puntos de conexión desde el estado.
+    final pointsMap = datapathState.connectionPoints;
 
     // 2. Dibuja las etiquetas de cada punto para depuración.
     if (datapathState.showConnectionLabels) {
-      _drawConnectionPointLabels(canvas, allPoints);
+      _drawConnectionPointLabels(canvas, pointsMap.values.toList());
     }
     _drawBusesAndValues(canvas, pointsMap);
   }
 
-  /// Recopila todos los `connectionPoints` de los widgets del datapath y los
-  /// convierte en una lista de puntos con coordenadas globales y etiquetas.
-  List<ConnectionPoint> _getAllConnectionPoints() {
-    final List<ConnectionPoint> allPoints = [];
-
-    // Obtenemos el RenderBox del Stack para poder convertir coordenadas
-    // globales (de pantalla) a locales (relativas al Stack).
-    final stackContext = datapathState.stackKey.currentContext;
-    if (stackContext == null) return [];
-    final stackBox = stackContext.findRenderObject() as RenderBox;
-
-    // Helper para no repetir código.
-    void extractPoints(GlobalKey key, String labelPrefix) {
-      final context = key.currentContext;
-      final widget = key.currentWidget;
-      if (context == null || widget == null) return;
-
-      final box = context.findRenderObject() as RenderBox;
-      // 1. Obtenemos la posición global del widget (relativa a la pantalla).
-      final globalPosition = box.localToGlobal(Offset.zero);
-      // 2. La convertimos a una posición local (relativa a nuestro Stack).
-      final localPosition = stackBox.globalToLocal(globalPosition);
-      final size = box.size;
-
-      // Usamos 'dynamic' para acceder a 'connectionPoints' sin tener que
-      // hacer un cast para cada tipo de widget.
-      final List<Offset> relativePoints = (widget as dynamic).connectionPoints;
-
-      for (int i = 0; i < relativePoints.length; i++) {
-        final relativePoint = relativePoints[i];
-        // Calcula el punto de conexión final sumando el offset relativo a la posición local del widget.
-        final finalPoint = localPosition +
-            Offset(relativePoint.dx * size.width, relativePoint.dy * size.height);
-        allPoints.add(ConnectionPoint('$labelPrefix-$i', finalPoint));
-      }
-    }
-
-    // Extraemos los puntos de cada componente.
-    extractPoints(datapathState.pcKey, 'PC');
-    extractPoints(datapathState.pcAdderKey, 'NPC');
-    extractPoints(datapathState.branchAdderKey, 'BR');
-    extractPoints(datapathState.aluKey, 'ALU');
-    extractPoints(datapathState.muxCKey, 'M1');
-    extractPoints(datapathState.mux2Key, 'M2');
-    extractPoints(datapathState.mux3Key, 'M3');
-    extractPoints(datapathState.instructionMemoryKey, 'IM');
-    extractPoints(datapathState.dataMemoryKey, 'DM');
-    extractPoints(datapathState.registerFileKey, 'RF');
-    extractPoints(datapathState.controlUnitKey, 'CU');
-    extractPoints(datapathState.extenderKey, 'EXT');
-    extractPoints(datapathState.ibKey, 'IB');
-    
-    //Pipeline Registers
-    extractPoints(datapathState.pipereg_fd0_Key, 'FD0');//Fetch decode
-    extractPoints(datapathState.pipereg_fd1_Key, 'FD1');//Fetch decode
-    extractPoints(datapathState.pipereg_de0_Key, 'DE0');//Fetch decode
-    extractPoints(datapathState.pipereg_de1_Key, 'DE1');//Fetch decode
-    extractPoints(datapathState.pipereg_de2_Key, 'DE2');//Fetch decode
-    extractPoints(datapathState.pipereg_em0_Key, 'EM0');//Fetch decode
-    extractPoints(datapathState.pipereg_em1_Key, 'EM1');//Fetch decode
-    extractPoints(datapathState.pipereg_mw0_Key, 'MW0');//Fetch decode
-    extractPoints(datapathState.pipereg_mw1_Key, 'MW1');//Fetch decode
-
-
-    return allPoints;
-  }
-
   /// Dibuja todos los buses y sus valores si están activos.
   void _drawBusesAndValues(Canvas canvas, Map<String, ConnectionPoint> pointsMap) {
+    // 1. Preparamos la lista que guardará la información de cada TRAMO de bus visible.
+    final List<BusHoverInfo> busHoverInfoList = [];
+
     final paint = Paint()
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
@@ -104,7 +33,6 @@ class BusesPainter extends CustomPainter {
       final startPoint = pointsMap[bus.startPointLabel];
       final endPoint = pointsMap[bus.endPointLabel];
       final width = bus.width;
-
 
       // Si algún punto no existe, no podemos dibujar este bus.
       if (startPoint == null || endPoint == null) {
@@ -116,7 +44,6 @@ class BusesPainter extends CustomPainter {
       final isActive = bus.isActive(datapathState);
       final isControl = bus.isControl;
       final isState = bus.isState;
-
 
       // Cambiamos el color y el grosor del bus si está activo.
       paint.color = isActive ? const Color.fromARGB(255, 255, 0, 0) : const Color.fromARGB(100, 255, 0, 0);
@@ -131,46 +58,56 @@ class BusesPainter extends CustomPainter {
         paint.color = isActive ? const Color.fromARGB(255, 73, 240, 79) : const Color.fromARGB(255, 176, 241, 188);
       }
 
-      // Creamos el path (camino) del bus.
-      final path = Path();
-      path.moveTo(startPoint.position.dx, startPoint.position.dy);
+      // --- LÓGICA MODIFICADA: DIBUJAR Y GUARDAR POR TRAMOS ---
 
-      // Añadimos los puntos intermedios si existen.
-      for (final waypoint in bus.waypoints) {
-        path.lineTo(waypoint.dx, waypoint.dy);
-      }
+      // Construimos la lista completa de puntos del bus.
+      final allBusPoints = [startPoint.position, ...bus.waypoints, endPoint.position];
 
-      path.lineTo(endPoint.position.dx, endPoint.position.dy);
+      // Generamos el texto del tooltip una sola vez por bus.
+      final value = datapathState.busValues[bus.valueKey];
+      final tooltipText = bus.valueKey != null
+          ? '${bus.valueKey} (${bus.size} bits): ${value != null ? '0x${value.toRadixString(16)}' : 'N/A'}'
+          : 'Control/State Bus';
 
-      Offset prevPoint;
-      if (bus.waypoints.isNotEmpty) {
-        prevPoint = bus.waypoints.last;
-      } else {
-        prevPoint = startPoint.position;
-      }
+      // Iteramos por cada segmento (tramo) del bus.
+      for (int i = 0; i < allBusPoints.length - 1; i++) {
+        final p1 = allBusPoints[i];
+        final p2 = allBusPoints[i + 1];
 
+        // Creamos un path solo para este segmento.
+        final segmentPath = Path()
+          ..moveTo(p1.dx, p1.dy)
+          ..lineTo(p2.dx, p2.dy);
 
-      if (isControl || isState) {
-        // Dibuja el path con líneas discontinuas.
-        _drawDashedPath(canvas, path, paint, [5, 5]); // Patrón: 5px de línea, 5px de espacio
+        // Dibujamos el segmento.
+        if (isControl || isState) {
+          _drawDashedPath(canvas, segmentPath, paint, [5, 5]);
+        } else {
+          canvas.drawPath(segmentPath, paint);
+        }
 
-        // Determina el punto previo al final para calcular la dirección de la flecha.
-        _drawArrowHead(canvas, prevPoint, endPoint.position, paint);
-      } else {
-        canvas.drawPath(path, paint);
-        _drawArrowHead(canvas, prevPoint, endPoint.position, paint);
+        // Guardamos la información de hover para este segmento.
+        busHoverInfoList.add(BusHoverInfo(
+          path: segmentPath,
+          bounds: segmentPath.getBounds().inflate(width.toDouble() + 4),
+          tooltip: tooltipText,
+          strokeWidth: width.toDouble(),
+        ));
 
-        // Dibuja el valor del bus si está activo y tiene una clave de valor.
-        if (isActive && bus.valueKey != null) {
-          final busValue = datapathState.busValues[bus.valueKey];
-          if (busValue != null) {
-            _drawBusValue(canvas, bus, pointsMap, busValue);
-          }
+        // Dibujamos la flecha solo en el último segmento del bus.
+        if (i == allBusPoints.length - 2) {
+          _drawArrowHead(canvas, p1, p2, paint);
         }
       }
-    }
-  }
 
+      // El valor del bus se sigue dibujando una vez, si está activo.
+      if (isActive && bus.valueKey != null && datapathState.busValues[bus.valueKey] != null) {
+      _drawBusValue(canvas, bus, pointsMap, datapathState.busValues[bus.valueKey]!);
+      }
+    }
+    datapathState.setBusHoverInfoList(busHoverInfoList);
+    }
+//    datapathState.setBusHoverInfoList(busHoverInfoList);
   /// Dibuja una flecha al final de un segmento de línea.
   void _drawArrowHead(Canvas canvas, Offset p1, Offset p2, Paint paint) {
     final arrowPaint = Paint()
@@ -193,7 +130,7 @@ class BusesPainter extends CustomPainter {
   /// Dibuja un `Path` con un patrón de líneas discontinuas.
   void _drawDashedPath(Canvas canvas, Path path, Paint paint, List<double> dashArray) {
     final metrics = path.computeMetrics();
-    for (final metric in metrics) {
+    for (final ui.PathMetric metric in metrics) {
       for (double dist = 0; dist < metric.length;) {
         canvas.drawPath(metric.extractPath(dist, dist + dashArray[0]), paint);
         dist += dashArray[0] + dashArray[1];
@@ -277,8 +214,8 @@ class BusesPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+  bool shouldRepaint(covariant BusesPainter oldDelegate) {
     // Se redibuja si el estado cambia, lo que es ideal para la simulación.
     return true;
   }
-}
+  }

@@ -20,6 +20,30 @@ El objetivo principal es crear una herramienta flexible para aprender sobre la a
 *   **Módulo de Exámenes (En desarrollo):** Un servicio dedicado para crear, gestionar y evaluar exámenes online, similar a la plataforma CASIUM.
 *   **Soporte RV32I:** Implementación progresiva del conjunto de instrucciones base de 32 bits para enteros.
 
+
+## Modos de trabajo
+
+El proyecto está pensado para implementar 3 modos de trabajo didácticos y uno general:
+
+*   **Modo didáctico monociclo:** El simulador muestra la microarquitectura de un procesador monociclo, con un slider que simula el paso del tiempo en el ciclo.
+
+![Captura de pantalla del simulador](images/ui_addi.jpg?raw=true)
+
+
+*   **Modo didáctico multiciclo:** El slider se elimina y el step de instrucciones se sustituye por un contador de reloj
+
+![Captura de pantalla del simulador](images/ui_multiciclo.jpg?raw=true)
+
+
+
+*   **Modo didáctico segmentado:** Simula las estapas de un pipeline
+
+
+![Captura de pantalla del simulador](images/ui_segmentado.jpg?raw=true)
+
+
+*   **Modo general:** ToDo
+
 ## 🏗️ Arquitectura del Proyecto
 
 El proyecto sigue una filosofía de separación de incumbencias, orquestada a través de Docker.

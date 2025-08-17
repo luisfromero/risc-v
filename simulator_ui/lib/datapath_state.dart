@@ -1,6 +1,29 @@
 import 'package:flutter/material.dart';
+
 import 'services/simulation_service.dart';
 import 'simulation_mode.dart';
+
+/// Un punto de conexión con una etiqueta y una posición global.
+class ConnectionPoint {
+  final String label;
+  final Offset position; // Posición local relativa al área del painter (el Stack)
+
+  ConnectionPoint(this.label, this.position);
+}
+
+/// Contiene la información necesaria para mostrar un tooltip sobre un bus.
+class BusHoverInfo {
+  final Path path; // El trazado del bus para hit-testing preciso.
+  final Rect bounds; // El rectángulo que envuelve al bus para una detección rápida.
+  final String tooltip; // El texto que se mostrará.
+  final double strokeWidth; // El grosor del bus, para un hit-testing más preciso.
+
+  BusHoverInfo(
+      {required this.path,
+      required this.bounds,
+      required this.tooltip,
+      required this.strokeWidth});
+}
 
 /// Define la estructura de un bus de conexión en el datapath.
 class Bus {
@@ -13,7 +36,7 @@ class Bus {
   final int size; // Ancho en bits del bus (ej: 32)
   final bool isControl;
   final bool isState;
-  
+
   Bus({
     required this.startPointLabel,
     required this.endPointLabel,
@@ -101,6 +124,15 @@ class DatapathState extends ChangeNotifier {
   final pipereg_em1_Key = GlobalKey();
   final pipereg_mw1_Key = GlobalKey();
 
+  // --- ESTADO DEL LAYOUT ---
+  Map<String, ConnectionPoint> _connectionPoints = {};
+  Map<String, ConnectionPoint> get connectionPoints => _connectionPoints;
+
+  // --- ESTADO DEL HOVER DE BUSES ---
+  List<BusHoverInfo> _busHoverInfoList = [];
+  List<BusHoverInfo> get busHoverInfoList => _busHoverInfoList;
+
+  // --- ESTADO DE LOS VALORES ---
 
   int _pcValue = 0x00400000;
   String _instruction = "";
@@ -123,7 +155,8 @@ class DatapathState extends ChangeNotifier {
   List<Bus> _buses = [];
   List<Bus> get buses => _buses;
 
-  String _hoverInfo = ""; // Texto a mostrar en el hover.
+  String _hoverInfo = ""; // El texto final que se muestra en el
+  bool _isHoveringBus = false; // Para gestionar la prioridad del tooltip del bus.
   double _sliderValue = 0.0; // Nuevo estado para el slider.
   Offset _mousePosition = Offset.zero; // Para las coordenadas del ratón
   bool _showConnectionLabels = false;
@@ -180,6 +213,8 @@ bool get isPCsrcActive => _isPCsrcActive;
       // Al inicializar, ponemos el slider al final para mostrar el estado completo.
       _sliderValue = initialState.criticalTime.toDouble();
       _updateState(initialState, clearHover: true);
+      // Nos aseguramos de que el layout esté construido antes de calcular las posiciones.
+      WidgetsBinding.instance.addPostFrameCallback((_) => updateLayoutMetrics());
     } catch (e) {
       // ignore: avoid_print
       print("Error durante la inicialización del simulador: $e");
@@ -188,6 +223,14 @@ bool get isPCsrcActive => _isPCsrcActive;
   }
 
   // --- MÉTODOS PARA MODIFICAR EL ESTADO ---
+
+  /// Actualiza la lista de información de hover de los buses.
+  void setBusHoverInfoList(List<BusHoverInfo> newList) {
+    // No es necesario notificar a los listeners aquí, ya que esta lista
+    // se usa en el siguiente frame para el hit-testing, no para redibujar
+    // un widget directamente. Se actualizará en el próximo `paint` de todas formas.
+    _busHoverInfoList = newList;
+  }
 
   // Actualiza el modo de simulación.
   void setSimulationMode(SimulationMode? newMode) {
@@ -301,6 +344,19 @@ bool get isPCsrcActive => _isPCsrcActive;
 
   // Actualiza el texto del hover
   void setHoverInfo(String info) {
+    // Si el ratón se mueve desde un área vacía a un widget,
+    // y un bus ya tiene el hover, no hacemos nada. El bus tiene prioridad.
+    if (_isHoveringBus && info.isNotEmpty) {
+      return;
+    }
+
+    // Si el ratón sale de un widget (info vacía), reseteamos el flag del bus.
+    // Esto permite que setMousePosition pueda detectar un bus si el ratón
+    // se mueve de un widget a un bus.
+    if (info.isEmpty) {
+      _isHoveringBus = false;
+    }
+
     _hoverInfo = info;
     notifyListeners();
   }
@@ -308,6 +364,26 @@ bool get isPCsrcActive => _isPCsrcActive;
   // Actualiza la posición del ratón
   void setMousePosition(Offset position) {
     _mousePosition = position;
+
+    // --- Lógica de detección de hover en buses ---
+    // Buscamos de atrás hacia adelante para que los buses dibujados encima tengan prioridad.
+    for (final bus in _busHoverInfoList.reversed) {
+      // Usamos el `bounds` que ya está inflado para una detección rápida.
+      if (bus.bounds.contains(position)) {
+        _hoverInfo = bus.tooltip;
+        _isHoveringBus = true;
+        notifyListeners();
+        return; // Encontramos un bus, no necesitamos seguir buscando.
+      }
+    }
+
+    // Si salimos del bucle sin encontrar un bus, pero el estado anterior
+    // era un hover de bus, limpiamos la información.
+    if (_isHoveringBus) {
+      _hoverInfo = "";
+      _isHoveringBus = false;
+    }
+
     notifyListeners();
   }
 
@@ -320,6 +396,74 @@ bool get isPCsrcActive => _isPCsrcActive;
   }
 
   // --- LÓGICA INTERNA ---
+
+  /// Recopila todos los `connectionPoints` de los widgets del datapath y los
+  /// convierte en un mapa de puntos con coordenadas globales y etiquetas.
+  /// Este método debe ser llamado después de que el layout se haya construido.
+  void updateLayoutMetrics() {
+    final List<ConnectionPoint> allPoints = [];
+
+    // Obtenemos el RenderBox del Stack para poder convertir coordenadas
+    // globales (de pantalla) a locales (relativas al Stack).
+    final stackContext = stackKey.currentContext;
+    if (stackContext == null) return;
+    final stackBox = stackContext.findRenderObject() as RenderBox;
+
+    // Helper para no repetir código.
+    void extractPoints(GlobalKey key, String labelPrefix) {
+      final context = key.currentContext;
+      final widget = key.currentWidget;
+      if (context == null || widget == null) return;
+
+      final box = context.findRenderObject() as RenderBox;
+      // 1. Obtenemos la posición global del widget (relativa a la pantalla).
+      final globalPosition = box.localToGlobal(Offset.zero);
+      // 2. La convertimos a una posición local (relativa a nuestro Stack).
+      final localPosition = stackBox.globalToLocal(globalPosition);
+      final size = box.size;
+
+      // Usamos 'dynamic' para acceder a 'connectionPoints' sin tener que
+      // hacer un cast para cada tipo de widget.
+      final List<Offset> relativePoints = (widget as dynamic).connectionPoints;
+
+      for (int i = 0; i < relativePoints.length; i++) {
+        final relativePoint = relativePoints[i];
+        // Calcula el punto de conexión final sumando el offset relativo a la posición local del widget.
+        final finalPoint = localPosition +
+            Offset(relativePoint.dx * size.width, relativePoint.dy * size.height);
+        allPoints.add(ConnectionPoint('$labelPrefix-$i', finalPoint));
+      }
+    }
+
+    // Extraemos los puntos de cada componente.
+    extractPoints(pcKey, 'PC');
+    extractPoints(pcAdderKey, 'NPC');
+    extractPoints(branchAdderKey, 'BR');
+    extractPoints(aluKey, 'ALU');
+    extractPoints(muxCKey, 'M1');
+    extractPoints(mux2Key, 'M2');
+    extractPoints(mux3Key, 'M3');
+    extractPoints(instructionMemoryKey, 'IM');
+    extractPoints(dataMemoryKey, 'DM');
+    extractPoints(registerFileKey, 'RF');
+    extractPoints(controlUnitKey, 'CU');
+    extractPoints(extenderKey, 'EXT');
+    extractPoints(ibKey, 'IB');
+    
+    //Pipeline Registers
+    extractPoints(pipereg_fd0_Key, 'FD0');//Fetch decode
+    extractPoints(pipereg_fd1_Key, 'FD1');//Fetch decode
+    extractPoints(pipereg_de0_Key, 'DE0');//Fetch decode
+    extractPoints(pipereg_de1_Key, 'DE1');//Fetch decode
+    extractPoints(pipereg_de2_Key, 'DE2');//Fetch decode
+    extractPoints(pipereg_em0_Key, 'EM0');//Fetch decode
+    extractPoints(pipereg_em1_Key, 'EM1');//Fetch decode
+    extractPoints(pipereg_mw0_Key, 'MW0');//Fetch decode
+    extractPoints(pipereg_mw1_Key, 'MW1');//Fetch decode
+
+    _connectionPoints = {for (var p in allPoints) p.label: p};
+    notifyListeners();
+  }
 
   /// Actualiza la lista de buses según el modo de simulación actual.
   void _updateBuses() {
@@ -366,17 +510,19 @@ bool get isPCsrcActive => _isPCsrcActive;
       Bus(startPointLabel: 'ALU-5', endPointLabel: 'M1-1', isActive: (s) => s.isAluActive,waypoints: List.of([const Offset(1070,175),const Offset(1250,175),const Offset(1250,248)]), valueKey: 'alu_result_bus'),
       Bus(startPointLabel: 'DM-3', endPointLabel: 'M1-2', isActive: (s) => s.isDMemActive, valueKey: 'mem_read_data_bus'),
       Bus(startPointLabel: 'M1-5', endPointLabel: 'RF-3', isActive: (s) => s.isMuxCActive,waypoints:List.of([const Offset(1410,260),const Offset(1410,520),const Offset(600,520),const Offset(600,296)]  ), valueKey: 'mux_wb_bus'),
-      Bus(startPointLabel: 'ALU-3', endPointLabel: 'CU-7', isActive: (s) => s.isAluActive,waypoints: List.of([const Offset(1050,242)]),isState: true),
-      Bus(startPointLabel: 'IB-1', endPointLabel: 'CU-1', isActive: (s) => s.isIMemActive,waypoints: List.of([const Offset(488,172)]),isState: true),
-      Bus(startPointLabel: 'IB-2', endPointLabel: 'CU-2', isActive: (s) => s.isIMemActive,waypoints: List.of([const Offset(553,184)]),isState: true),
-      Bus(startPointLabel: 'IB-3', endPointLabel: 'CU-3', isActive: (s) => s.isIMemActive,waypoints: List.of([const Offset(617,196)]),isState: true),
-      Bus(startPointLabel: 'CU-0', endPointLabel: 'M2-4', isActive: (s) => s.isPCsrcActive,waypoints: List.of([const Offset(75,-30)]),isControl: true),
-      Bus(startPointLabel: 'CU-4', endPointLabel: 'RF-4', isActive: (s) => s.isControlActive,isControl: true),
-      Bus(startPointLabel: 'CU-5', endPointLabel: 'M3-2', isActive: (s) => s.isControlActive,isControl: true),
-      Bus(startPointLabel: 'CU-6', endPointLabel: 'ALU-2', isActive: (s) => s.isControlActive,isControl: true),
-      Bus(startPointLabel: 'CU-8', endPointLabel: 'DM-2', isActive: (s) => s.isControlActive,isControl: true),
-      Bus(startPointLabel: 'CU-9', endPointLabel: 'M1-4', isActive: (s) => s.isControlActive,isControl: true),
-      Bus(startPointLabel: 'CU-10', endPointLabel: 'EXT-1', isActive: (s) => s.isControlActive,waypoints: List.of([const Offset(1425,-30),const Offset(1425,510),const Offset(670,510)]),isControl: true),
+      
+      Bus(startPointLabel: 'ALU-3', endPointLabel: 'CU-7', isActive: (s) => s.isAluActive,waypoints: List.of([const Offset(1050,242)]),isState: true,size:1,valueKey:"flagZ"),
+      Bus(startPointLabel: 'IB-1', endPointLabel: 'CU-1', isActive: (s) => s.isIMemActive,waypoints: List.of([const Offset(488,172)]),isState: true,valueKey:"opcode",size:7),
+      Bus(startPointLabel: 'IB-2', endPointLabel: 'CU-2', isActive: (s) => s.isIMemActive,waypoints: List.of([const Offset(553,184)]),isState: true,valueKey:"funct3",size:3),
+      Bus(startPointLabel: 'IB-3', endPointLabel: 'CU-3', isActive: (s) => s.isIMemActive,waypoints: List.of([const Offset(617,196)]),isState: true,valueKey:"funct7",size:7),
+
+      Bus(startPointLabel: 'CU-0', endPointLabel: 'M2-4', isActive: (s) => s.isPCsrcActive,waypoints: List.of([const Offset(75,-30)]),isControl: true,size:2,valueKey: "control_PCsrc"),
+      Bus(startPointLabel: 'CU-4', endPointLabel: 'RF-4', isActive: (s) => s.isControlActive,isControl: true,size:1,valueKey: "control_BRwr"),
+      Bus(startPointLabel: 'CU-5', endPointLabel: 'M3-2', isActive: (s) => s.isControlActive,isControl: true,size:1,valueKey: "control_ALUsrc"),
+      Bus(startPointLabel: 'CU-6', endPointLabel: 'ALU-2', isActive: (s) => s.isControlActive,isControl: true,size:3,valueKey: "control_ALUctr"),
+      Bus(startPointLabel: 'CU-8', endPointLabel: 'DM-2', isActive: (s) => s.isControlActive,isControl: true,size:1,valueKey: "control_MemWr"),
+      Bus(startPointLabel: 'CU-9', endPointLabel: 'M1-4', isActive: (s) => s.isControlActive,isControl: true,size:2,valueKey: "control_ResSrc"),
+      Bus(startPointLabel: 'CU-10', endPointLabel: 'EXT-1', isActive: (s) => s.isControlActive,waypoints: List.of([const Offset(1425,-30),const Offset(1425,510),const Offset(670,510)]),isControl: true,size:3,valueKey: "control_ImmSrc"),
     ];
   }
 
