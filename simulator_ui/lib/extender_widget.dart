@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'colors.dart';
 
 class ExtenderWidget extends StatelessWidget {
   final String label;
-    final bool isActive; // Para recibir si debe estar "activo" (color verde)
+  final bool isActive; // Para recibir si debe estar "activo" (color verde)
 
   final double width;
   final double height;
   final List<Offset> connectionPoints;
+  final Color color; // Color por defecto
 
   const ExtenderWidget({
     super.key,
@@ -21,12 +23,12 @@ class ExtenderWidget extends StatelessWidget {
       Offset(1, 0.5),
       Offset(2, 0.5),
     ],
-
+    this.color = defaultColor, // Color por defecto
   });
 
   @override
   Widget build(BuildContext context) {
-    final Color backgroundColor = isActive ? Colors.green.shade200 : Colors.green.shade200.withAlpha(30);
+    final Color backgroundColor = isActive ? color : color.withAlpha(30);
     final Color textColor = isActive ? Colors.black : Colors.black.withAlpha(30);
 
     return Container(

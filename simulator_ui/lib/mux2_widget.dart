@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'colors.dart';
 
 class Mux2Widget extends StatelessWidget {
   final int value;
   final bool isActive; // Para recibir si debe estar "activo" (color verde)
   final List<Offset> connectionPoints;
   final List<String> labels;
+  final color; // Color por defecto
+
 
   const Mux2Widget({
     super.key,
@@ -17,14 +20,15 @@ class Mux2Widget extends StatelessWidget {
       Offset(0,0.75),
       Offset(0.35,0),
       Offset(1,0.5),
-    ]
+    ],
+    this.color = defaultColor, // Color por defecto
   });
 
   //final TextStyle estilo=  TextStyle(fontSize: 16);
   @override
   Widget build(BuildContext context) {
     // El color dependerá de si el widget está activo o no.
-    final Color backgroundColor = isActive ? Colors.green.shade200 : Colors.green.shade200.withAlpha(30);
+    final Color backgroundColor = isActive ?color : color.withAlpha(30);
     final Color textColor = isActive ? Colors.black : Colors.black.withAlpha(30);
   final TextStyle estilo=  TextStyle(fontSize: 16, color:textColor);
 

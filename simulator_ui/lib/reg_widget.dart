@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:namer_app/colors.dart';
 import 'package:provider/provider.dart';
 import 'datapath_state.dart';
 import 'simulation_mode.dart';
@@ -11,6 +12,7 @@ class RegWidget extends StatelessWidget {
   final String label;
   final double height;
   final bool visibility;
+  final Color color; // Color por defecto
 
   // Constructor del widget. La 'key' es para que Flutter identifique el widget.  
 
@@ -24,6 +26,7 @@ class RegWidget extends StatelessWidget {
       Offset(1, 0.5), // Punto de conexión a la derecha, centrado verticalmente.
     ],
     this.visibility=false,
+    this.color =defaultColor
   });
 
   @override
@@ -31,7 +34,7 @@ class RegWidget extends StatelessWidget {
     final datapathState = Provider.of<DatapathState>(context);
     //final bool exist=datapathState.simulationMode == SimulationMode.singleCycle;
 
-    final Color backgroundColor = isActive ? Colors.green.shade200 : Colors.blueGrey.shade100;
+    final Color backgroundColor = isActive ? color :color.withAlpha(30);
     final Color borderColor = !visibility ? Colors.black.withAlpha(0): isActive ? Colors.black : Colors.black.withAlpha(15);
 
     final double widgetWidth = !visibility ? 0 : 15;

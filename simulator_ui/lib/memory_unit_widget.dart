@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'colors.dart';
 
 class MemoryUnitWidget extends StatelessWidget {
   final String label;
@@ -6,6 +7,7 @@ class MemoryUnitWidget extends StatelessWidget {
   final double height;
   final List<Offset> connectionPoints;
   final bool isActive; // Para recibir si debe estar "activo" (color verde)
+  final Color color; // Color por defecto
 
   const MemoryUnitWidget({
     super.key,
@@ -14,11 +16,12 @@ class MemoryUnitWidget extends StatelessWidget {
     this.width = 100,
     this.height = 120,
     this.connectionPoints=const [],
+    this.color = defaultColor, // Color por defecto
   });
 
   @override
   Widget build(BuildContext context) {
-    final Color backgroundColor = isActive ? Colors.green.shade200 : Colors.green.shade200.withAlpha(30);
+    final Color backgroundColor = isActive ? color : color.withAlpha(30);
     final Color textColor = isActive ? Colors.black : Colors.black.withAlpha(30);
 
     return Container(

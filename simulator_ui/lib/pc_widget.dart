@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'colors.dart';
 
 class PcWidget extends StatelessWidget {
   // Constructor del widget. La 'key' es para que Flutter identifique el widget.
   final List<Offset> connectionPoints;
   final bool isActive; // Para recibir si debe estar "activo" (color verde)
-
+  final Color color; // Color por defecto
   const PcWidget({
     super.key,
     this.isActive = false, // Por defecto no está activo
@@ -13,12 +14,13 @@ class PcWidget extends StatelessWidget {
       Offset(1,0.5),
       Offset(2,0.5),
     ],
+    this.color = defaultColor, // Color por defecto
   });
   @override
   Widget build(BuildContext context) {
     // Usamos un Container como base para nuestro componente.
     // Es como una caja (<div> en web) que podemos decorar.
-    final Color backgroundColor = isActive ? Colors.green.shade200 : Colors.green.shade200.withAlpha(30);
+    final Color backgroundColor = isActive ? color : color.withAlpha(30);
     final Color textColor = isActive ? Colors.black : Colors.black.withAlpha(30);
 
     return Container(

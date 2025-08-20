@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'datapath_state.dart';
 import 'simulation_mode.dart';
+import 'colors.dart';
 
 class IBWidget extends StatelessWidget {
   final bool isActive;
   final List<Offset> connectionPoints;
+  final color;
 
   // Constructor del widget. La 'key' es para que Flutter identifique el widget.
   const IBWidget({
@@ -22,6 +24,7 @@ class IBWidget extends StatelessWidget {
       Offset(1,0.425),
       Offset(1,0.83),
     ],
+    this.color = defaultColor, // Color por defecto
   });
 
   @override
@@ -29,7 +32,7 @@ class IBWidget extends StatelessWidget {
     // Accedemos al estado global para determinar el ancho del widget.
     final datapathState = Provider.of<DatapathState>(context);
 
-    final Color backgroundColor = isActive ? Colors.green.shade200 : Colors.blueGrey.shade100;
+    final Color backgroundColor = isActive ? color : color.withAlpha(30);
     final Color activeText =isActive?Colors.black:Colors.black.withAlpha(15);
 
     final double widgetWidth = datapathState.simulationMode == SimulationMode.singleCycle ? 0 : 15;

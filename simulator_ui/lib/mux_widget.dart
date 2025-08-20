@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'colors.dart';
 
 class MuxWidget extends StatelessWidget {
   final int value;
   final bool isActive; // Para recibir si debe estar "activo" (color verde)
   final List<Offset> connectionPoints;
   final List<String> labels;
+  final color; // Color por defecto
+
 
   const MuxWidget({
     super.key,
@@ -19,6 +22,7 @@ class MuxWidget extends StatelessWidget {
       Offset(0,0.85),
       Offset(0.35,0),
       Offset(1,0.5),],
+    this.color = defaultColor, // Color por defecto
   });
 
   // Verificación para asegurar que la lista de etiquetas tenga 4 elementos.
@@ -27,7 +31,7 @@ class MuxWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // El color dependerá de si el widget está activo o no.
-    final Color backgroundColor = isActive ? Colors.green.shade200 : Colors.green.shade200.withAlpha(30);
+    final Color backgroundColor = isActive ? color : color.withAlpha(30);
     final Color textColor = isActive ? Colors.black : Colors.black.withAlpha(30);
   final TextStyle estilo= TextStyle(fontSize: 13,color:textColor);
 

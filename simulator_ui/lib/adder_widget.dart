@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'colors.dart';
 
 class AdderWidget extends StatelessWidget {
   final String label;
   final bool isActive; // Para recibir si debe estar "activo" (color verde)
   final List<Offset> connectionPoints;
-
+  final color; // Color por defecto
   const AdderWidget({
     super.key,
     required this.label,
@@ -15,12 +16,13 @@ class AdderWidget extends StatelessWidget {
       Offset(0,0.75),
       Offset(1,0.5),
     ],
+    this.color =defaultColor,
   });
 
   @override
   Widget build(BuildContext context) {
     // El color dependerá de si el widget está activo o no.
-    final Color backgroundColor = isActive ? Colors.green.shade200 : Colors.green.shade200.withAlpha(30);
+    final Color backgroundColor = isActive ? color : color.withAlpha(30);
     final Color textColor = isActive ? Colors.black : Colors.black.withAlpha(30);
 
     return SizedBox(

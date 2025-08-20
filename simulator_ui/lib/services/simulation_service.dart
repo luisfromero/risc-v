@@ -98,7 +98,8 @@ class SimulationState {
       'control_bus': getReadyAt('Control'),
       'rd1_bus': getReadyAt('A'),
       'rd2_bus': getReadyAt('B'),
-      'immediate_bus': getReadyAt('immExt'),
+      'imm_bus': getReadyAt('imm'),
+      'immExt_bus': getReadyAt('immExt'),
       'alu_result_bus': getReadyAt('ALU_result'),
       'flagZ': getReadyAt('ALU_zero'),
       'branch_target_bus': getReadyAt('PC_dest'),
@@ -146,7 +147,8 @@ class SimulationState {
       'instruction_bus': getIsActive('Instr'),
       'rd1_bus': getIsActive('A'),
       'rd2_bus': getIsActive('B'),
-      'immediate_bus': getIsActive('immExt'),
+      'imm_bus': getIsActive('imm'),
+      'immExt_bus': getIsActive('immExt'),
       'alu_result_bus': getIsActive('ALU_result'),
       'branch_target_bus': getIsActive('PC_dest'),
       'mem_read_data_bus': getIsActive('Mem_read_data'),
@@ -155,6 +157,10 @@ class SimulationState {
       'mux_pc_bus': getIsActive('PC_next'),
       'mux_alu_b_bus': getIsActive('ALU_B'),
       'flagZ': getIsActive('ALU_zero'),
+      'da_bus': getIsActive('DA'),
+      'db_bus': getIsActive('DB'),
+      'dc_bus': getIsActive('DC'),
+
 
       // --- Pipeline Registers ---
       // IF/ID Stage
@@ -192,7 +198,8 @@ class SimulationState {
       'instruction_bus': getValue('Instr'),
       'rd1_bus': getValue('A'),
       'rd2_bus': getValue('B'),
-      'immediate_bus': getValue('immExt'),
+      'imm_bus': getValue('imm'),
+      'immExt_bus': getValue('immExt'),
       'alu_result_bus': getValue('ALU_result'),
       'branch_target_bus': getValue('PC_dest'),
       'mem_read_data_bus': getValue('Mem_read_data'),

@@ -14,8 +14,8 @@ enum class PipelineModel {
 
 template<typename T>
 struct Signal {
-    T value;
-    uint32_t ready_at; // En ciclos de reloj
+    T value=0;
+    uint32_t ready_at=1; // En ciclos de reloj
     bool is_active=true;
 };
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:namer_app/colors.dart';
 import 'package:namer_app/reg_widget.dart';
 import 'package:flutter/services.dart'; // Para RawKeyboard
 import 'dart:ui'; // Para FontFeature
@@ -31,15 +32,23 @@ void main() async {
   );
 }
 
+Color pipelineColorForPC(int? pc) {
+  // Ejemplo: elige entre 4 colores cíclicamente según el valor del PC
+  if(pc==null||pc==0)return Color.fromARGB(67, 0, 0, 0); // Si el PC es nulo, devolvemos un color transparente
+  const colors = [color1, color2, color3, color4, color5];
+
+  return colors[((pc-4) ~/ 4) % colors.length];
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     final datapathState = Provider.of<DatapathState>(context);
 
     bool isSingleCycleMode = datapathState.simulationMode == SimulationMode.singleCycle;
     bool isPipelineMode = datapathState.simulationMode == SimulationMode.pipeline;
+    bool isMultiCycleMode = datapathState.simulationMode == SimulationMode.multiCycle;
     
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -208,6 +217,7 @@ class MyApp extends StatelessWidget {
                           key: datapathState.mux2Key,
                           value: datapathState.busValues['control_PCsrc'] ?? 0,
                           isActive: datapathState.isMux2Active,
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC'])),
                         ),
                       ),
                     ),
@@ -222,6 +232,7 @@ class MyApp extends StatelessWidget {
                         child: PcWidget(
                           key: datapathState.pcKey,
                           isActive: datapathState.isPCActive,
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC(datapathState.pcValue)),
                         ),
                       ),
                     ),
@@ -246,6 +257,9 @@ class MyApp extends StatelessWidget {
                             Offset(1,0.5),
                             Offset(2,0.5),
                           ],
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC'])),
+
+
                         ),
                       ),
                     ),
@@ -262,6 +276,7 @@ class MyApp extends StatelessWidget {
                           width: 100,
                           height: 120,
                           isActive: datapathState.isIMemActive,
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC'])),
                           // 2 Puntos para I-Mem
                           connectionPoints: const [
                             Offset(0,0.5),
@@ -289,14 +304,16 @@ class MyApp extends StatelessWidget {
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: IBWidget(
                           key: datapathState.ibKey,
-                          isActive: datapathState.isIBActive,
+                          isActive: isPipelineMode? datapathState.isPathActive('Pipe_IF_ID_Instr'): datapathState.isIBActive,
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC'])),
+                    
                         ),
                       ),
                     ),
 
                     // --- Pipeline Registers RE/DE ---
                     Positioned(
-                      top: 130,
+                      top: 120,
                       left: 520,
                       child: MouseRegion(
                         onEnter: (_) => datapathState.setHoverInfo('FD0'),
@@ -305,8 +322,10 @@ class MyApp extends StatelessWidget {
                           key: datapathState.pipereg_fd0_Key,
                           label: 'FD0',
                           height: 40,
-                          isActive: datapathState.isPcAdderActive,
+                          isActive: datapathState.isPathActive("Pipe_IF_ID_NPC"),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC'])),
                           visibility: isPipelineMode,
+                          connectionPoints: const [Offset(0, 0.75),Offset(1, 0.75),],
                         ),
                       ),
                     ),
@@ -320,8 +339,9 @@ class MyApp extends StatelessWidget {
                           key: datapathState.pipereg_fd1_Key,
                           label: 'FD1',
                           height: 40,
-                          isActive: datapathState.isPcAdderActive,
+                          isActive: datapathState.isPathActive("Pipe_IF_ID_PC"),
                           visibility: isPipelineMode,
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC'])),
                         ),
                       ),
                     ),
@@ -337,7 +357,7 @@ class MyApp extends StatelessWidget {
                           key: datapathState.registerFileKey,
                           label: 'Register\nFile',
                           width: 100,
-                          isActive: datapathState.isRegFileActive,
+                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_IF_ID_Instr"): datapathState.isRegFileActive,
                           height: 120,
                           // 7 Puntos para el Banco de Registros
                           connectionPoints: const [
@@ -350,22 +370,43 @@ class MyApp extends StatelessWidget {
                             Offset(1,0.65),
                             Offset(1.5,0.65),
                             ],
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC'])),
+                        ),
+                      ),
+                    ),
+                    // --- Extender ---
+                    Positioned(
+                      top: 364,
+                      left: 620,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('Immediate extender'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: ExtenderWidget(
+                          key: datapathState.extenderKey,
+                          label: 'Imm. ext.',
+                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_IF_ID_Instr"): datapathState.isExtenderActive,
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC'])),
+
+                          width: 100,
+                          height: 30,
                         ),
                       ),
                     ),
 
                     // --- Pipeline Registers ---
                     Positioned(
-                      top: 130,
+                      top: 120,
                       left: 740,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (PC)'),
+                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (NPC)'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_de0_Key,
                           label: 'DE0',
-                          isActive: datapathState.isPcAdderActive,
+                          isActive: datapathState.isPathActive("Pipe_ID_EX_NPC"),
                           visibility: isPipelineMode,
+                          connectionPoints: const [Offset(0, 0.75),Offset(1, 0.75),],
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC'])),
 
                         ),
                       ),
@@ -380,9 +421,10 @@ class MyApp extends StatelessWidget {
                           label:'DE1',
                           height: 262,
                           key: datapathState.pipereg_de1_Key,
-                          isActive: datapathState.isIBActive,
+                          isActive: datapathState.isPathActive("Pipe_ID_EX_A"),
                           visibility: !isSingleCycleMode,
                           connectionPoints: const [Offset(0, 0.269),Offset(0, 0.453),Offset(0, 0.7115),Offset(0, 0.838),Offset(1, 0.269),Offset(1, 0.453),Offset(1, 0.7115),Offset(1, 0.838)],
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC'])),
                         ),
                       ),
                     ),
@@ -396,8 +438,9 @@ class MyApp extends StatelessWidget {
                           key: datapathState.pipereg_de2_Key,
                           label: 'DE2',
                           height: 40,
-                          isActive: datapathState.isRegFileActive,
+                          isActive: datapathState.isComponentReady("Pipe_ID_EX_PC"),
                           visibility: isPipelineMode,
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC'])),
                         ),
                       ),
                     ),
@@ -412,7 +455,8 @@ class MyApp extends StatelessWidget {
                         child: AdderWidget(
                           key: datapathState.branchAdderKey,
                           label: '  BR\ntarget',
-                          isActive: datapathState.isBranchAdderActive,
+                          isActive: !isSingleCycleMode?datapathState.isPathActive("branch_target_bus"): datapathState.isBranchAdderActive,
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC'])),
                         ),
                       ),
                     ),
@@ -426,7 +470,8 @@ class MyApp extends StatelessWidget {
                         child: AdderWidget(
                           key: datapathState.aluKey,
                           label: 'ALU',
-                          isActive: datapathState.isAluActive,
+                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_ID_EX_A"): datapathState.isAluActive,
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC'])),
                           // 5 Puntos para la ALU
                           connectionPoints: const [
                             Offset(0,0.25),
@@ -449,15 +494,17 @@ class MyApp extends StatelessWidget {
                         child: Mux2Widget(
                           key: datapathState.mux3Key,
                           value: datapathState.busValues['control_ALUsrc'] ?? 0,
-                          isActive: datapathState.isMux3Active,
+                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_ID_EX_B"): datapathState.isMux3Active,
                           labels: ['0', '1', '2', ' '],
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC'])),
+
                         ),
                       ),
                     ),
                     
                     // --- Pipeline Registers ---
                     Positioned(
-                      top: 130,
+                      top: 120,
                       left: 1020,
                       child: MouseRegion(
                         onEnter: (_) => datapathState.setHoverInfo('EX/ME Register (PC)'),
@@ -465,8 +512,10 @@ class MyApp extends StatelessWidget {
                         child: RegWidget(
                           key: datapathState.pipereg_em0_Key,
                           label: 'EM0',
-                          isActive: datapathState.isPcAdderActive,
+                          isActive: datapathState.isComponentReady( "Pipe_EX_MEM_NPC"),
                           visibility: isPipelineMode,
+                          connectionPoints: const [Offset(0, 0.75),Offset(1, 0.75),],
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC'])),
                         ),
                       ),
                     ),
@@ -480,9 +529,10 @@ class MyApp extends StatelessWidget {
                           label:'EM1',
                           height: 262,
                           key: datapathState.pipereg_em1_Key,
-                          isActive: datapathState.isIBActive,
+                          isActive: datapathState.isComponentReady("Pipe_EX_MEM_ALU_result"),
                           visibility: !isSingleCycleMode,
                           connectionPoints: const [Offset(0, 0.315),Offset(0, 0.384),Offset(0, 0.654),Offset(0, 0.7115),Offset(1, 0.315),Offset(1, 0.384),Offset(1, 0.654),Offset(1, 0.7115)],
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC'])),
                         ),
                       ),
                     ),
@@ -575,23 +625,6 @@ class MyApp extends StatelessWidget {
                       ),
                     
 
-                    // --- Extender ---
-                    Positioned(
-                      top: 364,
-                      left: 620,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('Immediate extender'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: ExtenderWidget(
-                          key: datapathState.extenderKey,
-                          label: 'Imm. ext.',
-                          isActive: datapathState.isExtenderActive,
-
-                          width: 100,
-                          height: 30,
-                        ),
-                      ),
-                    ),
                     // --- Memoria de Datos ---
                     Positioned(
                       top: 200,
@@ -612,13 +645,14 @@ class MyApp extends StatelessWidget {
                             Offset(0.5,0),
                             Offset(1,0.566),
                           ],
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC'])),
                         ),
                       ),
                     ),
 
                     // --- Pipeline Registers ---
                     Positioned(
-                      top: 130,
+                      top: 120,
                       left: 1220,
                       child: MouseRegion(
                         onEnter: (_) => datapathState.setHoverInfo('ME/WR Register (PC)'),
@@ -626,8 +660,10 @@ class MyApp extends StatelessWidget {
                         child: RegWidget(
                           key: datapathState.pipereg_mw0_Key,
                           label: 'MW0',
-                          isActive: datapathState.isPcAdderActive,
+                          isActive: datapathState.isComponentReady("Pipe_MEM_WB_NPC"),
                           visibility: isPipelineMode,
+                          connectionPoints: const [Offset(0, 0.75),Offset(1, 0.75),],
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC'])),
                         ),
                       ),
                     ),
@@ -641,9 +677,10 @@ class MyApp extends StatelessWidget {
                           label:'MW1',
                           height: 262,
                           key: datapathState.pipereg_mw1_Key,
-                          isActive: datapathState.isIBActive,
+                          isActive: datapathState.isPathActive("Pipe_MEM_WB_ALU_result")||datapathState.isPathActive("Pipe_MEM_WB_RM"),
                           visibility: !isSingleCycleMode,
                           connectionPoints: const [Offset(0, 0.0577),Offset(0, 0.412),Offset(0, 0.7115),Offset(1, 0.0577),Offset(1, 0.412),Offset(1, 0.7115)],
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC'])),
 
                         ),
                       ),
@@ -660,8 +697,10 @@ class MyApp extends StatelessWidget {
                         child: MuxWidget(
                           key: datapathState.muxCKey,
                           value: datapathState.busValues['control_ResSrc'] ?? 0,
-                          isActive: datapathState.isMuxCActive,
+                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_MEM_WB_NPC"):datapathState.isMuxCActive,
                           labels: ['2', '1', '0', ' '],
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC'])),
+
                         ),
                       ),
                     ),
