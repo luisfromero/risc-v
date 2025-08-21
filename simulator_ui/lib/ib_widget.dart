@@ -15,13 +15,12 @@ class IBWidget extends StatelessWidget {
     this.isActive = false,
     this.connectionPoints = const [
       Offset(0,0.385),
-
       Offset(0,0.045),
       Offset(1,0.09),
       Offset(1,0.14),
-      Offset(1,0.24),
-      Offset(1,0.335),
-      Offset(1,0.425),
+      Offset(1,0.2415),
+      Offset(1,0.3384),
+      Offset(1,0.4307),
       Offset(1,0.83),
     ],
     this.color = defaultColor, // Color por defecto

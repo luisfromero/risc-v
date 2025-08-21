@@ -1,4 +1,3 @@
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -11,18 +10,18 @@ class ControlUnitWidget extends StatelessWidget {
   this.connectionPoints=const [
     Offset(0, 0.8),
 
-    Offset(0.2, 1),
-    Offset(0.26, 1),
-    Offset(0.32, 1),
-    Offset(0.37, 1),
-    Offset(0.557, 1),
-    Offset(0.66, 1),
-    Offset(0.725, 1),
-    Offset(0.82, 1),
-    Offset(0.975, 1),
+    Offset(0.191, 1),
+    Offset(0.266, 1),
+    Offset(0.317, 1),
+    Offset(0.36, 1),
+    Offset(0.556, 1),
+    Offset(0.631, 1),
+    Offset(0.7243, 1),
+    Offset(0.8084, 1),
+    Offset(0.9735, 1),
 
     
-    Offset(1, 0.8)
+    Offset(1, 0.85)
   ],
       this.isActive = false, // Por defecto no está activo
 

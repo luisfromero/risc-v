@@ -13,7 +13,7 @@ class MemoryUnitWidget extends StatelessWidget {
     super.key,
     required this.label,
     this.isActive = false, // Por defecto no está activo
-    this.width = 100,
+    this.width = 80,
     this.height = 120,
     this.connectionPoints=const [],
     this.color = defaultColor, // Color por defecto

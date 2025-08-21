@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:namer_app/colors.dart';
 import 'package:provider/provider.dart';
 import 'datapath_state.dart';
-import 'simulation_mode.dart';
 
 /// Un widget que representa un registro de pipeline (como A, B, NPC).
 /// Su ancho es 0 en modo single-cycle (transparente) y 15 en los demás modos.

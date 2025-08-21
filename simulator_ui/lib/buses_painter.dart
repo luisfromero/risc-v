@@ -101,7 +101,8 @@ class BusesPainter extends CustomPainter {
       }
 
       // El valor del bus se sigue dibujando una vez, si está activo.
-      if (isActive && bus.valueKey != null && datapathState.busValues[bus.valueKey] != null) {
+      if (isActive && bus.valueKey != null && datapathState.busValues[bus.valueKey] != null && datapathState.showBusesLabels) {
+        // Dibuja el valor del bus en el canvas.
       _drawBusValue(canvas, bus, pointsMap, datapathState.busValues[bus.valueKey]!);
       }
     }

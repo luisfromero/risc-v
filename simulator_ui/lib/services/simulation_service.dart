@@ -216,8 +216,8 @@ class SimulationState {
       //'control_ResSrc':getValue('ResSrc'),
       //'control_ImmSrc':getValue('ImmSrc'),
       'opcode': getValue('opcode'),
-      'func3': getValue('funct3'),
-      'func7': getValue('funct7'),
+      'funct3': getValue('funct3'),
+      'funct7': getValue('funct7'),
       'flagZ': getValue('ALU_zero'),
 
       'control_PCsrc':datapathJson['control_PCsrc'] as int? ?? 0,
@@ -248,6 +248,13 @@ class SimulationState {
       'Pipe_EX_MEM_ALU_result': getValue('Pipe_EX_MEM_ALU_result'),
       'Pipe_EX_MEM_B': getValue('Pipe_EX_MEM_B'),
       'Pipe_EX_MEM_RD': getValue('Pipe_EX_MEM_RD'),
+
+      // MEM/WB Stage
+      'Pipe_MEM_WB_Control': getValue('Pipe_MEM_WB_Control'), 
+      'Pipe_MEM_WB_NPC': getValue('Pipe_MEM_WB_NPC'),
+      'Pipe_MEM_WB_ALU_result': getValue('Pipe_MEM_WB_ALU_result'),
+      'Pipe_MEM_WB_RM': getValue('Pipe_MEM_WB_RM'),
+      'Pipe_MEM_WB_RD': getValue('Pipe_MEM_WB_RD'),
       
 
     };
