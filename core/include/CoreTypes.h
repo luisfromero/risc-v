@@ -14,7 +14,7 @@ enum class PipelineModel {
 
 template<typename T>
 struct Signal {
-    T value=0;
+    T value;
     uint32_t ready_at=1; // En ciclos de reloj
     bool is_active=true;
 };
@@ -142,31 +142,54 @@ struct DatapathState {
 
 
     // IF/ID Stage
-    Signal<uint32_t> Pipe_IF_ID_Instr;
     Signal<uint32_t> Pipe_IF_ID_NPC; // PC + 4
+    Signal<uint32_t> Pipe_IF_ID_NPC_out; // Valor en salida
+    Signal<uint32_t> Pipe_IF_ID_Instr;
+    Signal<uint32_t> Pipe_IF_ID_Instr_out;
     Signal<uint32_t> Pipe_IF_ID_PC;
+    Signal<uint32_t> Pipe_IF_ID_PC_out;
 
     // ID/EX Stage
     Signal<uint16_t> Pipe_ID_EX_Control;
+    Signal<uint16_t> Pipe_ID_EX_Control_out;
     Signal<uint32_t> Pipe_ID_EX_NPC; // PC + 4
+    Signal<uint32_t> Pipe_ID_EX_NPC_out;
     Signal<uint32_t> Pipe_ID_EX_A;
+    Signal<uint32_t> Pipe_ID_EX_A_out;
     Signal<uint32_t> Pipe_ID_EX_B;
+    Signal<uint32_t> Pipe_ID_EX_B_out;
     Signal<uint8_t>  Pipe_ID_EX_RD; // Nombre registro destino
+    Signal<uint8_t>  Pipe_ID_EX_RD_out;
     Signal<uint32_t> Pipe_ID_EX_Imm; // Inmediato extendido
+    Signal<uint32_t> Pipe_ID_EX_Imm_out;
     Signal<uint32_t> Pipe_ID_EX_PC;
+    Signal<uint32_t> Pipe_ID_EX_PC_out;
 
     // EX/MEM Stage
     Signal<uint16_t> Pipe_EX_MEM_Control;
+    Signal<uint16_t> Pipe_EX_MEM_Control_out;
     Signal<uint32_t> Pipe_EX_MEM_NPC; // PC + 4
+    Signal<uint32_t> Pipe_EX_MEM_NPC_out;
     Signal<uint32_t> Pipe_EX_MEM_ALU_result;
+    Signal<uint32_t> Pipe_EX_MEM_ALU_result_out;
     Signal<uint32_t> Pipe_EX_MEM_B;
+    Signal<uint32_t> Pipe_EX_MEM_B_out;
     Signal<uint8_t>  Pipe_EX_MEM_RD; // Nombre registro destino
+    Signal<uint8_t>  Pipe_EX_MEM_RD_out;
 
     // MEM/WB Stage
     Signal<uint16_t> Pipe_MEM_WB_Control; 
+    Signal<uint16_t> Pipe_MEM_WB_Control_out;
     Signal<uint32_t> Pipe_MEM_WB_NPC;  // PC + 4
+    Signal<uint32_t> Pipe_MEM_WB_NPC_out;
     Signal<uint32_t> Pipe_MEM_WB_ALU_result; 
+    Signal<uint32_t> Pipe_MEM_WB_ALU_result_out;
     Signal<uint32_t> Pipe_MEM_WB_RM; // Memoria
+    Signal<uint32_t> Pipe_MEM_WB_RM_out;
     Signal<uint8_t> Pipe_MEM_WB_RD; // Nombre registro destino
+    Signal<uint8_t> Pipe_MEM_WB_RD_out;
+
+    //ToDo flush & stall
+
 
 };

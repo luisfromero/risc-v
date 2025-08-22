@@ -8,6 +8,31 @@
 #define DELAY_Z_AND 1
 #define DELAY_PC 1
 #define DEBUG_INFO 1
+#define LOAD_USE_HAZARD 0
+
+void copy_pipeline_registers_to_out(DatapathState& datapath) {
+    datapath.Pipe_IF_ID_Instr_out=datapath.Pipe_IF_ID_Instr;
+    datapath.Pipe_IF_ID_NPC_out=datapath.Pipe_IF_ID_NPC;
+    datapath.Pipe_IF_ID_PC_out=datapath.Pipe_IF_ID_PC;
+    datapath.Pipe_ID_EX_Control_out=datapath.Pipe_ID_EX_Control;
+    datapath.Pipe_ID_EX_NPC_out=datapath.Pipe_ID_EX_NPC;
+    datapath.Pipe_ID_EX_PC_out=datapath.Pipe_ID_EX_PC;
+    datapath.Pipe_ID_EX_A_out=datapath.Pipe_ID_EX_A;
+    datapath.Pipe_ID_EX_B_out=datapath.Pipe_ID_EX_B;
+    datapath.Pipe_ID_EX_RD_out=datapath.Pipe_ID_EX_RD;
+    datapath.Pipe_ID_EX_Imm_out=datapath.Pipe_ID_EX_Imm;
+    datapath.Pipe_EX_MEM_Control_out=datapath.Pipe_EX_MEM_Control;
+    datapath.Pipe_EX_MEM_NPC_out=datapath.Pipe_EX_MEM_NPC;
+    datapath.Pipe_EX_MEM_ALU_result_out=datapath.Pipe_EX_MEM_ALU_result;
+    datapath.Pipe_EX_MEM_B_out=datapath.Pipe_EX_MEM_B;
+    datapath.Pipe_EX_MEM_RD_out=datapath.Pipe_EX_MEM_RD;
+    datapath.Pipe_MEM_WB_Control_out=datapath.Pipe_MEM_WB_Control;
+    datapath.Pipe_MEM_WB_NPC_out=datapath.Pipe_MEM_WB_NPC;
+    datapath.Pipe_MEM_WB_ALU_result_out=datapath.Pipe_MEM_WB_ALU_result;
+    datapath.Pipe_MEM_WB_RM_out=datapath.Pipe_MEM_WB_RM;
+    datapath.Pipe_MEM_WB_RD_out=datapath.Pipe_MEM_WB_RD;
+    }
+
 
 // (Puedes ponerlo como un método privado o función estática)
 std::string Simulator::disassemble(uint32_t instruction, const InstructionInfo* info) const {
@@ -184,9 +209,8 @@ void Simulator::reset(PipelineModel model) {
     if(model == PipelineModel::PipeLined) {
 
         datapath.Pipe_IF_ID_Instr.is_active=false;
-        datapath.Pipe_IF_ID_Instr.value = 0; 
         datapath.Pipe_IF_ID_NPC.is_active=false;
-        datapath.Pipe_IF_ID_NPC.value = 0;
+        datapath.Pipe_IF_ID_PC.is_active=false;
         
         datapath.bus_DA.is_active=false;
         datapath.bus_DB.is_active=false;
@@ -706,11 +730,11 @@ void Simulator::simulate_multi_cycle(uint32_t instruction) {
     // Estos buses simulan la salida de los registros de segmentación en el ciclo *siguiente*
     // a donde se calculan sus entradas.
 
-    strcpy(datapath.Pipe_IF_instruction_cptr, instructionString.c_str());
-    strcpy(datapath.Pipe_ID_instruction_cptr, instructionString.c_str());
-    strcpy(datapath.Pipe_EX_instruction_cptr, instructionString.c_str());
-    strcpy(datapath.Pipe_MEM_instruction_cptr, instructionString.c_str());
-    strcpy(datapath.Pipe_WB_instruction_cptr, instructionString.c_str());
+    strcpy_s(datapath.Pipe_IF_instruction_cptr, instructionString.c_str());
+    strcpy_s(datapath.Pipe_ID_instruction_cptr, instructionString.c_str());
+    strcpy_s(datapath.Pipe_EX_instruction_cptr, instructionString.c_str());
+    strcpy_s(datapath.Pipe_MEM_instruction_cptr, instructionString.c_str());
+    strcpy_s(datapath.Pipe_WB_instruction_cptr, instructionString.c_str());
 
 
 
@@ -755,6 +779,10 @@ void Simulator::simulate_multi_cycle(uint32_t instruction) {
 
     // El tiempo crítico no es tan relevante en multiciclo, pero lo ponemos al final.
     datapath.criticalTime = info->cycles;
+
+    //Aquí terminan el step con el mismo contenido (en pipeline se pone al principio, porque es diferente)
+        copy_pipeline_registers_to_out(datapath);    
+
 }
 
 void Simulator::simulate_pipeline(uint32_t instruction) {
@@ -775,12 +803,18 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
 
     instructionString = fetched_info ? disassemble(instruction, fetched_info) : "c.unimp";
 
-    bool is_valid_instr_WB = datapath.Pipe_EX_MEM_NPC.is_active;
-    bool is_valid_instr_MEM = datapath.Pipe_ID_EX_NPC.is_active;
-    bool is_valid_instr_EX = datapath.Pipe_IF_ID_NPC.is_active;
-    bool is_valid_instr_ID = decoded_info != nullptr;
+    copy_pipeline_registers_to_out(datapath);    
+
+
+    bool is_valid_instr_WB = datapath.Pipe_MEM_WB_NPC_out.is_active;
+    bool is_valid_instr_MEM = datapath.Pipe_EX_MEM_NPC_out.is_active;
+    bool is_valid_instr_EX = datapath.Pipe_ID_EX_NPC_out.is_active;
+    bool is_valid_instr_ID = datapath.Pipe_IF_ID_NPC_out.is_active;
     bool is_valid_instr_IF = fetched_info != nullptr;
 
+    /**
+     * Control word for the instruction in the ID stage.
+     */
     uint16_t control_word = is_valid_instr_ID ? controlWord(decoded_info) : 0;
 
     if(m_logfile.is_open()&&DEBUG_INFO){
@@ -803,16 +837,17 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
     // We first check if the instruction is valid and if the MEM/WB stage is active.
     // If not, we skip the write-back stage.
 
+    try{
     if (is_valid_instr_WB) {
-        uint8_t wb_rd = datapath.Pipe_MEM_WB_RD.value;
-        uint16_t wb_control = datapath.Pipe_MEM_WB_Control.value;
+        uint8_t wb_rd = datapath.Pipe_MEM_WB_RD_out.value;
+        uint16_t wb_control = datapath.Pipe_MEM_WB_Control_out.value;
         uint8_t ResSrc = controlSignal(wb_control, "ResSrc");
         uint8_t WBwr = controlSignal(wb_control, "BRwr"); // BRwr is used as RegWrite
 
         // MUX C: Selects the final result to be written.
-        uint32_t result = mux_C.select(datapath.Pipe_MEM_WB_RM.value,       // Data from memory (for loads)
-                                       datapath.Pipe_MEM_WB_ALU_result.value, // Result from ALU
-                                       datapath.Pipe_MEM_WB_NPC.value,      // PC+4 (for JAL)
+        uint32_t result = mux_C.select(datapath.Pipe_MEM_WB_RM_out.value,       // Data from memory (for loads)
+                                       datapath.Pipe_MEM_WB_ALU_result_out.value, // Result from ALU
+                                       datapath.Pipe_MEM_WB_NPC_out.value,      // PC+4 (for JAL)
                                        INDETERMINADO,
                                        ResSrc);
 
@@ -825,7 +860,18 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
             datapath.bus_C = { INDETERMINADO, 1, false }; // No write-back
         }
 
+
     }
+}
+    catch(const std::exception& e){
+        if(m_logfile.is_open()){
+            m_logfile << "Error escribiendo en el registro: " << e.what() << std::endl;
+
+        }
+    }
+
+
+
 
     if(m_logfile.is_open()&&DEBUG_INFO){
         m_logfile << "WB Stage: " << std::endl
@@ -859,11 +905,11 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
     datapath.bus_Mem_read_data = { mem_read_data, 1, is_valid_instr_MEM };
 
     // Pass data to the next stage's register (MEM/WB)
-    datapath.Pipe_MEM_WB_Control      = {datapath.Pipe_EX_MEM_Control.value,1,is_valid_instr_WB};
-    datapath.Pipe_MEM_WB_NPC          = {datapath.Pipe_EX_MEM_NPC.value,1,is_valid_instr_WB};
-    datapath.Pipe_MEM_WB_ALU_result   = {datapath.Pipe_EX_MEM_ALU_result.value,1,is_valid_instr_WB};
-    datapath.Pipe_MEM_WB_RD           = {datapath.Pipe_EX_MEM_RD.value,1,is_valid_instr_WB};
-    datapath.Pipe_MEM_WB_RM           =  {mem_read_data,1,is_valid_instr_WB};
+    datapath.Pipe_MEM_WB_Control      = {datapath.Pipe_EX_MEM_Control_out.value,1,is_valid_instr_MEM};
+    datapath.Pipe_MEM_WB_NPC          = datapath.Pipe_EX_MEM_NPC_out;
+    datapath.Pipe_MEM_WB_ALU_result   = {datapath.Pipe_EX_MEM_ALU_result.value,1,is_valid_instr_MEM};
+    datapath.Pipe_MEM_WB_RD           = {datapath.Pipe_EX_MEM_RD.value,1,is_valid_instr_MEM};
+    datapath.Pipe_MEM_WB_RM           =  {mem_read_data,1,is_valid_instr_MEM};
 
 }
 catch(const std::exception& e){
@@ -895,44 +941,44 @@ catch(const std::exception& e){
     bool take_branch = false;
 
 #define FORWARDING 0
-        uint32_t forwarded_a = datapath.Pipe_ID_EX_A.value;
-        uint32_t forwarded_b = datapath.Pipe_ID_EX_B.value;
+        uint32_t forwarded_a = datapath.Pipe_ID_EX_A_out.value;
+        uint32_t forwarded_b = datapath.Pipe_ID_EX_B_out.value;
     if(is_valid_instr_EX && FORWARDING){
         // --- HAZARD DETECTION & FORWARDING UNIT ---
         // Determines if we need to forward data from later stages to prevent a data hazard.
 
-        uint8_t id_ex_rs1 = (datapath.Pipe_ID_EX_Control.is_active) ? (datapath.Pipe_ID_EX_Imm.value >> 15) & 0x1F : 0; // Just kidding, this is not how you get rs1. Let's get it properly. We need to pass it from ID.
+        uint8_t id_ex_rs1 = (datapath.Pipe_ID_EX_Control_out.is_active) ? (datapath.Pipe_ID_EX_Imm_out.value >> 15) & 0x1F : 0; // Just kidding, this is not how you get rs1. Let's get it properly. We need to pass it from ID.
         // Let's assume for now we have rs1 and rs2 addresses in ID_EX register.
         // This requires adding `rs1` and `rs2` fields to the `ID_EX_Register` struct in CoreTypes.h
         // For this example, let's pretend they are passed via Imm field for simplicity.
-        uint8_t ex_mem_rd = datapath.Pipe_EX_MEM_RD.value;
-        uint8_t mem_wb_rd = datapath.Pipe_MEM_WB_RD.value;
-        uint8_t id_ex_rs1_addr = datapath.Pipe_ID_EX_RD.value; // Let's repurpose this field for rs1 for now
-        uint8_t id_ex_rs2_addr = (datapath.Pipe_ID_EX_Imm.value >> 20) & 0x1F; // And this for rs2
+        uint8_t ex_mem_rd = datapath.Pipe_EX_MEM_RD_out.value;
+        uint8_t mem_wb_rd = datapath.Pipe_MEM_WB_RD_out.value;
+        uint8_t id_ex_rs1_addr = datapath.Pipe_ID_EX_RD_out.value; // Let's repurpose this field for rs1 for now
+        uint8_t id_ex_rs2_addr = (datapath.Pipe_ID_EX_Imm_out.value >> 20) & 0x1F; // And this for rs2
 
         // Forwarding from EX/MEM stage
-        if (datapath.Pipe_EX_MEM_Control.is_active && controlSignal(datapath.Pipe_EX_MEM_Control.value, "BRwr") && ex_mem_rd != 0) {
-            if (ex_mem_rd == id_ex_rs1_addr) forwarded_a = datapath.Pipe_EX_MEM_ALU_result.value;
-            if (ex_mem_rd == id_ex_rs2_addr) forwarded_b = datapath.Pipe_EX_MEM_B.value; // Store has B value forwarded
+        if (datapath.Pipe_EX_MEM_Control_out.is_active && controlSignal(datapath.Pipe_EX_MEM_Control_out.value, "BRwr") && ex_mem_rd != 0) {
+            if (ex_mem_rd == id_ex_rs1_addr) forwarded_a = datapath.Pipe_EX_MEM_ALU_result_out.value;
+            if (ex_mem_rd == id_ex_rs2_addr) forwarded_b = datapath.Pipe_EX_MEM_B_out.value; // Store has B value forwarded
         }
         // Forwarding from MEM/WB stage
-        if (datapath.Pipe_MEM_WB_Control.is_active && controlSignal(datapath.Pipe_MEM_WB_Control.value, "BRwr") && mem_wb_rd != 0) {
-            if (mem_wb_rd == id_ex_rs1_addr && !(datapath.Pipe_EX_MEM_Control.is_active && ex_mem_rd == id_ex_rs1_addr)) forwarded_a = register_file.readA(mem_wb_rd); // Simplified, should be mux_C result
-            if (mem_wb_rd == id_ex_rs2_addr && !(datapath.Pipe_EX_MEM_Control.is_active && ex_mem_rd == id_ex_rs2_addr)) forwarded_b = register_file.readA(mem_wb_rd);
+        if (datapath.Pipe_MEM_WB_Control_out.is_active && controlSignal(datapath.Pipe_MEM_WB_Control_out.value, "BRwr") && mem_wb_rd != 0) {
+            if (mem_wb_rd == id_ex_rs1_addr && !(datapath.Pipe_EX_MEM_Control_out.is_active && ex_mem_rd == id_ex_rs1_addr)) forwarded_a = register_file.readA(mem_wb_rd); // Simplified, should be mux_C result
+            if (mem_wb_rd == id_ex_rs2_addr && !(datapath.Pipe_EX_MEM_Control_out.is_active && ex_mem_rd == id_ex_rs2_addr)) forwarded_b = register_file.readA(mem_wb_rd);
         }
         // End of forwarding logic
 
         }//Forwarding
     uint32_t alu_op_b=0xfabada;
     try{
-    if (datapath.Pipe_ID_EX_Control.is_active) {
-        uint16_t ex_control = datapath.Pipe_ID_EX_Control.value;
+    if (datapath.Pipe_ID_EX_Control_out.is_active) {
+        uint16_t ex_control = datapath.Pipe_ID_EX_Control_out.value;
         uint8_t ALUsrc = controlSignal(ex_control, "ALUsrc");
         uint8_t ALUctr = controlSignal(ex_control, "ALUctr");
         uint8_t PCsrc = controlSignal(ex_control, "PCsrc");
 
         // MUX B: Selects the second operand for the ALU.
-        alu_op_b = mux_B.select(forwarded_b, datapath.Pipe_ID_EX_Imm.value, ALUsrc);
+        alu_op_b = mux_B.select(forwarded_b, datapath.Pipe_ID_EX_Imm_out.value, ALUsrc);
 
         // ALU Execution
         alu_result = alu.calc(forwarded_a, alu_op_b, ALUctr);
@@ -940,7 +986,7 @@ catch(const std::exception& e){
 
         // *** BUG FIX ***: Correct branch target calculation.
         // It uses the PC from the ID/EX register, not the current global PC.
-        branch_target = datapath.Pipe_ID_EX_PC.value + datapath.Pipe_ID_EX_Imm.value;
+        branch_target = datapath.Pipe_ID_EX_PC_out.value + datapath.Pipe_ID_EX_Imm_out.value;
 
         // Branch condition logic
         take_branch = (PCsrc == 1 && alu_zero) || PCsrc == 2; // PCsrc=1 for BEQ, PCsrc=2 for JAL/JALR
@@ -962,12 +1008,12 @@ catch(const std::exception& e){
     }
 
     // Pass data to the next stage's register (EX/MEM)
-    datapath.Pipe_EX_MEM_Control    ={datapath.Pipe_ID_EX_Control.value,1, is_valid_instr_MEM};
-    datapath.Pipe_EX_MEM_NPC        = {datapath.Pipe_ID_EX_NPC.value,1, is_valid_instr_MEM};
-    datapath.Pipe_EX_MEM_ALU_result ={ alu_result,1, is_valid_instr_MEM}; // Pass the ALU result
-    datapath.Pipe_EX_MEM_B  = {forwarded_b,1, is_valid_instr_MEM}; // Pass the (potentially forwarded) value of rs2 for stores
-    datapath.Pipe_EX_MEM_RD         = {datapath.Pipe_ID_EX_RD.value,1, is_valid_instr_MEM};
+    datapath.Pipe_EX_MEM_ALU_result ={ alu_result,1, is_valid_instr_EX}; // Pass the ALU result
+    datapath.Pipe_EX_MEM_B  = {forwarded_b,1, is_valid_instr_EX}; // Pass the (potentially forwarded) value of rs2 for stores
+    datapath.Pipe_EX_MEM_RD         = {datapath.Pipe_ID_EX_RD_out.value,1, is_valid_instr_EX};
 
+    datapath.Pipe_EX_MEM_Control    =datapath.Pipe_ID_EX_Control_out;
+    datapath.Pipe_EX_MEM_NPC        = datapath.Pipe_ID_EX_NPC_out;
 
     // Internal buses for this stage
     datapath.bus_PC_dest = {branch_target, 1, is_valid_instr_EX}; // Pass the branch target to the next stage
@@ -1001,7 +1047,6 @@ catch(const std::exception& e){
     
     // --- LOAD-USE HAZARD DETECTION (STALL) ---
     stall=false;
-#define LOAD_USE_HAZARD 0
     if(LOAD_USE_HAZARD)    
     if (datapath.Pipe_ID_EX_Control.is_active) {
         uint8_t ex_ResSrc = controlSignal(datapath.Pipe_ID_EX_Control.value, "ResSrc");
@@ -1025,20 +1070,22 @@ catch(const std::exception& e){
     } else {
         // Normal operation
         
-        uint32_t instruction_in_id = datapath.Pipe_IF_ID_Instr.value;
+        uint32_t instruction_in_id = datapath.Pipe_IF_ID_Instr_out.value;
         uint8_t rs1_addr = (instruction_in_id >> 15) & 0x1F;
         uint8_t rs2_addr = (instruction_in_id >> 20) & 0x1F;
         uint8_t rd_addr  = (instruction_in_id >> 7)  & 0x1F;
 
 
 
-        datapath.Pipe_ID_EX_Control= {control_word,1,true};
-        datapath.Pipe_ID_EX_NPC = {datapath.Pipe_IF_ID_NPC.value,1,is_valid_instr_EX};
-        datapath.Pipe_ID_EX_PC = {datapath.Pipe_IF_ID_PC.value,1,is_valid_instr_EX};
-        datapath.Pipe_ID_EX_A = {register_file.readA(rs1_addr),1,is_valid_instr_EX};
-        datapath.Pipe_ID_EX_B = {register_file.readB(rs2_addr),1,is_valid_instr_EX};
-        datapath.Pipe_ID_EX_RD = {rd_addr,1,is_valid_instr_EX};
-        datapath.Pipe_ID_EX_Imm = {sign_extender.extender(instruction_in_id, ImmSrc),1,is_valid_instr_EX};
+
+        datapath.Pipe_ID_EX_A = {register_file.readA(rs1_addr),1,is_valid_instr_ID};
+        datapath.Pipe_ID_EX_B = {register_file.readB(rs2_addr),1,is_valid_instr_ID};
+        datapath.Pipe_ID_EX_RD = {rd_addr,1,is_valid_instr_ID};
+        datapath.Pipe_ID_EX_Imm = {sign_extender.extender(instruction_in_id, ImmSrc),1,is_valid_instr_ID};
+
+        datapath.Pipe_ID_EX_Control= {control_word,1,is_valid_instr_ID}; //No necesitaríamos todo. Parte ya se ha consumido en ID.
+        datapath.Pipe_ID_EX_NPC = datapath.Pipe_IF_ID_NPC_out;
+        datapath.Pipe_ID_EX_PC = datapath.Pipe_IF_ID_PC_out;
 
         //datapath.Pipe_IF_ID_Instr.is_active = is_valid_instr_ID; 
         //datapath.Pipe_IF_ID_NPC.is_active = is_valid_instr_ID;
@@ -1053,10 +1100,10 @@ catch(const std::exception& e){
         datapath.bus_funct3 = { (uint8_t)((instruction_in_id >> 12) & 0x07), 1, is_valid_instr_ID }; // Funct3 is bits 12-14
         datapath.bus_funct7 = { (uint8_t)((instruction_in_id >> 25) & 0x7F), 1, is_valid_instr_ID }; // Funct7 is bits 25-31
         //datapath.bus_Instr = { instruction_in_id, 1, is_valid_instr_ID }; // The instruction itself
-        datapath.bus_A = { datapath.Pipe_ID_EX_A.value, 1, is_valid_instr_ID }; // Value of the first source register
-        datapath.bus_B = { datapath.Pipe_ID_EX_B.value, 1, is_valid_instr_ID }; // Value of the second source register
+        datapath.bus_A = { datapath.Pipe_ID_EX_A_out.value, 1, is_valid_instr_ID }; // Value of the first source register
+        datapath.bus_B = { datapath.Pipe_ID_EX_B_out.value, 1, is_valid_instr_ID }; // Value of the second source register
         datapath.bus_imm = { instruction_in_id, 1, is_valid_instr_ID }; // Immediate value (not yet extended)
-        datapath.bus_immExt = { datapath.Pipe_ID_EX_Imm.value, 1, is_valid_instr_ID }; // Extended immediate value
+        datapath.bus_immExt = { datapath.Pipe_ID_EX_Imm_out.value, 1, is_valid_instr_ID }; // Extended immediate value
 
 
     }
@@ -1091,12 +1138,15 @@ catch(const std::exception& e){
 if(NO_BRANCH_FLUSH)flush=false;
 
 
+
     // Registro pipeline a final de etapa
-    datapath.Pipe_IF_ID_Instr = {instruction,1, is_valid_instr_ID}; // PC + 4 
-    if(flush)datapath.Pipe_IF_ID_Instr = { 0x00000013, 1, false };
+    datapath.Pipe_IF_ID_Instr = {instruction,1, is_valid_instr_IF}; // PC + 4 
+    if(flush)datapath.Pipe_IF_ID_Instr = { 0x00000013, 1, true };
     if(stall)datapath.Pipe_IF_ID_Instr = datapath.Pipe_IF_ID_Instr;// No change, we keep the previous instruction in IF/ID
-    datapath.Pipe_IF_ID_NPC = {datapath.bus_PC_plus4.value,1, is_valid_instr_ID}; // PC + 4 
-    datapath.Pipe_IF_ID_PC =  {datapath.bus_PC.value ,1, is_valid_instr_ID};
+    datapath.Pipe_IF_ID_NPC = {pc+4,1, is_valid_instr_IF}; // PC + 4 
+    datapath.Pipe_IF_ID_PC =  {pc ,1, is_valid_instr_IF};
+
+    //No calculamos los bits de control. Le pasamos la instrucción a la siguiente etapa
 
     // Buses internos de esta etapa
     datapath.bus_PC = { pc, 1, true }; // El PC se actualiza en la etapa IF
@@ -1124,20 +1174,19 @@ if(NO_BRANCH_FLUSH)flush=false;
 
     if (!stall) {
         pc = take_branch ? branch_target : pc+4;
-        
     }
     // If stalling, the PC is not updated, freezing the fetch stage.
 
     // =================================================================================
-    // LABELLING THE PIPELINE STAGES
+    // LABELLING PIPELINE STAGES
     // =================================================================================
-    strcpy(datapath.instruction_cptr,instructionString.c_str());
 
-    strcpy(datapath.Pipe_WB_instruction_cptr, datapath.Pipe_MEM_instruction_cptr);
-    strcpy(datapath.Pipe_MEM_instruction_cptr, datapath.Pipe_EX_instruction_cptr);
-    strcpy(datapath.Pipe_EX_instruction_cptr, datapath.Pipe_ID_instruction_cptr);
-    strcpy(datapath.Pipe_ID_instruction_cptr, datapath.Pipe_IF_instruction_cptr);
-    strcpy(datapath.Pipe_IF_instruction_cptr, instructionString.c_str());
+    strcpy_s(datapath.Pipe_WB_instruction_cptr, datapath.Pipe_MEM_instruction_cptr);
+    strcpy_s(datapath.Pipe_MEM_instruction_cptr, datapath.Pipe_EX_instruction_cptr);
+    strcpy_s(datapath.Pipe_EX_instruction_cptr, datapath.Pipe_ID_instruction_cptr);
+    strcpy_s(datapath.Pipe_ID_instruction_cptr, datapath.Pipe_IF_instruction_cptr);
+    strcpy_s(datapath.Pipe_IF_instruction_cptr, instructionString.c_str());
+    strcpy_s(datapath.instruction_cptr,instructionString.c_str());
 
     if(m_logfile.is_open() && DEBUG_INFO) {
         m_logfile << "Pipeline Stage 1 (IF): " << datapath.Pipe_IF_instruction_cptr << std::endl;
@@ -1150,234 +1199,3 @@ if(NO_BRANCH_FLUSH)flush=false;
     
 }
 
-
-
-void Simulator::simulate_pipeline2(uint32_t instruction) {
-    // Esta función se llama una vez por ciclo de reloj.
-    // Modelamos las 5 etapas calculando el estado de cada registro de pipeline
-    // basado en el estado del anterior, en orden inverso (WB -> MEM -> EX -> ID -> IF).
-
-
-    const InstructionInfo* info1 = control_unit.decode(instruction);
-std::string fetchedInstr = info1!=nullptr?disassemble(instruction, info1):"nop";
-
-    instructionString = fetchedInstr;
-    uint32_t npc=pc+4; //Debería recibir un valor
-    datapath.criticalTime=1;
-
-    // --- ETAPA 5: WRITE-BACK (WB) ---
-    // Utiliza los datos del registro de pipeline MEM/WB (del ciclo anterior).
-    // Escribe el resultado final en el banco de registros.    const InstructionInfo* info = control_unit.decode(instruction);
-
-
-try{
-
-
-    uint8_t wb_rd = datapath.Pipe_MEM_WB_RD.value;
-    uint8_t WBwr = controlSignal(datapath.Pipe_MEM_WB_Control.value, "BRwr");
-    uint8_t ResSrc = controlSignal(datapath.Pipe_MEM_WB_Control.value, "ResSrc");
-        bool unimplemented = datapath.Pipe_MEM_WB_Control.is_active == false;
-
-    uint32_t result = mux_C.select(datapath.Pipe_MEM_WB_RM.value,datapath.Pipe_MEM_WB_ALU_result.value,  datapath.Pipe_MEM_WB_NPC.value, 0xfabada, ResSrc);
-    if (WBwr) {
-        register_file.write(wb_rd, result);
-    }
-
-        if (m_logfile.is_open()) {
-            m_logfile << "Etapa de Escritura " << std::endl;
-            m_logfile << "Instruccion implementada: " << (unimplemented ? "No" : "Sí") << std::endl;
-            m_logfile << "Control WBbr: "+std::to_string(WBwr) << std::endl;
-            m_logfile << "Registro destino: "+std::to_string(wb_rd) << std::endl;
-            m_logfile << "PC+4: "+std::to_string(npc) << std::endl;
-            m_logfile << "Resultado final: "+std::to_string(result) << std::endl;
-        }
-
-    strcpy(datapath.Pipe_WB_instruction_cptr, datapath.Pipe_MEM_instruction_cptr); 
-    }
-catch(const std::exception& e) {
-        m_logfile << "Error en la etapa WB: " << e.what() << std::endl;
-        return; // Salimos para evitar errores posteriores
-    }
-
-    // --- ETAPA 4: MEMORY ACCESS (MEM) ---
-
-        // Acceso a memoria
-        try{
-        bool unimplemented = datapath.Pipe_EX_MEM_Control.is_active == false;
-        uint32_t Mem_address = datapath.Pipe_EX_MEM_ALU_result.value;
-        uint32_t Mem_read_data = 0x00FABADA; // Valor por defecto en caso de error
-        if(!unimplemented){
-        if (controlSignal(datapath.Pipe_EX_MEM_Control.value, "MemWr") == 1) { // Si es una escritura
-            d_mem.write_word(Mem_address, datapath.Pipe_EX_MEM_B.value);
-        } else { // Si es una lectura
-            try {
-                Mem_read_data = d_mem.read_word(Mem_address);
-            } catch (const std::exception& e) {
-                m_logfile << "Error al leer de la memoria: " << e.what() << std::endl;
-            }
-        }
-        }
-
-
-        datapath.Pipe_MEM_WB_RM = {Mem_read_data, 3};
-
-    uint8_t MemWr = controlSignal(datapath.Pipe_EX_MEM_Control.value, "MemWr");
-
-
-        if (m_logfile.is_open()) {
-            m_logfile << "Etapa de Memoria " << std::endl;
-            m_logfile << "Instruccion implementada: " << (unimplemented ? "No" : "Sí") << std::endl;
-            m_logfile << "Control MemWr: "+std::to_string(MemWr) << std::endl;
-            m_logfile << "Mem read: "+std::to_string(Mem_read_data) << std::endl;
-        }
-
-    strcpy(datapath.Pipe_MEM_instruction_cptr, datapath.Pipe_EX_instruction_cptr);
-
-    datapath.Pipe_MEM_WB_Control = datapath.Pipe_EX_MEM_Control; // Copiamos el control de la etapa EX/MEM
-    datapath.Pipe_MEM_WB_NPC = datapath.Pipe_EX_MEM_NPC;
-    datapath.Pipe_MEM_WB_ALU_result = datapath.Pipe_EX_MEM_ALU_result;
-    datapath.Pipe_MEM_WB_RD = datapath.Pipe_EX_MEM_RD;
-
-    datapath.Pipe_EX_MEM_ALU_result.is_active = !unimplemented; // Desactivamos si la instrucción no está implementada
-    datapath.Pipe_EX_MEM_B.is_active = !unimplemented;
-    datapath.Pipe_EX_MEM_Control.is_active = !unimplemented;
-    datapath.Pipe_EX_MEM_NPC.is_active = !unimplemented;
-    datapath.Pipe_EX_MEM_RD.is_active = !unimplemented; // RD solo se usa en LW/R-Type, no en SW
-
-    }
-    catch(const std::exception& e) {
-        m_logfile << "Error en la etapa MEM: " << e.what() << std::endl;
-        return; // Salimos para evitar errores posteriores
-    }
-
-    // --- ETAPA 3: EXECUTE (EX) ---
-
-    uint32_t branch_target = pc + 4; // Inicializamos el branch_target para la etapa EX
-    uint8_t PCsrc = 0;
-    try{
-    bool unimplemented=false;
-    if (!datapath.Pipe_ID_EX_Control.is_active) {
-        unimplemented = true; // Si el control no está activo, la instrucción no está implementada
-    }
-    uint8_t ALUsrc = controlSignal(datapath.Pipe_ID_EX_Control.value, "ALUsrc");
-    uint8_t ALUctr = controlSignal(datapath.Pipe_ID_EX_Control.value, "ALUctr");
-    PCsrc = controlSignal(datapath.Pipe_ID_EX_Control.value, "PCsrc");
-
-        
-//    datapath.Pipe_EX_MEM_ALU_result = alu.calc(datapath.Pipe_ID_EX_A.value, datapath.Pipe_ID_EX_Imm.value, ALUctr);
-    
-    const uint32_t alu_op_a = datapath.Pipe_ID_EX_A.value;
-    const uint32_t alu_op_b = mux_B.select(datapath.Pipe_ID_EX_B.value, datapath.Pipe_ID_EX_Imm.value, ALUsrc);
-    const uint32_t alu_result = alu.calc(alu_op_a, alu_op_b, ALUctr);
-    const bool alu_zero = (alu_result == 0);
-    branch_target = datapath.Pipe_ID_EX_PC.value + datapath.Pipe_ID_EX_Imm.value ;
-    datapath.Pipe_EX_MEM_ALU_result= {alu_result,3};
-
-            if (m_logfile.is_open()) {
-            m_logfile << "Etapa de Ejecucion " << std::endl;
-            m_logfile << "Instruccion implementada: " << (unimplemented ? "No" : "Sí") << std::endl;
-            m_logfile << "Control ALUsrc: "+std::to_string(ALUsrc) << std::endl;
-            m_logfile << "Control ALUctr: "+std::to_string(ALUctr) << std::endl;
-            m_logfile << "Control PCsrc: "+std::to_string(PCsrc) << std::endl;
-            m_logfile << "branch_target: "+std::to_string(branch_target) << std::endl;
-            m_logfile << "ALU result: "+std::to_string(alu_result) << std::endl;
-            m_logfile << "ALU zero: "+std::to_string(alu_zero) << std::endl;
-        }
-
-
-
-
-    strcpy(datapath.Pipe_EX_instruction_cptr, datapath.Pipe_ID_instruction_cptr);
-
-    datapath.Pipe_EX_MEM_Control = datapath.Pipe_ID_EX_Control; // Copiamos el control de la etapa IF/ID
-    datapath.Pipe_EX_MEM_B= datapath.Pipe_ID_EX_B;
-    datapath.Pipe_EX_MEM_RD = datapath.Pipe_ID_EX_RD;
-    datapath.Pipe_EX_MEM_NPC = datapath.Pipe_ID_EX_NPC;
-
-    datapath.Pipe_ID_EX_Control.is_active = !unimplemented; 
-    datapath.Pipe_ID_EX_NPC.is_active = !unimplemented;
-    datapath.Pipe_ID_EX_A.is_active = !unimplemented;       
-    datapath.Pipe_ID_EX_B.is_active = !unimplemented;
-    datapath.Pipe_ID_EX_Imm.is_active = !unimplemented;
-    datapath.Pipe_ID_EX_RD.is_active = !unimplemented;
-    
-
-    }
-    catch(const std::exception& e) {
-        m_logfile << "Error en la etapa EX: " << e.what() << std::endl;
-        return; // Salimos para evitar errores posteriores
-    }
-
-
-    
-
-    // --- ETAPA 2: Decode
-
-try{
-    
-    const InstructionInfo* info2 = control_unit.decode(datapath.Pipe_IF_ID_Instr.value);
-    bool unimplemented = info2 == nullptr;
-    uint16_t control = unimplemented?0:controlWord(info2);
-    uint8_t ImmSrc = controlSignal(control, "ImmSrc");
-    bool isJ = info2 && info2->type == 'J';
-    
-    if(m_logfile.is_open()) {
-        m_logfile << "Etapa de Decodificacion " << std::endl;
-        m_logfile << "Instruccion implementada: " << (unimplemented ? "No" : "Si") << std::endl;
-        m_logfile << "Control ImmSrc: "+std::to_string(ImmSrc) << std::endl;
-    }   
-    strcpy(datapath.Pipe_ID_instruction_cptr, datapath.Pipe_IF_instruction_cptr);
-
-    uint8_t rs1_addr = (datapath.Pipe_IF_ID_Instr.value >> 15) & 0x1F;
-    uint8_t rs2_addr = (datapath.Pipe_IF_ID_Instr.value >> 20) & 0x1F;
-    uint8_t rd_addr  = (datapath.Pipe_IF_ID_Instr.value >> 7)  & 0x1F;
-
-    datapath.Pipe_ID_EX_Control.value = control; // Copiamos el control de la etapa IF/ID
-    datapath.Pipe_ID_EX_Control.is_active = !unimplemented; 
-    datapath.Pipe_ID_EX_NPC.value = datapath.Pipe_IF_ID_NPC.value;
-    datapath.Pipe_ID_EX_Imm.value = sign_extender.extender(datapath.Pipe_IF_ID_Instr.value, ImmSrc);
-    datapath.Pipe_ID_EX_A.value =  isJ?0: register_file.readA(rs1_addr);
-    datapath.Pipe_ID_EX_B.value = register_file.readB(rs2_addr);
-    datapath.Pipe_ID_EX_RD.value = rd_addr;
-    datapath.Pipe_ID_EX_PC.value = datapath.Pipe_IF_ID_PC.value;
-
-    datapath.Pipe_IF_ID_Instr.is_active = !unimplemented; 
-    datapath.Pipe_IF_ID_NPC.is_active = !unimplemented;
-    datapath.Pipe_IF_ID_PC.is_active = !unimplemented;
-
-
-
-}
-    catch(const std::exception& e) {
-        m_logfile << "Error en la etapa ID: " << e.what() << std::endl;
-        return; // Salimos para evitar errores posteriores      
-        }
-
-
-    // --- ETAPA 1: Fetch
-    datapath.bus_Instr = { instruction, 1 ,true}; // La instrucción se lee en la etapa IF
-
-    strcpy(datapath.Pipe_IF_instruction_cptr, instructionString.c_str());
-
-    datapath.Pipe_IF_ID_Instr.value = instruction;
-    bool implemented = instruction != 0; // Si la instrucción es 0, tratamos como NOP
-
-    uint32_t pc_plus_4 = adder4.add(pc);
-
-    datapath.Pipe_IF_ID_NPC.value = pc_plus_4;
-    datapath.Pipe_IF_ID_PC.value = pc;
-
-    datapath.bus_PC = { pc, 1 }; // El PC se actualiza en la etapa IF
-    datapath.bus_PC_plus4 = { pc_plus_4, 1 }; // PC + 4 para la siguiente instrucción
-
-    pc = mux_PC.select(pc_plus_4, branch_target, PCsrc); // Actualiza el PC según el mux de la etapa EX
-
-        if(m_logfile.is_open()) {
-        m_logfile << "Etapa de Fetch " << std::endl;
-        m_logfile << "Instruccion: " << instructionString << std::endl;
-        m_logfile << "PC: "+std::to_string(pc) << std::endl;
-        m_logfile << "PC+4: "+std::to_string(npc) << std::endl;
-    }
-
-
-}

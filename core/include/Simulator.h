@@ -104,7 +104,6 @@ private:
     void simulate_single_cycle(uint32_t instruction);
     void simulate_multi_cycle(uint32_t instruction);
     void simulate_pipeline(uint32_t instruction);
-    void simulate_pipeline2(uint32_t instruction);
 
     std::string disassemble(uint32_t instruction, const InstructionInfo* info) const;
     std::string instructionString ="nop";

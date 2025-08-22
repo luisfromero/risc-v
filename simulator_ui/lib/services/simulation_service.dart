@@ -113,31 +113,59 @@ class SimulationState {
       // --- Pipeline Registers ---
       // IF/ID Stage
       'Pipe_IF_ID_Instr': getReadyAt('Pipe_IF_ID_Instr'),
+      'Pipe_IF_ID_Instr_out': getReadyAt('Pipe_IF_ID_Instr_out'),
       'Pipe_IF_ID_NPC': getReadyAt('Pipe_IF_ID_NPC'),
+      'Pipe_IF_ID_NPC_out': getReadyAt('Pipe_IF_ID_NPC_out'),
       'Pipe_IF_ID_PC': getReadyAt('Pipe_IF_ID_PC'),
+      'Pipe_IF_ID_PC_out': getReadyAt('Pipe_IF_ID_PC_out'),
+
+
 
       // ID/EX Stage
       'Pipe_ID_EX_Control': getReadyAt('Pipe_ID_EX_Control'),
+      'Pipe_ID_EX_Control_out': getReadyAt('Pipe_ID_EX_Control_out'),
       'Pipe_ID_EX_NPC': getReadyAt('Pipe_ID_EX_NPC'),
+      'Pipe_ID_EX_NPC_out': getReadyAt('Pipe_ID_EX_NPC_out'),
       'Pipe_ID_EX_A': getReadyAt('Pipe_ID_EX_A'),
+      'Pipe_ID_EX_A_out': getReadyAt('Pipe_ID_EX_A_out'),
       'Pipe_ID_EX_B': getReadyAt('Pipe_ID_EX_B'),
+      'Pipe_ID_EX_B_out': getReadyAt('Pipe_ID_EX_B_out'),
       'Pipe_ID_EX_RD': getReadyAt('Pipe_ID_EX_RD'),
+      'Pipe_ID_EX_RD_out': getReadyAt('Pipe_ID_EX_RD_out'),
       'Pipe_ID_EX_Imm': getReadyAt('Pipe_ID_EX_Imm'),
+      'Pipe_ID_EX_Imm_out': getReadyAt('Pipe_ID_EX_Imm_out'),
       'Pipe_ID_EX_PC': getReadyAt('Pipe_ID_EX_PC'),
+      'Pipe_ID_EX_PC_out': getReadyAt('Pipe_ID_EX_PC_out'),
+
+
+
 
       // EX/MEM Stage
       'Pipe_EX_MEM_Control': getReadyAt('Pipe_EX_MEM_Control'),
+      'Pipe_EX_MEM_Control_out': getReadyAt('Pipe_EX_MEM_Control_out'),
       'Pipe_EX_MEM_NPC': getReadyAt('Pipe_EX_MEM_NPC'),
+      'Pipe_EX_MEM_NPC_out': getReadyAt('Pipe_EX_MEM_NPC_out'),
       'Pipe_EX_MEM_ALU_result': getReadyAt('Pipe_EX_MEM_ALU_result'),
+      'Pipe_EX_MEM_ALU_result_out': getReadyAt('Pipe_EX_MEM_ALU_result_out'),
       'Pipe_EX_MEM_B': getReadyAt('Pipe_EX_MEM_B'),
+      'Pipe_EX_MEM_B_out': getReadyAt('Pipe_EX_MEM_B_out'),
       'Pipe_EX_MEM_RD': getReadyAt('Pipe_EX_MEM_RD'),
+      'Pipe_EX_MEM_RD_out': getReadyAt('Pipe_EX_MEM_RD_out'),
+
+
 
       // MEM/WB Stage
       'Pipe_MEM_WB_Control': getReadyAt('Pipe_MEM_WB_Control'),
+      'Pipe_MEM_WB_Control_out': getReadyAt('Pipe_MEM_WB_Control_out'),
       'Pipe_MEM_WB_NPC': getReadyAt('Pipe_MEM_WB_NPC'),
+      'Pipe_MEM_WB_NPC_out': getReadyAt('Pipe_MEM_WB_NPC_out'),
       'Pipe_MEM_WB_ALU_result': getReadyAt('Pipe_MEM_WB_ALU_result'),
+      'Pipe_MEM_WB_ALU_result_out': getReadyAt('Pipe_MEM_WB_ALU_result_out'),
       'Pipe_MEM_WB_RM': getReadyAt('Pipe_MEM_WB_RM'),
+      'Pipe_MEM_WB_RM_out': getReadyAt('Pipe_MEM_WB_RM_out'),
       'Pipe_MEM_WB_RD': getReadyAt('Pipe_MEM_WB_RD'),
+      'Pipe_MEM_WB_RD_out': getReadyAt('Pipe_MEM_WB_RD_out'),
+  
     };
 
     // Mapea las señales del backend para saber si están lógicamente activas.
@@ -165,31 +193,57 @@ class SimulationState {
       // --- Pipeline Registers ---
       // IF/ID Stage
       'Pipe_IF_ID_Instr': getIsActive('Pipe_IF_ID_Instr'),
+      'Pipe_IF_ID_Instr_out': getIsActive('Pipe_IF_ID_Instr_out'),
       'Pipe_IF_ID_NPC': getIsActive('Pipe_IF_ID_NPC'),
+      'Pipe_IF_ID_NPC_out': getIsActive('Pipe_IF_ID_NPC_out'),
       'Pipe_IF_ID_PC': getIsActive('Pipe_IF_ID_PC'),
+      'Pipe_IF_ID_PC_out': getIsActive('Pipe_IF_ID_PC_out'),
+
 
       // ID/EX Stage
       'Pipe_ID_EX_Control': getIsActive('Pipe_ID_EX_Control'),
+      'Pipe_ID_EX_Control_out': getIsActive('Pipe_ID_EX_Control_out'),
       'Pipe_ID_EX_NPC': getIsActive('Pipe_ID_EX_NPC'),
+      'Pipe_ID_EX_NPC_out': getIsActive('Pipe_ID_EX_NPC_out'),
       'Pipe_ID_EX_A': getIsActive('Pipe_ID_EX_A'),
+      'Pipe_ID_EX_A_out': getIsActive('Pipe_ID_EX_A_out'),
       'Pipe_ID_EX_B': getIsActive('Pipe_ID_EX_B'),
+      'Pipe_ID_EX_B_out': getIsActive('Pipe_ID_EX_B_out'),
       'Pipe_ID_EX_RD': getIsActive('Pipe_ID_EX_RD'),
+      'Pipe_ID_EX_RD_out': getIsActive('Pipe_ID_EX_RD_out'),
       'Pipe_ID_EX_Imm': getIsActive('Pipe_ID_EX_Imm'),
+      'Pipe_ID_EX_Imm_out': getIsActive('Pipe_ID_EX_Imm_out'),
       'Pipe_ID_EX_PC': getIsActive('Pipe_ID_EX_PC'),
+      'Pipe_ID_EX_PC_out': getIsActive('Pipe_ID_EX_PC_out'),
+
+
 
       // EX/MEM Stage
       'Pipe_EX_MEM_Control': getIsActive('Pipe_EX_MEM_Control'),
+      'Pipe_EX_MEM_Control_out': getIsActive('Pipe_EX_MEM_Control_out'),
       'Pipe_EX_MEM_NPC': getIsActive('Pipe_EX_MEM_NPC'),
+      'Pipe_EX_MEM_NPC_out': getIsActive('Pipe_EX_MEM_NPC_out'),
       'Pipe_EX_MEM_ALU_result': getIsActive('Pipe_EX_MEM_ALU_result'),
+      'Pipe_EX_MEM_ALU_result_out': getIsActive('Pipe_EX_MEM_ALU_result_out'),
       'Pipe_EX_MEM_B': getIsActive('Pipe_EX_MEM_B'),
+      'Pipe_EX_MEM_B_out': getIsActive('Pipe_EX_MEM_B_out'),
       'Pipe_EX_MEM_RD': getIsActive('Pipe_EX_MEM_RD'),
+      'Pipe_EX_MEM_RD_out': getIsActive('Pipe_EX_MEM_RD_out'),
+
+
 
       // MEM/WB Stage
       'Pipe_MEM_WB_Control': getIsActive('Pipe_MEM_WB_Control'),
+      'Pipe_MEM_WB_Control_out': getIsActive('Pipe_MEM_WB_Control_out'),
       'Pipe_MEM_WB_NPC': getIsActive('Pipe_MEM_WB_NPC'),
+      'Pipe_MEM_WB_NPC_out': getIsActive('Pipe_MEM_WB_NPC_out'),
       'Pipe_MEM_WB_ALU_result': getIsActive('Pipe_MEM_WB_ALU_result'),
+      'Pipe_MEM_WB_ALU_result_out': getIsActive('Pipe_MEM_WB_ALU_result_out'),
       'Pipe_MEM_WB_RM': getIsActive('Pipe_MEM_WB_RM'),
+      'Pipe_MEM_WB_RM_out': getIsActive('Pipe_MEM_WB_RM_out'),
       'Pipe_MEM_WB_RD': getIsActive('Pipe_MEM_WB_RD'),
+      'Pipe_MEM_WB_RD_out': getIsActive('Pipe_MEM_WB_RD_out'),
+  
     };
 
     final Map<String, int> busValuesMap = {
@@ -230,31 +284,55 @@ class SimulationState {
       // --- Pipeline Registers ---
       // IF/ID Stage
       'Pipe_IF_ID_Instr': getValue('Pipe_IF_ID_Instr'),
+      'Pipe_IF_ID_Instr_out': getValue('Pipe_IF_ID_Instr_out'),
       'Pipe_IF_ID_NPC': getValue('Pipe_IF_ID_NPC'),
+      'Pipe_IF_ID_NPC_out': getValue('Pipe_IF_ID_NPC_out'),
       'Pipe_IF_ID_PC': getValue('Pipe_IF_ID_PC'),
+      'Pipe_IF_ID_PC_out': getValue('Pipe_IF_ID_PC_out'),
 
       // ID/EX Stage
       'Pipe_ID_EX_Control': getValue('Pipe_ID_EX_Control'),
+      'Pipe_ID_EX_Control_out': getValue('Pipe_ID_EX_Control_out'),
       'Pipe_ID_EX_NPC': getValue('Pipe_ID_EX_NPC'),
+      'Pipe_ID_EX_NPC_out': getValue('Pipe_ID_EX_NPC_out'),
       'Pipe_ID_EX_A': getValue('Pipe_ID_EX_A'),
+      'Pipe_ID_EX_A_out': getValue('Pipe_ID_EX_A_out'),
       'Pipe_ID_EX_B': getValue('Pipe_ID_EX_B'),
+      'Pipe_ID_EX_B_out': getValue('Pipe_ID_EX_B_out'),
       'Pipe_ID_EX_RD': getValue('Pipe_ID_EX_RD'),
+      'Pipe_ID_EX_RD_out': getValue('Pipe_ID_EX_RD_out'),
       'Pipe_ID_EX_Imm': getValue('Pipe_ID_EX_Imm'),
+      'Pipe_ID_EX_Imm_out': getValue('Pipe_ID_EX_Imm_out'),
       'Pipe_ID_EX_PC': getValue('Pipe_ID_EX_PC'),
+      'Pipe_ID_EX_PC_out': getValue('Pipe_ID_EX_PC_out'),
+
 
       // EX/MEM Stage
       'Pipe_EX_MEM_Control': getValue('Pipe_EX_MEM_Control'),
+      'Pipe_EX_MEM_Control_out': getValue('Pipe_EX_MEM_Control_out'),
       'Pipe_EX_MEM_NPC': getValue('Pipe_EX_MEM_NPC'),
+      'Pipe_EX_MEM_NPC_out': getValue('Pipe_EX_MEM_NPC_out'),
       'Pipe_EX_MEM_ALU_result': getValue('Pipe_EX_MEM_ALU_result'),
+      'Pipe_EX_MEM_ALU_result_out': getValue('Pipe_EX_MEM_ALU_result_out'),
+
+
       'Pipe_EX_MEM_B': getValue('Pipe_EX_MEM_B'),
+      'Pipe_EX_MEM_B_out': getValue('Pipe_EX_MEM_B_out'),
       'Pipe_EX_MEM_RD': getValue('Pipe_EX_MEM_RD'),
+      'Pipe_EX_MEM_RD_out': getValue('Pipe_EX_MEM_RD_out'),
+
 
       // MEM/WB Stage
       'Pipe_MEM_WB_Control': getValue('Pipe_MEM_WB_Control'), 
+      'Pipe_MEM_WB_Control_out': getValue('Pipe_MEM_WB_Control_out'),
       'Pipe_MEM_WB_NPC': getValue('Pipe_MEM_WB_NPC'),
+      'Pipe_MEM_WB_NPC_out': getValue('Pipe_MEM_WB_NPC_out'),
       'Pipe_MEM_WB_ALU_result': getValue('Pipe_MEM_WB_ALU_result'),
+      'Pipe_MEM_WB_ALU_result_out': getValue('Pipe_MEM_WB_ALU_result_out'),
       'Pipe_MEM_WB_RM': getValue('Pipe_MEM_WB_RM'),
+      'Pipe_MEM_WB_RM_out': getValue('Pipe_MEM_WB_RM_out'),
       'Pipe_MEM_WB_RD': getValue('Pipe_MEM_WB_RD'),
+      'Pipe_MEM_WB_RD_out': getValue('Pipe_MEM_WB_RD_out'),
       
 
     };

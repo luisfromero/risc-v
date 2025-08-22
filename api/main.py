@@ -97,6 +97,7 @@ class DatapathState(ctypes.Structure):
         ("branch_taken", Signal_bool),
         ("criticaltime", ctypes.c_uint32),
         ("total_micro_cycles", ctypes.c_uint32),
+
         # ("instruction", ctypes.c_wchar_p),
         ("instruction_cptr", ctypes.c_char * 256), # Usar un buffer de tamaño fijo para evitar punteros colgantes
         ("Pipe_IF_instruction_cptr", ctypes.c_char * 256),
@@ -106,31 +107,55 @@ class DatapathState(ctypes.Structure):
         ("Pipe_WB_instruction_cptr", ctypes.c_char * 256),
 
         # --- Buses de Salida de los Registros de Segmentación ---
-        ("Pipe_IF_ID_Instr", Signal_u32),
         ("Pipe_IF_ID_NPC", Signal_u32),
+        ("Pipe_IF_ID_NPC_out", Signal_u32),
+        ("Pipe_IF_ID_Instr", Signal_u32),
+        ("Pipe_IF_ID_Instr_out", Signal_u32),
         ("Pipe_IF_ID_PC", Signal_u32),
+        ("Pipe_IF_ID_PC_out", Signal_u32),
+
         
 
         ("Pipe_ID_EX_Control", Signal_u16),
+        ("Pipe_ID_EX_Control_out", Signal_u16),
         ("Pipe_ID_EX_NPC", Signal_u32),
+        ("Pipe_ID_EX_NPC_out", Signal_u32),
         ("Pipe_ID_EX_A", Signal_u32),
+        ("Pipe_ID_EX_A_out", Signal_u32),
         ("Pipe_ID_EX_B", Signal_u32),
+        ("Pipe_ID_EX_B_out", Signal_u32),
         ("Pipe_ID_EX_RD", Signal_u8),
+        ("Pipe_ID_EX_RD_out", Signal_u8),
         ("Pipe_ID_EX_Imm", Signal_u32),
+        ("Pipe_ID_EX_Imm_out", Signal_u32),
         ("Pipe_ID_EX_PC", Signal_u32),
+        ("Pipe_ID_EX_PC_out", Signal_u32),
+
 
 
         ("Pipe_EX_MEM_Control", Signal_u16),
+        ("Pipe_EX_MEM_Control_out", Signal_u16),
         ("Pipe_EX_MEM_NPC", Signal_u32),
+        ("Pipe_EX_MEM_NPC_out", Signal_u32),
         ("Pipe_EX_MEM_ALU_result", Signal_u32),
+        ("Pipe_EX_MEM_ALU_result_out", Signal_u32),
         ("Pipe_EX_MEM_B", Signal_u32),
+        ("Pipe_EX_MEM_B_out", Signal_u32),
         ("Pipe_EX_MEM_RD", Signal_u8),
+        ("Pipe_EX_MEM_RD_out", Signal_u8),
+        
 
         ("Pipe_MEM_WB_Control", Signal_u16),
+        ("Pipe_MEM_WB_Control_out", Signal_u16),
         ("Pipe_MEM_WB_NPC", Signal_u32),
+        ("Pipe_MEM_WB_NPC_out", Signal_u32),
         ("Pipe_MEM_WB_ALU_result", Signal_u32),
+        ("Pipe_MEM_WB_ALU_result_out", Signal_u32),
         ("Pipe_MEM_WB_RM", Signal_u32),
+        ("Pipe_MEM_WB_RM_out", Signal_u32),
         ("Pipe_MEM_WB_RD", Signal_u8),
+        ("Pipe_MEM_WB_RD_out", Signal_u8)
+        
 
     ]
 
@@ -282,6 +307,11 @@ class SimulatorStateModel(BaseModel):
     # critical_time: int = Field(..., description="Ruta crítica en nanosegundos para el ciclo actual.")
     criticaltime: int = Field(..., description="Ruta crítica en nanosegundos para el ciclo actual.")
     totalMicroCycles: int = Field(..., description="Número de ciclos totales de microarquitectura.")
+    Pipe_IF_instruction_cptr: str = Field(..., description="Instrucción en el registro Pipe_IF (código C).")
+    Pipe_ID_instruction_cptr: str = Field(..., description="Instrucción en el registro Pipe_ID (código C).")
+    Pipe_EX_instruction_cptr: str = Field(..., description="Instrucción en el registro Pipe_EX (código C).")
+    Pipe_MEM_instruction_cptr: str = Field(..., description="Instrucción en el registro Pipe_MEM (código C).")
+    Pipe_WB_instruction_cptr: str = Field(..., description="Instrucción en el registro Pipe_WB (código C).")
     control_signals: ControlSignalsModel = Field(..., description="Señales de control generadas.")
     registers: dict[str, int] = Field(..., description="Estado de los 32 registros generales (con nombres ABI).")
     datapath: dict[str, SignalModel] = Field(..., description="Estado de todas las señales del datapath.")
@@ -305,8 +335,12 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
     instruction_string = datapath_c_struct.instruction_cptr.decode('utf-8').strip('\x00')
     critical_time = datapath_c_struct.criticaltime
     criticaltime = datapath_c_struct.criticaltime
-    total_micro_cycles=datapath_c_struct.total_micro_cycles;
-
+    total_micro_cycles=datapath_c_struct.total_micro_cycles
+    Pipe_IF_instruction_cptr = datapath_c_struct.Pipe_IF_instruction_cptr.decode('utf-8').strip('\x00')
+    Pipe_ID_instruction_cptr = datapath_c_struct.Pipe_ID_instruction_cptr.decode('utf-8').strip('\x00')
+    Pipe_EX_instruction_cptr = datapath_c_struct.Pipe_EX_instruction_cptr.decode('utf-8').strip('\x00')
+    Pipe_MEM_instruction_cptr = datapath_c_struct.Pipe_MEM_instruction_cptr.decode('utf-8').strip('\x00')
+    Pipe_WB_instruction_cptr = datapath_c_struct.Pipe_WB_instruction_cptr.decode('utf-8').strip('\x00')
     reg_map = {f"x{i} ({ABI_NAMES[i]})": val for i, val in enumerate(registers)}
 
     # --- Conversión de estructuras C a modelos Pydantic ---
@@ -361,6 +395,11 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
         # critical_time=critical_time,
         criticaltime=critical_time,
         totalMicroCycles=total_micro_cycles,
+        Pipe_IF_instruction_cptr=Pipe_IF_instruction_cptr,
+        Pipe_ID_instruction_cptr=Pipe_ID_instruction_cptr,
+        Pipe_EX_instruction_cptr=Pipe_EX_instruction_cptr,
+        Pipe_MEM_instruction_cptr=Pipe_MEM_instruction_cptr,        
+        Pipe_WB_instruction_cptr=Pipe_WB_instruction_cptr,
         control_signals=control_signals_model,
         registers=reg_map,
 

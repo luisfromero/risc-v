@@ -32,6 +32,13 @@ void main() async {
   );
 }
 
+String registerHover(int? val1, int? val2,[int digits = 8]) {
+  String in_=(val1==null)?'not set':'0x${val1.toRadixString(16).padLeft(digits, '0')}';
+  String out=(val2==null)?'not set':'0x${val2.toRadixString(16).padLeft(digits, '0')}';
+  return "\nin : $in_ \nout: $out";
+
+}
+
 Color pipelineColorForPC(int? pc) {
   // Ejemplo: elige entre 4 colores cíclicamente según el valor del PC
   if(pc==null||pc==0)return Color.fromARGB(67, 0, 0, 0); // Si el PC es nulo, devolvemos un color transparente
@@ -220,7 +227,7 @@ class MyApp extends StatelessWidget {
                           key: datapathState.mux2Key,
                           value: datapathState.busValues['control_PCsrc'] ?? 0,
                           isActive: isPipelineMode? true: datapathState.isMux2Active,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC_out'])),
                         ),
                       ),
                     ),
@@ -230,7 +237,7 @@ class MyApp extends StatelessWidget {
                       left: 200,
                       // MouseRegion detecta cuando el ratón entra o sale de su área.
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('PC: 0x${datapathState.pcValue.toRadixString(16)}'),
+                        onEnter: (_) => datapathState.setHoverInfo('PC: ${registerHover(datapathState.pcValue,datapathState.busValues['mux_pc_bus'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: PcWidget(
                           key: datapathState.pcKey,
@@ -303,12 +310,12 @@ class MyApp extends StatelessWidget {
                       top: 160,
                       left: 520,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('Instruction Buffer/Register'),
+                        onEnter: (_) => datapathState.setHoverInfo(isSingleCycleMode?'Instruction Buffer':'IF_ID_Instr ${registerHover(datapathState.busValues['Pipe_IF_ID_Instr'],datapathState.busValues['Pipe_IF_ID_Instr_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: IBWidget(
                           key: datapathState.ibKey,
-                          isActive: !isSingleCycleMode? datapathState.isPathActive('Pipe_IF_ID_Instr'): datapathState.isIBActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC'])),
+                          isActive: !isSingleCycleMode? datapathState.isPathActive('Pipe_IF_ID_Instr_out'): datapathState.isIBActive,
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC_out'])),
                     
                         ),
                       ),
@@ -319,14 +326,14 @@ class MyApp extends StatelessWidget {
                       top: 120,
                       left: 520,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('FD0'),
+                        onEnter: (_) => datapathState.setHoverInfo('IF_ID_NPC ${registerHover(datapathState.busValues['Pipe_IF_ID_NPC'],datapathState.busValues['Pipe_IF_ID_NPC_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_fd0_Key,
                           label: 'FD0',
                           height: 42,
-                          isActive: datapathState.isPathActive("Pipe_IF_ID_NPC"),
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC'])),
+                          isActive: datapathState.isPathActive("Pipe_IF_ID_NPC_out"),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC_out'])),
                           visibility: isPipelineMode,
                           connectionPoints: const [Offset(0, 0.715),Offset(1, 0.715),],
                         ),
@@ -336,15 +343,15 @@ class MyApp extends StatelessWidget {
                       top: 420,
                       left: 520,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('IF/DE Register (PC)'),
+                        onEnter: (_) => datapathState.setHoverInfo('IF_ID_PC ${registerHover(datapathState.busValues['Pipe_IF_ID_PC'],datapathState.busValues['Pipe_IF_ID_PC_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_fd1_Key,
                           label: 'FD1',
                           height: 40,
-                          isActive: datapathState.isPathActive("Pipe_IF_ID_PC"),
+                          isActive: datapathState.isPathActive("Pipe_IF_ID_PC_out"),
                           visibility: isPipelineMode,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC_out'])),
                         ),
                       ),
                     ),
@@ -372,7 +379,7 @@ class MyApp extends StatelessWidget {
                             Offset(1,0.65),
                             Offset(15/8.0,0.65),
                             ],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC_out'])),
                         ),
                       ),
                     ),
@@ -387,7 +394,7 @@ class MyApp extends StatelessWidget {
                           key: datapathState.extenderKey,
                           label: 'Imm. ext.',
                           isActive: isPipelineMode?datapathState.isPathActive("immExt_bus"): datapathState.isExtenderActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC_out'])),
 
                           width: 100,
                           height: 30,
@@ -397,19 +404,38 @@ class MyApp extends StatelessWidget {
 
                     // --- Pipeline Registers ---
                     Positioned(
+                      top: 80,
+                      left: 740,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Control ${registerHover(datapathState.busValues['Pipe_ID_EX_Control'],datapathState.busValues['Pipe_ID_EX_Control_out'], 4)}'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: RegWidget(
+                          key: datapathState.pipereg_deControl_Key,
+                          label: 'DEControl ',
+                          height: 30,
+                          isActive: datapathState.isPathActive("Pipe_ID_EX_Control_out"),
+                          visibility: isPipelineMode,
+                          connectionPoints: const [Offset(0, 0.5),Offset(1, 0.33),Offset(1, 0.666),], //Llega en 100, salen en 90 y 100
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
+
+                        ),
+                      ),
+                    ),
+
+                    Positioned(
                       top: 120,
                       left: 740,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (NPC)'),
+                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (NPC)  ${registerHover(datapathState.busValues['Pipe_ID_EX_NPC'],datapathState.busValues['Pipe_ID_EX_NPC_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_de0_Key,
                           label: 'DE0',
                           height: 42,
-                          isActive: datapathState.isPathActive("Pipe_ID_EX_NPC"),
+                          isActive: datapathState.isPathActive("Pipe_ID_EX_NPC_out"),
                           visibility: isPipelineMode,
                           connectionPoints: const [Offset(0, 0.715),Offset(1, 0.715),],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
 
                         ),
                       ),
@@ -424,10 +450,10 @@ class MyApp extends StatelessWidget {
                           label:'DE1',
                           height: 262,
                           key: datapathState.pipereg_de1_Key,
-                          isActive: datapathState.isPathActive("Pipe_ID_EX_A"),
+                          isActive: datapathState.isPathActive("Pipe_ID_EX_A_out"),
                           visibility: !isSingleCycleMode,
                           connectionPoints: const [Offset(0, 0.269),Offset(0, 0.453),Offset(0, 0.7115),Offset(0, 0.838),Offset(1, 0.269),Offset(1, 0.453),Offset(1, 0.7115),Offset(1, 0.838)],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
                         ),
                       ),
                     ),
@@ -435,15 +461,15 @@ class MyApp extends StatelessWidget {
                       top: 420,
                       left: 740,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (PC)'),
+                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (PC) ${registerHover(datapathState.busValues['Pipe_ID_EX_PC'],datapathState.busValues['Pipe_ID_EX_PC_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_de2_Key,
                           label: 'DE2',
                           height: 40,
-                          isActive: datapathState.isPathActive("Pipe_ID_EX_PC"),
+                          isActive: datapathState.isPathActive("Pipe_ID_EX_PC_out"),
                           visibility: isPipelineMode,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
                         ),
                       ),
                     ),
@@ -459,7 +485,7 @@ class MyApp extends StatelessWidget {
                           key: datapathState.branchAdderKey,
                           label: '  BR\ntarget',
                           isActive: !isSingleCycleMode?datapathState.isPathActive("branch_target_bus"): datapathState.isBranchAdderActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
                         ),
                       ),
                     ),
@@ -473,8 +499,8 @@ class MyApp extends StatelessWidget {
                         child: AdderWidget(
                           key: datapathState.aluKey,
                           label: 'ALU',
-                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_ID_EX_A"): datapathState.isAluActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC'])),
+                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_ID_EX_A_out"): datapathState.isAluActive,
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
                           // 5 Puntos para la ALU
                           connectionPoints: const [
                             Offset(0,0.25),
@@ -497,9 +523,9 @@ class MyApp extends StatelessWidget {
                         child: Mux2Widget(
                           key: datapathState.mux3Key,
                           value: datapathState.busValues['control_ALUsrc'] ?? 0,
-                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_ID_EX_B"): datapathState.isMux3Active,
+                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_ID_EX_B_out"): datapathState.isMux3Active,
                           labels: ['0', '1', '2', ' '],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
 
                         ),
                       ),
@@ -507,19 +533,39 @@ class MyApp extends StatelessWidget {
                     
                     // --- Pipeline Registers ---
                     Positioned(
+                      top: 80,
+                      left: 1020,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('EX/MEM Control ${registerHover(datapathState.busValues['Pipe_EX_MEM_Control'],datapathState.busValues['Pipe_EX_MEM_Control_out'], 4)}'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: RegWidget(
+                          key: datapathState.pipereg_emControl_Key,
+                          label: 'EMControl ',
+                          height: 20,
+                          isActive: datapathState.isPathActive("Pipe_EX_MEM_Control_out"),
+                          visibility: isPipelineMode,
+                          connectionPoints: const [Offset(0, 0.5),Offset(1, 0.25),Offset(1, 0.75),], // Le llega en 90. Uno sale en 85 y el otro en 95
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC_out'])),
+
+                        ),
+                      ),
+                    ),
+
+
+                    Positioned(
                       top: 120,
                       left: 1020,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('EX/ME Register (PC)'),
+                        onEnter: (_) => datapathState.setHoverInfo('EX/ME Register (NPC) ${registerHover(datapathState.busValues['Pipe_EX_MEM_NPC'],datapathState.busValues['Pipe_EX_MEM_NPC_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_em0_Key,
                           height: 42,
                           label: 'EM0',
-                          isActive: datapathState.isPathActive( "Pipe_EX_MEM_NPC"),
+                          isActive: datapathState.isPathActive( "Pipe_EX_MEM_NPC_out"),
                           visibility: isPipelineMode,
                           connectionPoints: const [Offset(0, 0.715),Offset(1, 0.715),],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC_out'])),
                         ),
                       ),
                     ),
@@ -527,21 +573,21 @@ class MyApp extends StatelessWidget {
                       top: 160,
                       left: 1020,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('EX/ME Register (ALU result, B, destRegName)'),
+                        onEnter: (_) => datapathState.setHoverInfo('EX/ME Register (ALU result, B, destRegName) ${registerHover(datapathState.busValues['Pipe_EX_MEM_ALU_result'],datapathState.busValues['Pipe_EX_MEM_ALU_result_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           label:'EM1',
                           height: 262,
                           key: datapathState.pipereg_em1_Key,
-                          isActive: datapathState.isPathActive("Pipe_EX_MEM_ALU_result"),
+                          isActive: datapathState.isPathActive("Pipe_EX_MEM_ALU_result_out"),
                           visibility: !isSingleCycleMode,
                           connectionPoints: const [Offset(0, 0.315),Offset(0, 0.384),Offset(0, 0.654),Offset(0, 0.7115),Offset(1, 0.315),Offset(1, 0.384),Offset(1, 0.654),Offset(1, 0.7115)],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC_out'])),
                         ),
                       ),
                     ),
 
-
+                    // ToDo Sustituir el HOVER en los registros de segmentación que contienen varios
  
 
 
@@ -649,26 +695,46 @@ class MyApp extends StatelessWidget {
                             Offset(0.5,0),
                             Offset(1,0.566),
                           ],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC_out'])),
                         ),
                       ),
                     ),
 
                     // --- Pipeline Registers ---
                     Positioned(
+                      top: 80,
+                      left: 1220,
+                      child: MouseRegion(
+                        onEnter: (_) => datapathState.setHoverInfo('MEM/WB Control ${registerHover(datapathState.busValues['Pipe_MEM_WB_Control'],datapathState.busValues['Pipe_MEM_WB_Control_out'], 4)}'),
+                        onExit: (_) => datapathState.setHoverInfo(''),
+                        child: RegWidget(
+                          key: datapathState.pipereg_mwControl_Key,
+                          label: 'MWControl ',
+                          height: 10,
+                          isActive: datapathState.isPathActive("Pipe_MEM_WB_Control_out"),
+                          visibility: isPipelineMode,
+                          connectionPoints: const [Offset(0, 0.5),Offset(1, 0.5),],
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC_out'])),
+
+                        ),
+                      ),
+                    ),
+
+
+                    Positioned(
                       top: 120,
                       left: 1220,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('ME/WR Register (PC)'),
+                        onEnter: (_) => datapathState.setHoverInfo('ME/WR Register (NPC) ${registerHover(datapathState.busValues['Pipe_MEM_WB_NPC'],datapathState.busValues['Pipe_MEM_WB_NPC_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_mw0_Key,
                           label: 'MW0',
                           height: 42,
-                          isActive: datapathState.isPathActive("Pipe_MEM_WB_NPC"),
+                          isActive: datapathState.isPathActive("Pipe_MEM_WB_NPC_out"),
                           visibility: isPipelineMode,
                           connectionPoints: const [Offset(0, 0.715),Offset(1, 0.715),],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC_out'])),
                         ),
                       ),
                     ),
@@ -682,10 +748,10 @@ class MyApp extends StatelessWidget {
                           label:'MW1',
                           height: 262,
                           key: datapathState.pipereg_mw1_Key,
-                          isActive: datapathState.isPathActive("Pipe_MEM_WB_NPC"),
+                          isActive: datapathState.isPathActive("Pipe_MEM_WB_NPC_out"),
                           visibility: !isSingleCycleMode,
                           connectionPoints: const [Offset(0, 0.0577),Offset(0, 0.412),Offset(0, 0.7115),Offset(1, 0.0577),Offset(1, 0.412),Offset(1, 0.7115)],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC_out'])),
 
                         ),
                       ),
@@ -702,9 +768,9 @@ class MyApp extends StatelessWidget {
                         child: MuxWidget(
                           key: datapathState.muxCKey,
                           value: datapathState.busValues['control_ResSrc'] ?? 0,
-                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_MEM_WB_NPC"):datapathState.isMuxCActive,
+                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_MEM_WB_NPC_out"):datapathState.isMuxCActive,
                           labels: ['2', '1', '0', ' '],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC_out'])),
 
                         ),
                       ),

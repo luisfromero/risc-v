@@ -124,6 +124,11 @@ class DatapathState extends ChangeNotifier {
   final pipereg_em1_Key = GlobalKey();
   final pipereg_mw1_Key = GlobalKey();
 
+    final pipereg_deControl_Key = GlobalKey();
+    final pipereg_emControl_Key = GlobalKey();
+    final pipereg_mwControl_Key = GlobalKey();
+
+
   // --- ESTADO DEL LAYOUT ---
   Map<String, ConnectionPoint> _connectionPoints = {};
   Map<String, ConnectionPoint> get connectionPoints => _connectionPoints;
@@ -472,6 +477,10 @@ bool get isPCsrcActive => _isPCsrcActive;
     extractPoints(pipereg_mw0_Key, 'MW0');//Fetch decode
     extractPoints(pipereg_mw1_Key, 'MW1');//Fetch decode
 
+    extractPoints(pipereg_deControl_Key, 'DEControl');
+    extractPoints(pipereg_emControl_Key, 'EMControl');
+    extractPoints(pipereg_mwControl_Key, 'MWControl');
+    
     _connectionPoints = {for (var p in allPoints) p.label: p};
     notifyListeners();
   }
@@ -564,22 +573,22 @@ bool get isPCsrcActive => _isPCsrcActive;
 void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
     Bus bus;
     bus=buses.firstWhere((bus) => bus.startPointLabel == 'IB-4' && bus.endPointLabel == 'RF-0');
-    bus.isActive = (s) => s.isPathActive('Pipe_IF_ID_Instr');
+    bus.isActive = (s) => s.isPathActive('Pipe_IF_ID_Instr_out');
     bus=buses.firstWhere((bus) => bus.startPointLabel == 'IB-5' && bus.endPointLabel == 'RF-1');
-    bus.isActive = (s) => s.isPathActive('Pipe_IF_ID_Instr');
+    bus.isActive = (s) => s.isPathActive('Pipe_IF_ID_Instr_out');
     bus=buses.firstWhere((bus) => bus.startPointLabel == 'IB-7' && bus.endPointLabel == 'EXT-0');
-    bus.isActive = (s) => s.isPathActive('Pipe_IF_ID_Instr');
+    bus.isActive = (s) => s.isPathActive('Pipe_IF_ID_Instr_out');
 
     bus=buses.firstWhere((bus) => bus.startPointLabel == 'IB-1' && bus.endPointLabel == 'CU-1');
-    bus.isActive = (s) => s.isPathActive('Pipe_IF_ID_Instr');
+    bus.isActive = (s) => s.isPathActive('Pipe_IF_ID_Instr_out');
     bus=buses.firstWhere((bus) => bus.startPointLabel == 'IB-2' && bus.endPointLabel == 'CU-2');
-    bus.isActive = (s) => s.isPathActive('Pipe_IF_ID_Instr');
+    bus.isActive = (s) => s.isPathActive('Pipe_IF_ID_Instr_out');
     bus=buses.firstWhere((bus) => bus.startPointLabel == 'IB-3' && bus.endPointLabel == 'CU-3');
-    bus.isActive = (s) => s.isPathActive('Pipe_IF_ID_Instr');
+    bus.isActive = (s) => s.isPathActive('Pipe_IF_ID_Instr_out');
 
     bus=buses.firstWhere((bus) => bus.startPointLabel == 'EXT-3' && bus.endPointLabel == 'M3-1');
-    bus.isActive = (s) => s.isPathActive('Pipe_ID_EX_Imm');
-    bus.valueKey = 'Pipe_ID_EX_Imm';
+    bus.isActive = (s) => s.isPathActive('Pipe_ID_EX_Imm_out');
+    bus.valueKey = 'Pipe_ID_EX_Imm_out';
 
     bus=buses.firstWhere((bus) => bus.startPointLabel == 'BR-2' && bus.endPointLabel == 'M2-1');
     bus.isActive = (s) => s.isPathActive('branch_target_bus');
@@ -588,7 +597,7 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
 
     if(isMultiCycle){
     bus=buses.firstWhere((bus) => bus.startPointLabel == 'IB-6' && bus.endPointLabel == 'RF-2');
-    bus.isActive = (s) => s.isPathActive('Pipe_IF_ID_Instr');
+    bus.isActive = (s) => s.isPathActive('Pipe_IF_ID_Instr_out');
     }
 
 }
@@ -615,29 +624,29 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
         buses.addAll([
         
         Bus(startPointLabel: 'RF-5', endPointLabel: 'DE1-0', isActive: (s) => s.isPathActive('rd1_bus'), valueKey: 'rd1_bus'),
-        Bus(startPointLabel: 'DE1-4', endPointLabel: 'ALU-0', isActive: (s) => s.isPathActive('Pipe_ID_EX_A'), valueKey: 'Pipe_ID_EX_A'),
+        Bus(startPointLabel: 'DE1-4', endPointLabel: 'ALU-0', isActive: (s) => s.isPathActive('Pipe_ID_EX_A_out'), valueKey: 'Pipe_ID_EX_A_out'),
 
         Bus(startPointLabel: 'RF-6', endPointLabel: 'DE1-1', isActive: (s) => s.isPathActive('rd2_bus'), valueKey: 'rd2_bus'),
-        Bus(startPointLabel: 'DE1-5', endPointLabel: 'M3-0', isActive: (s) => s.isPathActive('Pipe_ID_EX_B'), valueKey: 'Pipe_ID_EX_B'),
+        Bus(startPointLabel: 'DE1-5', endPointLabel: 'M3-0', isActive: (s) => s.isPathActive('Pipe_ID_EX_B_out'), valueKey: 'Pipe_ID_EX_B_out'),
         
-        Bus(startPointLabel: 'RF-7', endPointLabel: 'EM1-2', isActive: (s) => s.isPathActive('Pipe_ID_EX_B'), valueKey: 'Pipe_ID_EX_B',waypoints:List.of([const Offset(770,331)])),
-        Bus(startPointLabel: 'EM1-6', endPointLabel: 'DM-1', isActive: (s) => s.isPathActive('Pipe_EX_MEM_B'), valueKey: 'Pipe_EX_MEM_B',waypoints:List.of([const Offset(1070,331),const Offset(1070,290)])),
+        Bus(startPointLabel: 'RF-7', endPointLabel: 'EM1-2', isActive: (s) => s.isPathActive('Pipe_ID_EX_B_out'), valueKey: 'Pipe_ID_EX_B_out',waypoints:List.of([const Offset(770,331)])),
+        Bus(startPointLabel: 'EM1-6', endPointLabel: 'DM-1', isActive: (s) => s.isPathActive('Pipe_EX_MEM_B_out'), valueKey: 'Pipe_EX_MEM_B_out',waypoints:List.of([const Offset(1070,331),const Offset(1070,290)])),
         
-        Bus(startPointLabel: 'DM-3', endPointLabel: 'MW1-1', isActive: (s) => s.isPathActive('Pipe_EX_MEM_B'), valueKey: 'mem_read_data_bus'),
-        Bus(startPointLabel: 'MW1-4', endPointLabel: 'M1-2', isActive: (s) => s.isPathActive('Pipe_MEM_WB_RM'), valueKey: 'Pipe_MEM_WB_RM'),
+        Bus(startPointLabel: 'DM-3', endPointLabel: 'MW1-1', isActive: (s) => s.isPathActive('Pipe_EX_MEM_B_out'), valueKey: 'mem_read_data_bus'),
+        Bus(startPointLabel: 'MW1-4', endPointLabel: 'M1-2', isActive: (s) => s.isPathActive('Pipe_MEM_WB_RM_out'), valueKey: 'Pipe_MEM_WB_RM_out'),
       
       //Bus(startPointLabel: 'EXT-2', endPointLabel: 'BR-0', isActive: (s) => s.isExtenderActive, valueKey: 'immExt_bus'),
         Bus(startPointLabel: 'EXT-2', endPointLabel: 'DE1-3', isActive: (s) => s.isPathActive('immExt_bus'), valueKey: 'immExt_bus'),
-        Bus(startPointLabel: 'DE1-7', endPointLabel: 'BR-0', isActive: (s) => s.isPathActive('Pipe_ID_EX_Imm'), valueKey: 'Pipe_ID_EX_Imm',waypoints:List.of([])),
+        Bus(startPointLabel: 'DE1-7', endPointLabel: 'BR-0', isActive: (s) => s.isPathActive('Pipe_ID_EX_Imm_out'), valueKey: 'Pipe_ID_EX_Imm_out',waypoints:List.of([])),
 
             //Bus(startPointLabel: 'ALU-5', endPointLabel: 'M1-1', isActive: (s) => s.isAluActive,waypoints: List.of([const Offset(1070,175),const Offset(1250,175),const Offset(1250,248)]), valueKey: 'alu_result_bus'),
-        Bus(startPointLabel: 'ALU-5', endPointLabel: 'MW1-0', isActive: (s) => s.isPathActive('Pipe_EX_MEM_ALU_result'), valueKey: 'Pipe_EX_MEM_ALU_result',waypoints:List.of([const Offset(1070,175)])),
-        Bus(startPointLabel: 'MW1-3', endPointLabel: 'M1-1', isActive: (s) => s.isPathActive('Pipe_MEM_WB_ALU_result'), valueKey: 'Pipe_MEM_WB_ALU_result',waypoints:List.of([const Offset(1250,175),const Offset(1250,248)])),
+        Bus(startPointLabel: 'ALU-5', endPointLabel: 'MW1-0', isActive: (s) => s.isPathActive('Pipe_EX_MEM_ALU_result_out'), valueKey: 'Pipe_EX_MEM_ALU_result_out',waypoints:List.of([const Offset(1070,175)])),
+        Bus(startPointLabel: 'MW1-3', endPointLabel: 'M1-1', isActive: (s) => s.isPathActive('Pipe_MEM_WB_ALU_result_out'), valueKey: 'Pipe_MEM_WB_ALU_result_out',waypoints:List.of([const Offset(1250,175),const Offset(1250,248)])),
 
 
     //Bus(startPointLabel: 'ALU-4', endPointLabel: 'DM-0', isActive: (s) => s.isAluActive, valueKey: 'alu_result_bus'),
         Bus(startPointLabel: 'ALU-4', endPointLabel: 'EM1-1', isActive: (s) => s.isPathActive('alu_result_bus'), valueKey: 'alu_result_bus'),
-        Bus(startPointLabel: 'EM1-5', endPointLabel: 'DM-0', isActive: (s) => s.isPathActive('Pipe_EX_MEM_ALU_result'), valueKey: 'Pipe_EX_MEM_ALU_result'),
+        Bus(startPointLabel: 'EM1-5', endPointLabel: 'DM-0', isActive: (s) => s.isPathActive('Pipe_EX_MEM_ALU_result_out'), valueKey: 'Pipe_EX_MEM_ALU_result_out'),
 
       
 
@@ -665,28 +674,38 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
       
        // --- Propagación del registro de destino (rd) ---
        Bus(startPointLabel: 'IB-6', endPointLabel: 'DE1-2', isActive: (s) => s.isPathActive('dc_bus'),width: 2, valueKey: 'dc_bus',size: 5,waypoints:List.of([const Offset(545,272),const Offset(545,345)])),
-       Bus(startPointLabel: 'DE1-6', endPointLabel: 'EM1-3', isActive: (s) => s.isPathActive('Pipe_ID_EX_RD'),width: 2, valueKey: 'Pipe_ID_EX_RD',size: 5),
-       Bus(startPointLabel: 'EM1-7', endPointLabel: 'MW1-2', isActive: (s) => s.isPathActive('Pipe_EX_MEM_RD'),width: 2, valueKey: 'Pipe_EX_MEM_RD',size: 5), // El valor se propaga
-       Bus(startPointLabel: 'MW1-5', endPointLabel: 'RF-2', isActive: (s) => s.isPathActive('Pipe_MEM_WB_RD'),width: 2, valueKey: 'Pipe_MEM_WB_RD',size: 5,waypoints:List.of([const Offset(1430,345),const Offset(1430,510),const Offset(590,510),const Offset(590,272)])),
+       Bus(startPointLabel: 'DE1-6', endPointLabel: 'EM1-3', isActive: (s) => s.isPathActive('Pipe_ID_EX_RD_out'),width: 2, valueKey: 'Pipe_ID_EX_RD_out',size: 5),
+       Bus(startPointLabel: 'EM1-7', endPointLabel: 'MW1-2', isActive: (s) => s.isPathActive('Pipe_EX_MEM_RD_out'),width: 2, valueKey: 'Pipe_EX_MEM_RD_out',size: 5), // El valor se propaga
+       Bus(startPointLabel: 'MW1-5', endPointLabel: 'RF-2', isActive: (s) => s.isPathActive('Pipe_MEM_WB_RD_out'),width: 2, valueKey: 'Pipe_MEM_WB_RD_out',size: 5,waypoints:List.of([const Offset(1430,345),const Offset(1430,510),const Offset(590,510),const Offset(590,272)])),
 
     //Bus(startPointLabel: 'NPC-4', endPointLabel: 'M1-0', isActive: (s) => s.isPcAdderActive,waypoints: List.of([const Offset(1270,150),const Offset(1270,228)] ), valueKey: 'npc_bus'),
       
         Bus(startPointLabel: 'NPC-4', endPointLabel: 'FD0-0', isActive: (s) => true, valueKey: 'npc_bus'),
-        Bus(startPointLabel: 'FD0-1', endPointLabel: 'DE0-0', isActive: (s) => s.isPathActive('Pipe_IF_ID_NPC'), valueKey: 'Pipe_IF_ID_NPC'),
-        Bus(startPointLabel: 'DE0-1', endPointLabel: 'EM0-0', isActive: (s) => s.isPathActive('Pipe_ID_EX_NPC'), valueKey: 'Pipe_ID_EX_NPC'),
-        Bus(startPointLabel: 'EM0-1', endPointLabel: 'MW0-0', isActive: (s) => s.isPathActive('Pipe_EX_MEM_NPC'), valueKey: 'Pipe_EX_MEM_NPC'),
-        Bus(startPointLabel: 'MW0-1', endPointLabel: 'M1-0', isActive: (s) => s.isPathActive('Pipe_MEM_WB_NPC'), valueKey: 'Pipe_MEM_WB_NPC',waypoints:List.of([const Offset(1270,150),const Offset(1270,228)])),
+        Bus(startPointLabel: 'FD0-1', endPointLabel: 'DE0-0', isActive: (s) => s.isPathActive('Pipe_IF_ID_NPC_out'), valueKey: 'Pipe_IF_ID_NPC_out'),
+        Bus(startPointLabel: 'DE0-1', endPointLabel: 'EM0-0', isActive: (s) => s.isPathActive('Pipe_ID_EX_NPC_out'), valueKey: 'Pipe_ID_EX_NPC_out'),
+        Bus(startPointLabel: 'EM0-1', endPointLabel: 'MW0-0', isActive: (s) => s.isPathActive('Pipe_EX_MEM_NPC_out'), valueKey: 'Pipe_EX_MEM_NPC_out'),
+        Bus(startPointLabel: 'MW0-1', endPointLabel: 'M1-0', isActive: (s) => s.isPathActive('Pipe_MEM_WB_NPC_out'), valueKey: 'Pipe_MEM_WB_NPC_out',waypoints:List.of([const Offset(1270,150),const Offset(1270,228)])),
 
     //Bus(startPointLabel: 'PC-2', endPointLabel: 'BR-1', isActive: (s) => s.isPCActive,waypoints: List.of([const Offset(260,440)]), valueKey: 'pc_bus'),
 
         Bus(startPointLabel: 'PC-2', endPointLabel: 'FD1-0', isActive: (s) => true, valueKey: 'pc_bus',waypoints:List.of([const Offset(260,440)])),
-        Bus(startPointLabel: 'FD1-1', endPointLabel: 'DE2-0', isActive: (s) => s.isPathActive('Pipe_IF_ID_PC'), valueKey: 'Pipe_IF_ID_PC'),
-        Bus(startPointLabel: 'DE2-1', endPointLabel: 'BR-1', isActive: (s) => s.isPathActive('Pipe_ID_EX_PC'), valueKey: 'Pipe_ID_EX_PC'),
+        Bus(startPointLabel: 'FD1-1', endPointLabel: 'DE2-0', isActive: (s) => s.isPathActive('Pipe_IF_ID_PC_out'), valueKey: 'Pipe_IF_ID_PC_out'),
+        Bus(startPointLabel: 'DE2-1', endPointLabel: 'BR-1', isActive: (s) => s.isPathActive('Pipe_ID_EX_PC_out'), valueKey: 'Pipe_ID_EX_PC_out'),
 
 
 
     //Bus(startPointLabel: 'M2-5', endPointLabel: 'PC-0', isActive: (s) => s.isMux2Active, valueKey: 'mux_pc_bus'),
         Bus(startPointLabel: 'M2-5', endPointLabel: 'PC-0', isActive: (s) => s.isMux2Active, valueKey: 'mux_pc_bus'),  //Ejemplo de borrar un mismo bus y sustituirlo por otro para cambiar el comportamiento con el pipeline
+
+
+    // Nuevos buses de control
+
+
+      Bus(startPointLabel: 'CU-10', endPointLabel: 'EXT-1', isActive: (s) => s.isPathActive("Pipe_IF_ID_Instr_out"),waypoints: List.of([const Offset(1450,-25),const Offset(1450,540),const Offset(670,540)]),isControl: true,size:3,valueKey: "control_ImmSrc"),
+      
+      Bus(startPointLabel: 'CU-4', endPointLabel: 'DEControl-0', isActive: (s) => s.isPathActive("Pipe_IF_ID_NPC_out"),valueKey: 'Pipe_IF_ID_Control_out',waypoints: List.of([const Offset(660,95)]),isControl: true,size:3),
+      Bus(startPointLabel: 'DEControl-1', endPointLabel: 'EMControl-0', isActive: (s) => s.isPathActive("Pipe_ID_EX_NPC_out"),valueKey: 'Pipe_ID_EX_Control_out',isControl: true,size:3),
+      Bus(startPointLabel: 'EMControl-1', endPointLabel: 'MWControl-0', isActive: (s) => s.isPathActive("Pipe_EX_MEM_NPC_out"),valueKey: 'Pipe_EX_MEM_Control_out',isControl: true,size:3),
 
     ]);
 

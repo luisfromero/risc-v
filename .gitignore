@@ -35,3 +35,4 @@ simulator_ui/build.7z
 simulator_ui/pubspec.lock
 /gitignore/
 riscv.7z
+ffi_wrapper.py
