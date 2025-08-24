@@ -5,6 +5,10 @@
 // Inicializa la memoria con un tamaño dado y la llena de ceros.
 Memory::Memory(size_t size_in_bytes) : mem(size_in_bytes, 0) {}
 
+void Memory::clear() {
+    std::fill(mem.begin(), mem.end(), 0);
+}
+
 // Lee 32 bits (una palabra) de una dirección de memoria.
 uint32_t Memory::read_word(uint32_t address) {
     if (address + 3 >= mem.size()) {

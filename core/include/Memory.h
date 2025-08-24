@@ -19,6 +19,7 @@ public:
     // Lee un bloque de memoria. Usado por la caché para manejar fallos.
     void read_block(uint32_t base_address, std::vector<uint8_t>& buffer);
 
+    void clear();
     
 
     void set_delay(uint32_t new_delay) { delay = new_delay; }

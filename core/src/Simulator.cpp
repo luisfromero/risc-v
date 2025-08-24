@@ -195,7 +195,8 @@ void Simulator::reset(PipelineModel model) {
     instructionString = "";
     // Después de resetear, ejecutamos el primer ciclo para que la UI muestre
     // el estado inicial con la primera instrucción (la de PC=0) ya procesada.
-
+    d_mem.clear();
+    //step();
     // Limpiar el historial
     history.clear();
     history_pointer = 0;
@@ -251,6 +252,16 @@ void Simulator::reset(PipelineModel model) {
         datapath.bus_branch_taken.is_active=false;
         datapath.bus_PC_dest.is_active=false;
 
+        datapath.bus_ImmSrc.is_active=false;
+        datapath.bus_PCsrc.is_active=false;
+        datapath.bus_ALUctr.is_active=false;
+        datapath.bus_MemWr.is_active=false;
+        datapath.bus_ResSrc.is_active=false;
+        datapath.bus_BRwr.is_active=false;
+        datapath.bus_ALUsrc.is_active=false;
+
+        
+
 
     } 
     step();
@@ -304,6 +315,38 @@ const RegisterFile& Simulator::get_registers() const {
 const std::vector<uint8_t>& Simulator::get_d_mem() const {
     return d_mem.get_data();
 }
+
+// Devuelve el contenido de la memoria de instrucciones desensamblado.
+std::vector<std::pair<uint32_t, std::string>> Simulator::get_i_mem()  {
+    std::vector<std::pair<uint32_t, std::string>> disassembled_memory;
+    
+    // Iteramos sobre la memoria de instrucciones en incrementos de 4 bytes (una palabra).
+    // Asumimos que el tamaño es 256 bytes, como se definió en el constructor.
+    for (uint32_t address = 0; address < 256; address += 4) {
+        try {
+            // Leemos la instrucción en la dirección actual.
+            uint32_t instruction = i_mem.read_word(address);
+
+
+            // Si la instrucción es 0, podría ser el final del programa útil.
+            // Podríamos optar por detenernos, pero por ahora continuaremos para mostrar todo el contenido.
+
+            // Decodificamos y desensamblamos.
+            const InstructionInfo* info = control_unit.decode(instruction);
+            std::string disassembled_instruction = disassemble(instruction, info);
+            
+            // Añadimos la dirección y la instrucción desensamblada al vector.
+            disassembled_memory.emplace_back(static_cast<uint32_t>(instruction), disassembled_instruction);
+
+        } catch (const std::out_of_range& e) {
+            // Si read_word lanza una excepción (p.ej. fuera de rango), hemos llegado al final.
+            break; 
+        }
+    }
+
+    return disassembled_memory;
+}
+
 
 // Fase de Fetch: Lee la siguiente instrucción de la memoria.
 uint32_t Simulator::fetch() {
@@ -842,7 +885,10 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
         uint8_t wb_rd = datapath.Pipe_MEM_WB_RD_out.value;
         uint16_t wb_control = datapath.Pipe_MEM_WB_Control_out.value;
         uint8_t ResSrc = controlSignal(wb_control, "ResSrc");
-        uint8_t WBwr = controlSignal(wb_control, "BRwr"); // BRwr is used as RegWrite
+        uint8_t BRwr = controlSignal(wb_control, "BRwr"); // BRwr is used as RegWrite
+
+        datapath.bus_ResSrc = { ResSrc, 1, is_valid_instr_WB };
+        datapath.bus_BRwr = { BRwr, 1, is_valid_instr_WB };
 
         // MUX C: Selects the final result to be written.
         uint32_t result = mux_C.select(datapath.Pipe_MEM_WB_RM_out.value,       // Data from memory (for loads)
@@ -851,7 +897,7 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
                                        INDETERMINADO,
                                        ResSrc);
 
-        if (WBwr && wb_rd != 0) { // If RegWrite is enabled and destination is not x0
+        if (BRwr && wb_rd != 0) { // If RegWrite is enabled and destination is not x0
             register_file.write(wb_rd, result);
             datapath.bus_C = { result, 1,true };
 
@@ -895,6 +941,8 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
         uint16_t mem_control = datapath.Pipe_EX_MEM_Control.value;
         uint32_t alu_result = datapath.Pipe_EX_MEM_ALU_result.value;
         uint8_t MemWr = controlSignal(mem_control, "MemWr");
+        datapath.bus_MemWr = { MemWr, 1, is_valid_instr_MEM };
+
 
         if (MemWr == 1) { // Store instruction (e.g., SW)
             d_mem.write_word(alu_result, datapath.Pipe_EX_MEM_B.value);
@@ -990,7 +1038,13 @@ catch(const std::exception& e){
 
         // Branch condition logic
         take_branch = (PCsrc == 1 && alu_zero) || PCsrc == 2; // PCsrc=1 for BEQ, PCsrc=2 for JAL/JALR
+
+        datapath.bus_ALUsrc={ALUsrc,1,is_valid_instr_EX};
+        datapath.bus_ALUctr={ALUctr,1,is_valid_instr_EX};
+        datapath.bus_PCsrc={PCsrc,1,is_valid_instr_EX};
+
     }
+    
 }
     catch(const std::exception& e)
     {
@@ -1105,6 +1159,8 @@ catch(const std::exception& e){
         datapath.bus_imm = { instruction_in_id, 1, is_valid_instr_ID }; // Immediate value (not yet extended)
         datapath.bus_immExt = { datapath.Pipe_ID_EX_Imm_out.value, 1, is_valid_instr_ID }; // Extended immediate value
 
+        datapath.bus_ImmSrc = { ImmSrc, 1, is_valid_instr_ID }; // ImmSrc
+
 
     }
 
@@ -1198,4 +1254,3 @@ if(NO_BRANCH_FLUSH)flush=false;
     }
     
 }
-

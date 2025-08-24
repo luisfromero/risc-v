@@ -1,7 +1,14 @@
 /// Define el "contrato" que cualquier proveedor de simulación (sea FFI, API, etc.)
 /// debe cumplir. La UI solo interactuará con esta clase abstracta.
-import '../simulation_mode.dart';
+//import 'dart:nativewrappers/_internal/vm/lib/ffi_native_type_patch.dart';
 
+//import 'package:flutter/services.dart';
+
+import '../simulation_mode.dart';
+import '../datapath_state.dart';
+import 'dart:typed_data';
+
+///';
 /// Un objeto simple para contener el estado de la simulación en un instante dado.
 class SimulationState {
   final String instruction;
@@ -22,6 +29,10 @@ class SimulationState {
   final String pipeMemInstructionCptr;
   final String pipeWbInstructionCptr;
 
+    // Nuevos campos para las memorias
+  final List<InstructionMemoryItem>? instructionMemory;
+  final Uint8List? dataMemory;
+
   SimulationState({
     this.instruction = '',
     this.instructionValue = 0,
@@ -38,7 +49,34 @@ class SimulationState {
     this.pipeExInstructionCptr = '',
     this.pipeMemInstructionCptr = '',
     this.pipeWbInstructionCptr = '',
+    this.instructionMemory,
+    this.dataMemory,
   });
+
+  SimulationState copyWith({
+    List<InstructionMemoryItem>? instructionMemory,
+    Uint8List? dataMemory
+  }) {
+    return SimulationState(
+      instruction: instruction,
+      instructionValue: instructionValue,
+      statusRegister: statusRegister,
+      registers: registers,
+      pcValue: pcValue,
+      criticalTime: criticalTime,
+      readyAt: readyAt,
+      activePaths: activePaths,
+      busValues: busValues,
+      totalMicroCycles: totalMicroCycles,
+      pipeIfInstructionCptr: pipeIfInstructionCptr,
+      pipeIdInstructionCptr: pipeIdInstructionCptr,
+      pipeExInstructionCptr: pipeExInstructionCptr,
+      pipeMemInstructionCptr: pipeMemInstructionCptr,
+      pipeWbInstructionCptr: pipeWbInstructionCptr,
+      instructionMemory: instructionMemory ?? this.instructionMemory,
+      dataMemory: dataMemory ?? this.dataMemory,
+    );
+  }
 
   /// Crea un SimulationState a partir de un mapa JSON.
   factory SimulationState.fromJson(Map<String, dynamic> json) {
@@ -58,6 +96,16 @@ class SimulationState {
     datapathJson['control_BRwr'] = datapathJson['Control']['value'] >> 4 & 1;
     datapathJson['control_ALUsrc'] = datapathJson['Control']['value'] >> 3 & 1;
     datapathJson['control_MemWr'] = datapathJson['Control']['value'] >> 2 & 1;
+
+    datapathJson['Pipe_ALUctr'] = datapathJson['ALUctr']['value'] >> 13 & 7;
+    datapathJson['Pipe_ResSrc'] = datapathJson['ResSrc']['value'] >> 11 & 3;
+    datapathJson['Pipe_ImmSrc'] = datapathJson['ImmSrc']['value'] >> 8 & 7;
+    datapathJson['Pipe_PCsrc'] = datapathJson['PCsrc']['value'] >> 6 & 3;
+    datapathJson['Pipe_BRwr'] = datapathJson['BRwr']['value'] >> 4 & 1;
+    datapathJson['Pipe_ALUsrc'] = datapathJson['ALUsrc']['value'] >> 3 & 1;
+    datapathJson['Pipe_MemWr'] = datapathJson['MemWr']['value'] >> 2 & 1;
+
+
 
     // Helper para extraer de forma segura el 'ready_at' de una señal del JSON.
     int getReadyAt(String key) {
@@ -269,6 +317,7 @@ class SimulationState {
       //'control_ALUctr':getValue('ALUctr '),
       //'control_ResSrc':getValue('ResSrc'),
       //'control_ImmSrc':getValue('ImmSrc'),
+
       'opcode': getValue('opcode'),
       'funct3': getValue('funct3'),
       'funct7': getValue('funct7'),
@@ -280,6 +329,18 @@ class SimulationState {
       'control_MemWr':datapathJson['control_MemWr'] as int? ?? 0,    
       'control_ResSrc':datapathJson['control_ResSrc'] as int? ?? 0,
       'control_ALUctr':datapathJson['control_ALUctr'] as int? ?? 0,
+      'control_ImmSrc':datapathJson['control_ImmSrc'] as int? ?? 0,
+
+
+      'Pipe_ImmSrc': datapathJson['Pipe_ImmSrc'] as int? ?? 0,
+      'Pipe_ResSrc': datapathJson['Pipe_ResSrc'] as int? ?? 0,
+      'Pipe_PCsrc': datapathJson['Pipe_PCsrc'] as int? ?? 0,
+      'Pipe_BRwr': datapathJson['Pipe_BRwr'] as int? ?? 0,
+      'Pipe_ALUsrc': datapathJson['Pipe_ALUsrc'] as int? ?? 0,
+      'Pipe_MemWr': datapathJson['Pipe_MemWr'] as int? ?? 0,
+      'Pipe_ALUctr': datapathJson['Pipe_ALUctr'] as int? ?? 0,
+
+
       
       // --- Pipeline Registers ---
       // IF/ID Stage
@@ -333,6 +394,8 @@ class SimulationState {
       'Pipe_MEM_WB_RM_out': getValue('Pipe_MEM_WB_RM_out'),
       'Pipe_MEM_WB_RD': getValue('Pipe_MEM_WB_RD'),
       'Pipe_MEM_WB_RD_out': getValue('Pipe_MEM_WB_RD_out'),
+
+      
       
 
     };
@@ -399,4 +462,12 @@ abstract class SimulationService {
 
   /// Resetea la simulación a su estado inicial.
   Future<SimulationState> reset({required SimulationMode mode});
+
+    /// Resetea la simulación a su estado inicial.
+  Future<SimulationState> getDataMemory();
+
+      /// Resetea la simulación a su estado inicial.
+  Future<SimulationState> getInstructionMemory();
+
+
 }

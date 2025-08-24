@@ -17,7 +17,12 @@ import 'control_unit_widget.dart';
 import 'services/simulation_service.dart';
 import 'services/get_service.dart'; // Importación condicional del servicio
 import 'simulation_mode.dart';
+import 'tooltip_widgets.dart';
 import 'platform_init.dart'; // Importación condicional para la configuración de la ventana
+
+const String _registerFileHoverId = '##REGISTER_FILE_HOVER##';
+const String _instructionMemoryHoverId = '##INSTRUCTION_MEMORY_HOVER##';
+const String _dataMemoryHoverId = '##DATA_MEMORY_HOVER##';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,7 +43,7 @@ String registerHover(int? val1, int? val2,[int digits = 8]) {
   return "\nin : $in_ \nout: $out";
 
 }
-
+  
 Color pipelineColorForPC(int? pc) {
   // Ejemplo: elige entre 4 colores cíclicamente según el valor del PC
   if(pc==null||pc==0)return Color.fromARGB(67, 0, 0, 0); // Si el PC es nulo, devolvemos un color transparente
@@ -237,7 +242,7 @@ class MyApp extends StatelessWidget {
                       left: 200,
                       // MouseRegion detecta cuando el ratón entra o sale de su área.
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('PC: ${registerHover(datapathState.pcValue,datapathState.busValues['mux_pc_bus'])}'),
+                        onEnter: (_) => datapathState.setHoverInfo('PC: ${registerHover(datapathState.pcValue, datapathState.busValues['mux_pc_bus'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: PcWidget(
                           key: datapathState.pcKey,
@@ -278,7 +283,7 @@ class MyApp extends StatelessWidget {
                       top: 200,
                       left: 400,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('Memoria de Instrucciones'),
+                        onEnter: (_) => datapathState.setHoverInfo(_instructionMemoryHoverId),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: MemoryUnitWidget(
                           key: datapathState.instructionMemoryKey,
@@ -360,8 +365,8 @@ class MyApp extends StatelessWidget {
                     Positioned(
                       top: 200,
                       left: 620,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('Banco de Registros'),
+                      child: MouseRegion(                        
+                        onEnter: (_) => datapathState.setHoverInfo(_registerFileHoverId),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: MemoryUnitWidget(
                           key: datapathState.registerFileKey,
@@ -680,7 +685,7 @@ class MyApp extends StatelessWidget {
                       top: 200,
                       left: 1100,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('Memoria de Datos'),
+                        onEnter: (_) => datapathState.setHoverInfo(_dataMemoryHoverId),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: MemoryUnitWidget(
                           key: datapathState.dataMemoryKey,
@@ -825,6 +830,22 @@ class FloatingTooltip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final datapathState = Provider.of<DatapathState>(context, listen: false);
+
+    Widget content;
+    if (message == _registerFileHoverId) {
+      content = buildRegisterFileTooltip(datapathState);
+    } else if (message == _instructionMemoryHoverId) {
+      content = buildInstructionMemoryTooltip(datapathState);
+    } else if (message == _dataMemoryHoverId) {
+      content = buildDataMemoryTooltip(datapathState);
+    } else {
+      content = Text(
+        message,
+        style: const TextStyle(color: Colors.white, fontSize: 13),
+      );
+    }
+
     // Usamos un Positioned para colocar el tooltip en las coordenadas del ratón.
     return Positioned(
       left: position.dx + 15, // Pequeño offset para que no tape el cursor.
@@ -832,15 +853,12 @@ class FloatingTooltip extends StatelessWidget {
       // IgnorePointer evita que el tooltip intercepte eventos del ratón.
       child: IgnorePointer(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.85),
+            color: Colors.black.withAlpha(200),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: Text(
-            message,
-            style: const TextStyle(color: Colors.white, fontSize: 13),
-          ),
+          child: content,
         ),
       ),
     );

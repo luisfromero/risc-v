@@ -7,6 +7,13 @@
 
 using json = nlohmann::json;
 
+// Estructura para la comunicación de la memoria de instrucciones desensamblada.
+// El código que llama a la DLL (Python/ctypes) deberá definir una estructura compatible.
+struct InstructionEntry {
+    uint32_t value;
+    char instruction[256];
+};
+
 
     const char *jsonFromState(DatapathState &state)
     {
@@ -214,5 +221,38 @@ extern "C" {
             std::memcpy(buffer_out, d_mem_data.data(), bytes_to_copy);
         }
     }
+
+    SIMULATOR_API size_t Simulator_get_i_mem(void* sim_ptr, InstructionEntry* buffer_out, size_t buffer_capacity_in_entries) {
+        if (!sim_ptr) {
+            return 0;
+        }
+
+        Simulator* simulator = static_cast<Simulator*>(sim_ptr);
+        const auto& i_mem_data = simulator->get_i_mem();
+
+        // Si el buffer es nulo o la capacidad es cero, la convención es devolver
+        // el número total de entradas que hay, para que el llamador pueda alojar memoria.
+        if (!buffer_out || buffer_capacity_in_entries == 0) {
+            return i_mem_data.size();
+        }
+        
+        size_t entries_to_copy = std::min(i_mem_data.size(), buffer_capacity_in_entries);
+
+        for (size_t i = 0; i < entries_to_copy; ++i) {
+            const auto& pair = i_mem_data[i];
+            buffer_out[i].value = pair.first;
+            
+            // Copiamos la cadena de instrucción, asegurando la terminación nula
+            // y evitando desbordamientos de buffer.
+            strncpy(buffer_out[i].instruction, pair.second.c_str(), sizeof(InstructionEntry::instruction) - 1);
+            buffer_out[i].instruction[sizeof(InstructionEntry::instruction) - 1] = '\0';
+        }
+
+        // Devolvemos el número total de entradas que tiene la memoria de instrucciones.
+        // El llamador puede comparar este valor con la capacidad del buffer para saber si se truncaron datos.
+        return i_mem_data.size();
+    }
+
+
 
 }

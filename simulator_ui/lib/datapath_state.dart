@@ -1,7 +1,24 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import 'services/simulation_service.dart';
 import 'simulation_mode.dart';
+
+class InstructionMemoryItem {
+  final int value;
+  final String instruction;
+
+  InstructionMemoryItem({required this.value, required this.instruction});
+
+  factory InstructionMemoryItem.fromJson(Map<String, dynamic> json) {
+    return InstructionMemoryItem(
+      value: json['value'],
+      instruction: json['instruction'],
+    );
+  }
+}
+
 
 /// Un punto de conexión con una etiqueta y una posición global.
 class ConnectionPoint {
@@ -56,6 +73,10 @@ class Bus {
     waypoints.add(waypoint);
   }
 }
+
+
+// Clase para representar una entrada en la memoria de instrucciones
+
 
 // ChangeNotifier nos permite "notificar" a los widgets cuando algo cambia.
 class DatapathState extends ChangeNotifier {
@@ -167,6 +188,9 @@ class DatapathState extends ChangeNotifier {
   bool _showConnectionLabels = false;
   bool _showBusesLabels = true;
 
+  List<InstructionMemoryItem>? instructionMemory;
+  Uint8List? dataMemory;
+
   // --- GETTERS (para que los widgets lean el estado) ---
   String get instruction => _instruction;
   int get instructionValue => _instructionValue;
@@ -210,6 +234,8 @@ bool get isPCsrcActive => _isPCsrcActive;
   Offset get mousePosition => _mousePosition;
   bool get showConnectionLabels => _showConnectionLabels;
   bool get showBusesLabels => _showBusesLabels;
+
+
 
   // Inicializa el estado pidiendo los valores iniciales al servicio.
   Future<void> initialize() async {
@@ -346,6 +372,15 @@ bool get isPCsrcActive => _isPCsrcActive;
     _pipeExInstruction = simState.pipeExInstructionCptr;
     _pipeMemInstruction = simState.pipeMemInstructionCptr;
     _pipeWbInstruction = simState.pipeWbInstructionCptr;
+
+    if(simState.instructionMemory!=null) //En ciclos posteriores, el estado viene sin las instrucciones. No perdemos la que vino con reset
+      instructionMemory=simState.instructionMemory;
+
+    //Solo algunos steps vienen con la memoria de datos
+    if(simState.dataMemory!=null) //En ciclos posteriores, el estado viene sin las instrucciones. No perdemos la que vino con reset
+      dataMemory= simState.dataMemory;
+
+
 
     // --- Depuración: Imprime el tiempo crítico recibido ---
     // ignore: avoid_print
@@ -701,11 +736,20 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
     // Nuevos buses de control
 
 
-      Bus(startPointLabel: 'CU-10', endPointLabel: 'EXT-1', isActive: (s) => s.isPathActive("Pipe_IF_ID_Instr_out"),waypoints: List.of([const Offset(1450,-25),const Offset(1450,540),const Offset(670,540)]),isControl: true,size:3,valueKey: "control_ImmSrc"),
       
       Bus(startPointLabel: 'CU-4', endPointLabel: 'DEControl-0', isActive: (s) => s.isPathActive("Pipe_IF_ID_NPC_out"),valueKey: 'Pipe_IF_ID_Control_out',waypoints: List.of([const Offset(660,95)]),isControl: true,size:3),
       Bus(startPointLabel: 'DEControl-1', endPointLabel: 'EMControl-0', isActive: (s) => s.isPathActive("Pipe_ID_EX_NPC_out"),valueKey: 'Pipe_ID_EX_Control_out',isControl: true,size:3),
       Bus(startPointLabel: 'EMControl-1', endPointLabel: 'MWControl-0', isActive: (s) => s.isPathActive("Pipe_EX_MEM_NPC_out"),valueKey: 'Pipe_EX_MEM_Control_out',isControl: true,size:3),
+
+
+      Bus(startPointLabel: 'CU-10', endPointLabel: 'EXT-1', isActive: (s) => s.isPathActive("Pipe_IF_ID_Instr_out"),waypoints: List.of([const Offset(1450,-25),const Offset(1450,540),const Offset(670,540)]),isControl: true,size:3,valueKey: "Pipe_ImmSrc"),
+      Bus(startPointLabel: 'EMControl-2', endPointLabel: 'DM-2', isActive: (s) => s.isPathActive("Pipe_EX_MEM_NPC_out"),valueKey: 'Pipe_MemWr',waypoints: List.of([const Offset(1140, 95) ]),isControl: true,size:3),
+      Bus(startPointLabel: 'MWControl-1', endPointLabel: 'RF-4', isActive: (s) => s.isPathActive("Pipe_EX_MEM_NPC_out"),valueKey: 'Pipe_BRwr',waypoints: List.of([const Offset(1250, 85),const Offset(1250, 115),const Offset(660, 115) ]),isControl: true,size:3),
+      Bus(startPointLabel: 'MWControl-1', endPointLabel: 'M1-4', isActive: (s) => s.isPathActive("Pipe_EX_MEM_NPC_out"),valueKey: 'Pipe_ResSrc',waypoints: List.of([const Offset(1315, 85)]),isControl: true,size:3),
+
+      Bus(startPointLabel: 'DEControl-2', endPointLabel: 'ALU-2', isActive: (s) => s.isPathActive("Pipe_ID_EX_NPC_out"),valueKey: 'Pipe_ALUctr',waypoints: List.of([const Offset(950, 100) ]),isControl: true,size:3),
+      Bus(startPointLabel: 'DEControl-2', endPointLabel: 'M3-2', isActive: (s) => s.isPathActive("Pipe_ID_EX_NPC_out"),valueKey: 'Pipe_ALUsrc',waypoints: List.of([const Offset(870, 100) ]),isControl: true,size:3),
+      Bus(startPointLabel: 'DEControl-2', endPointLabel: 'M2-4', isActive: (s) => s.isPathActive("Pipe_ID_EX_NPC_out"),valueKey: 'Pipe_PCsrc',waypoints: List.of([const Offset(870, 100),const Offset(870, 60),const Offset(75, 60) ]),isControl: true,size:3),
 
     ]);
 

@@ -3,9 +3,12 @@ import 'dart:ffi'; // Necesario para FFI
 import 'dart:io'; // Para comprobar el sistema operativo
 import 'dart:typed_data'; // Para Uint8List
 import 'package:ffi/ffi.dart';
+import 'package:window_manager/window_manager.dart';
 import 'simulation_service.dart';
+// No es necesario, toDartString viene con ffi.dart
 import '../simulation_mode.dart';
 
+import '../datapath_state.dart';
 
 ///////////////////////////////////////////////////////////////////////////////////////
 //Opcion chatgpt
@@ -43,6 +46,25 @@ typedef SimulatorGetAllRegisters = void Function(Pointer<Void>, Pointer<Uint32>)
 typedef SimulatorGetStateJsonNative = Pointer<Utf8> Function(Pointer<Void>);
 typedef SimulatorGetStateJson = Pointer<Utf8> Function(Pointer<Void>);
 
+// Estructura para la memoria de instrucciones, debe coincidir con la de C++
+class InstructionEntry extends Struct {
+  @Uint32()
+  external int value;
+
+  @Array(256)
+  external Array<Uint8> _instructionBytes;
+}
+
+// Typedefs para la nueva función de memoria de instrucciones
+typedef SimulatorGetIMemNative = IntPtr Function(
+    Pointer<Void>, Pointer<InstructionEntry>, IntPtr);
+typedef SimulatorGetDMemNative = IntPtr Function(
+    Pointer<Void>, Pointer<Uint8>, IntPtr);
+typedef SimulatorGetIMem = int Function(
+    Pointer<Void>, Pointer<InstructionEntry>, int);
+typedef SimulatorGetDMem = int Function(
+    Pointer<Void>, Pointer<Uint8>, int);
+
 // -------------------------------------------
 // ChatGPT Carga de funciones desde la DLL
 // -------------------------------------------
@@ -60,6 +82,8 @@ late final SimulatorGetPc simulatorGetPc;
 late final SimulatorGetStatusRegister simulatorGetStatusRegister;
 late final SimulatorGetAllRegisters simulatorGetAllRegisters;
 late final SimulatorGetStateJson simulatorGetStateJson;
+late final SimulatorGetIMem simulatorGetIMem;
+late final SimulatorGetDMem simulatorGetDMem;
 
 // -------------------------------------------
 // Clase Dart para usar el simulador
@@ -74,6 +98,47 @@ class Simulador {
   void dispose() {
     simulatorDelete(_sim);
   }
+
+  List<InstructionMemoryItem> getInstructionMemory() {
+    // 1. Primera llamada para obtener el número de instrucciones.
+    final count = simulatorGetIMem(_sim, nullptr, 0);
+    if (count == 0) {
+      return [];
+    }
+
+    // 2. Alojar memoria y hacer la segunda llamada para obtener los datos.
+    final buffer = calloc<InstructionEntry>(count);
+    simulatorGetIMem(_sim, buffer, count);
+
+    // 3. Convertir el buffer de C a una lista de Dart.
+    final instructionList = <InstructionMemoryItem>[];
+    for (int i = 0; i < count; i++) {
+      final entryPtr = buffer+i;
+      // El offset de 'instruction' es 4 bytes (después de 'value' de 32 bits).
+      final instructionPtr = Pointer<Utf8>.fromAddress(entryPtr.address + 4);
+      instructionList.add(InstructionMemoryItem(
+        value: entryPtr.ref.value,
+        instruction: instructionPtr.toDartString(),
+      ));
+    }
+    calloc.free(buffer);
+    return instructionList;
+  }
+
+  Uint8List getDataMemory() {
+    final buffer = calloc<Uint8>(256);
+    try {
+      simulatorGetDMem(_sim, buffer, 256);
+      // asTypedList crea una vista de la memoria C. fromList crea una copia en Dart.
+      return Uint8List.fromList(buffer.asTypedList(256));
+    } finally {
+      // Es crucial liberar la memoria que alojamos manualmente.
+      calloc.free(buffer);
+    }
+  }
+
+
+
 
   void loadProgram(Uint8List programData, int mode) {
     final buffer = calloc<Uint8>(programData.length);
@@ -130,6 +195,7 @@ class Simulador {
   Map<String, dynamic> reset(int mode) {
     try {
       final jsonStr = simulatorReset(_sim, mode).toDartString();
+      
       return _getFullState(jsonStr);
     } catch (e) {
       // ignore: avoid_print
@@ -166,6 +232,15 @@ class Simulador {
 /// directamente con una librería nativa (DLL/SO).
 class FfiSimulationService implements SimulationService {
   late final Simulador simulador;
+    SimulationState? _currentState;
+
+
+  @override
+  Future<SimulationState> getInstructionMemory() async {
+   var stateMap = simulador.state;
+   var iMem = simulador.getInstructionMemory();
+   return SimulationState.fromJson(stateMap).copyWith(instructionMemory: iMem);
+  }
 
   @override
   Future<void> initialize() async {
@@ -212,6 +287,14 @@ class FfiSimulationService implements SimulationService {
       simulatorGetStateJson = _simulatorLib
           .lookup<NativeFunction<SimulatorGetStateJsonNative>>('Simulator_get_state_json')
           .asFunction();
+      simulatorGetIMem = _simulatorLib
+          .lookup<NativeFunction<SimulatorGetIMemNative>>('Simulator_get_i_mem')
+          .asFunction();
+      simulatorGetDMem = _simulatorLib
+          .lookup<NativeFunction<SimulatorGetDMemNative>>('Simulator_get_d_mem')
+          .asFunction();
+
+
     } catch (e) {
       if (e is ArgumentError) {
         // ignore: avoid_print
@@ -296,19 +379,62 @@ class FfiSimulationService implements SimulationService {
 
   @override
   Future<SimulationState> step() async {
-    final stateMap = simulador.step();
-    return SimulationState.fromJson(stateMap);
+    final stateMap = simulador.step(); //Llamamos a la dll
+    var state= SimulationState.fromJson(stateMap);
+    var dMem= simulador.getDataMemory(); //llamamos a la dll. No merece la pena ahorrar y hacerlo solo con sw, ya que no es via api
+    //pero se podría fácilmente hacer
+    state=state.copyWith(dataMemory: dMem);
+    return state;
   }
 
   @override
   Future<SimulationState> stepBack() async {
     final stateMap = simulador.stepBack();
-    return SimulationState.fromJson(stateMap);
+    var state= SimulationState.fromJson(stateMap);
+    var dMem= simulador.getDataMemory(); //llamamos a la dll. No merece la pena ahorrar y hacerlo solo con sw, ya que no es via api
+    //pero se podría fácilmente hacer
+    state=state.copyWith(dataMemory: dMem);
+    return state;
   }
+// ffi_simulation_service.dart
 
   @override
   Future<SimulationState> reset({required SimulationMode mode}) async {
     final stateMap = simulador.reset(mode.index);
-    return SimulationState.fromJson(stateMap);
+    final initialState = SimulationState.fromJson(stateMap);
+    
+    // Obtenemos las memorias por separado
+    final iMem = simulador.getInstructionMemory();
+    final dMem = simulador.getDataMemory();
+
+    // Creamos el estado completo combinando todo
+    final fullState = initialState.copyWith(instructionMemory: iMem, dataMemory: dMem);
+
+    // Guardamos el estado completo en nuestra variable de instancia
+    _currentState = fullState;
+
+    // Devolvemos el estado que acabamos de guardar
+    return _currentState!;
   }
+
+// ffi_simulation_service.dart
+
+@override
+Future<SimulationState> getDataMemory() async {
+  // Primero, comprobamos que el estado ya se haya inicializado con reset()
+  if (_currentState == null) {
+    throw Exception(
+        "El estado del simulador no está inicializado. Llama a reset() primero.");
+  }
+  
+  // Obtenemos ÚNICAMENTE la memoria de datos actualizada desde la DLL
+  final newDMem = simulador.getDataMemory();
+  
+  // Usamos copyWith para crear un nuevo estado que es idéntico al anterior,
+  // pero con la memoria de datos actualizada.
+  _currentState = _currentState!.copyWith(dataMemory: newDMem);
+  
+  // Devolvemos el estado recién actualizado.
+  return _currentState!;
+}
 }

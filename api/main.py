@@ -3,9 +3,9 @@ import pathlib
 import json
 import sys
 import threading
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, Body,Response
 from pydantic import BaseModel, Field
-from typing import Literal, Union
+from typing import Literal, Union, List
 
 # --- Paso 1: Encontrar y cargar la biblioteca compartida C++ ---
 
@@ -198,6 +198,17 @@ core_lib.Simulator_get_datapath_state.restype = DatapathState
 core_lib.Simulator_get_d_mem.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t]
 core_lib.Simulator_get_d_mem.restype = None
 
+# Nueva estructura para la memoria de instrucciones
+class InstructionEntry(ctypes.Structure):
+    _fields_ = [
+        ("value", ctypes.c_uint32),
+        ("instruction", ctypes.c_char * 256)
+    ]
+
+core_lib.Simulator_get_i_mem.argtypes = [ctypes.c_void_p, ctypes.POINTER(InstructionEntry), ctypes.c_size_t]
+core_lib.Simulator_get_i_mem.restype = ctypes.c_size_t
+
+
 # --- Paso 4: Crear una clase Python que envuelva la lógica C++ ---
 
 class Simulator:
@@ -251,7 +262,36 @@ class Simulator:
         """Obtiene el contenido de la memoria de datos (256 bytes)."""
         buffer = (ctypes.c_uint8 * 256)()
         core_lib.Simulator_get_d_mem(self.obj, buffer, 256)
-        return list(buffer)
+        return bytes(buffer)
+
+    def get_i_memBorrar(self) -> list[dict]:
+        """Obtiene la memoria de instrucciones desensamblada como JSON."""
+        json_str = core_lib.Simulator_get_i_mem(self.obj).decode('utf-8')
+        return json.loads(json_str)
+    
+    def get_i_mem(self) -> List[dict]:
+        """Obtiene la memoria de instrucciones desensamblada."""
+        # Primera llamada para obtener el número de instrucciones
+        num_instructions = core_lib.Simulator_get_i_mem(self.obj, None, 0)
+        if num_instructions == 0:
+            return []
+
+        # Crear un buffer del tamaño adecuado
+        BufferType = InstructionEntry * num_instructions
+        buffer = BufferType()
+
+        # Segunda llamada para llenar el buffer
+        core_lib.Simulator_get_i_mem(self.obj, buffer, num_instructions)
+
+        # Convertir el buffer a una lista de diccionarios de Python
+        result = []
+        for i in range(num_instructions):
+            entry = buffer[i]   
+            result.append({
+                "value": entry.value,
+                "instruction": entry.instruction.decode('utf-8', errors='ignore')
+            })
+        return result
 
     def __del__(self):
         if hasattr(self, 'obj') and self.obj:
@@ -315,6 +355,10 @@ class SimulatorStateModel(BaseModel):
     control_signals: ControlSignalsModel = Field(..., description="Señales de control generadas.")
     registers: dict[str, int] = Field(..., description="Estado de los 32 registros generales (con nombres ABI).")
     datapath: dict[str, SignalModel] = Field(..., description="Estado de todas las señales del datapath.")
+
+class InstructionMemoryItem(BaseModel):
+    value: int
+    instruction: str
 
 # --- Constantes ---
 ABI_NAMES = [
@@ -498,9 +542,30 @@ def execute_step_back() -> SimulatorStateModel:
         model_name = simulator_instance["model_name"]
         return _get_full_state_data(sim, model_name)    
 
-@app.get("/memory/data", response_model=list[int], summary="Obtener el contenido de la memoria de datos")
+@app.get("/memory/data", 
+         summary="Obtener el contenido de la memoria de datos",
+         # Indicamos que la respuesta será de tipo 'application/octet-stream'
+         responses={
+             200: {
+                 "content": {"application/octet-stream": {}}
+             }
+         })
 def get_data_memory():
-    """Devuelve los 256 bytes de la memoria de datos del modo didáctico."""
+    """Devuelve los 256 bytes de la memoria de datos del modo didáctico como binario crudo."""
     with simulator_lock:
         sim = simulator_instance["sim"]
-        return sim.get_d_mem()
+        # 1. Obtenemos los datos como un objeto de bytes
+        memory_bytes = sim.get_d_mem()
+        
+        # 2. Creamos y devolvemos un objeto Response con los bytes y el tipo de medio correcto
+        return Response(content=memory_bytes, media_type="application/octet-stream")
+
+
+@app.get("/memory/instructions", response_model=List[InstructionMemoryItem], summary="Obtener la memoria de instrucciones desensamblada")
+def get_instruction_memory():
+    """Devuelve el contenido de la memoria de instrucciones, con cada instrucción desensamblada."""
+    with simulator_lock:
+        sim = simulator_instance["sim"]
+        return sim.get_i_mem()
+
+

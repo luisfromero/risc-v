@@ -59,7 +59,7 @@ public:
 
     // Devuelve el contenido de la memoria de datos (para modo didáctico).
     const std::vector<uint8_t>& get_d_mem() const;
-
+    std::vector<std::pair<uint32_t, std::string>> Simulator::get_i_mem()  ;
 private:
     uint32_t pc; // Program Counter
     uint32_t pc_delay=1; 
