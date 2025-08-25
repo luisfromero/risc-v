@@ -4,11 +4,12 @@
 #include <algorithm> // Para std::max
 #include <sstream>
 #include <vector>
+#include "ControlTableData.h" // Para el namespace ControlWord
 
 #define DELAY_Z_AND 1
 #define DELAY_PC 1
 #define DEBUG_INFO 1
-#define LOAD_USE_HAZARD 0
+#define LOAD_USE_HAZARD 1
 
 void copy_pipeline_registers_to_out(DatapathState& datapath) {
     datapath.Pipe_IF_ID_Instr_out=datapath.Pipe_IF_ID_Instr;
@@ -125,11 +126,6 @@ Simulator::Simulator(size_t mem_size, PipelineModel model)
       datapath{}
 {
     // El PC se inicializa en 0.
-      // NOTA: La ruta al fichero de instrucciones debería ser configurable, no "hard-coded".
-      // Por ejemplo, podría pasarse al constructor o leerse de una variable de entorno.
-      
-      if(false)//Pensar si es mejor o peor ToDo
-      control_unit.load_control_table("d:/onedrive/proyectos/riscv/resources/instructions.json");
       
       
       // Abrir el fichero de log. Se sobreescribirá en cada nueva ejecución.
@@ -364,29 +360,56 @@ uint32_t Simulator::fetch() {
 }
 
 
+/*
+ * uint16_t controlWord(const InstructionInfo* info) {
+ *     return (info->ALUctr  & 0x7) << 13 |  // 3 bits
+ *            (info->ResSrc & 0x3) << 11 |  // 2 bits
+ *            (info->ImmSrc & 0x7) << 8  |  // 3 bits
+ *            (info->PCsrc  & 0x3) << 6  |  // 2 bit
+ *            (info->ALUsrc   & 0x1) << 4  |  // 1 bit
+ *            (info->BRwr & 0x1) << 3  |  // 1 bit
+ *            (info->MemWr  & 0x1) << 2 | 0;    // 1 bit
+ * }
+ */
+
 uint16_t controlWord(const InstructionInfo* info) {
-    return (info->ALUctr  & 0x7) << 13 |  // 3 bits
-           (info->ResSrc & 0x3) << 11 |  // 2 bits
-           (info->ImmSrc & 0x7) << 8  |  // 3 bits
-           (info->PCsrc  & 0x3) << 6  |  // 2 bit
-           (info->ALUsrc   & 0x1) << 4  |  // 1 bit
-           (info->BRwr & 0x1) << 3  |  // 1 bit
-           (info->MemWr  & 0x1) << 2 | 0;    // 1 bit
+    using namespace riscv_sim::ControlWord;
+    return (static_cast<uint16_t>(info->ALUctr & ((1 << ALUctr_width) - 1)) << ALUctr_pos) |
+           (static_cast<uint16_t>(info->ResSrc & ((1 << ResSrc_width) - 1)) << ResSrc_pos) |
+           (static_cast<uint16_t>(info->ImmSrc & ((1 << ImmSrc_width) - 1)) << ImmSrc_pos) |
+           (static_cast<uint16_t>(info->PCsrc  & ((1 << PCsrc_width) - 1))  << PCsrc_pos)  |
+           (static_cast<uint16_t>(info->ALUsrc & ((1 << ALUsrc_width) - 1)) << ALUsrc_pos) |
+           (static_cast<uint16_t>(info->BRwr   & ((1 << BRwr_width) - 1))   << BRwr_pos)   |
+           (static_cast<uint16_t>(info->MemWr  & ((1 << MemWr_width) - 1))  << MemWr_pos);
 }
 
-uint8_t controlSignal(uint16_t controlWord, std::string name) {
+/*
+uint8_t controlSignal(uint16_t controlWord, const std::string& name) {
     if (name == "PCsrc") {
-        return (controlWord >> 6) & 0x3; // Devuelve los 2 bits de PCsrc
+        return (controlWord >> 6) & 0x3;
     } else if (name == "BRwr") {
-        return (controlWord >> 3) & 0x1; // Devuelve el bit de BRwr
+        return (controlWord >> 3) & 0x1;
     } else if (name == "ALUsrc") {
-        return (controlWord >> 4) & 0x1; // Devuelve el bit de ALUsrc
+        return (controlWord >> 4) & 0x1;
     } else if (name == "ResSrc") {
-        return (controlWord >> 11) & 0x3; // Devuelve los 2 bits de ResSrc
+        return (controlWord >> 11) & 0x3;
     } else if (name == "ImmSrc") {
-        return (controlWord >> 8) & 0x7; // Devuelve los 3 bits de ImmSrc
+        return (controlWord >> 8) & 0x7;
     }
-    return (controlWord >> 13) & 0x7; // Devuelve los 3 bits de ALUctr
+    return (controlWord >> 13) & 0x7; // Default to ALUctr
+}
+*/
+
+uint8_t controlSignal(uint16_t controlWord, const std::string& name) {
+    using namespace riscv_sim::ControlWord;
+    if (name == "PCsrc")  return (controlWord >> PCsrc_pos)  & ((1 << PCsrc_width) - 1);
+    if (name == "BRwr")   return (controlWord >> BRwr_pos)   & ((1 << BRwr_width) - 1);
+    if (name == "ALUsrc") return (controlWord >> ALUsrc_pos) & ((1 << ALUsrc_width) - 1);
+    if (name == "ResSrc") return (controlWord >> ResSrc_pos) & ((1 << ResSrc_width) - 1);
+    if (name == "ImmSrc") return (controlWord >> ImmSrc_pos) & ((1 << ImmSrc_width) - 1);
+    if (name == "MemWr")  return (controlWord >> MemWr_pos)  & ((1 << MemWr_width) - 1);
+    // Default to ALUctr
+    return (controlWord >> ALUctr_pos) & ((1 << ALUctr_width) - 1);
 }
 
 void Simulator::decode_and_execute(uint32_t instruction)
@@ -455,7 +478,7 @@ void Simulator::simulate_single_cycle(uint32_t instruction) {
     instructionString = disassemble(instruction, info);
     //datapath.instruction=instructionString;
     datapath.total_micro_cycles = info->cycles;
-    strcpy(datapath.instruction_cptr,instructionString.c_str());
+    strcpy_s(datapath.instruction_cptr,instructionString.c_str());
     }
     catch(const std::exception& e){
         m_logfile << "Error al formatear la instrucción: " << e.what() << std::endl;
@@ -463,15 +486,16 @@ void Simulator::simulate_single_cycle(uint32_t instruction) {
         return;
     }
 
-
+    uint32_t controlDelay=tmptime+control_unit.get_delay();
     try{
-    datapath.bus_Control = {controlWord(info),tmptime+control_unit.get_delay()};
+    datapath.bus_Control = {controlWord(info),controlDelay};
     if (m_logfile.is_open()) {
         m_logfile << "Info: instr=" << info->instr << ", PCsrc=" << static_cast<int>(info->PCsrc)
                   << ", BRwr=" << static_cast<int>(info->BRwr) << ", ALUsrc=" << static_cast<int>(info->ALUsrc)
                   << ", ALUctr=" << static_cast<int>(info->ALUctr) << ", MemWr=" << static_cast<int>(info->MemWr)
                   << ", ResSrc=" << static_cast<int>(info->ResSrc) << ", ImmSrc=" << static_cast<int>(info->ImmSrc)
-                  << ", type=" << info->type << std::endl;
+                  << ", type=" << info->type 
+                  << "Control word:" << std::hex << controlWord(info) << std::endl;
     }
     datapath.bus_PCsrc = {info->PCsrc,tmptime,true}; //El tiempo se cambia después
 
@@ -576,21 +600,25 @@ void Simulator::simulate_single_cycle(uint32_t instruction) {
 
  
     // Mux para el PC
-    bool take_branch = (info->PCsrc == 1|| (info->type=='B' && alu_zero));
+    // Lógica corregida para la selección del siguiente PC
+    bool take_conditional_branch = (info->PCsrc == 1 && alu_zero);
+    bool take_unconditional_jump = (info->PCsrc == 1);
 
     uint32_t tmptime5 = std::max(datapath.bus_ALU_zero.ready_at,datapath.bus_Control.ready_at)+DELAY_Z_AND; //Tiempo en llegar la sñal que controla el mux
     
-    datapath.bus_branch_taken = {take_branch,tmptime5};
+    datapath.bus_branch_taken = {take_conditional_branch || take_unconditional_jump, tmptime5};
     datapath.bus_PCsrc.ready_at = tmptime5;
 
+    // La dirección de destino para JALR es el resultado de la ALU, no PC + imm.
+    uint32_t jump_target = (info->instr == "jalr") ? alu_result : branch_target;
 
     tmptime5 = std::max(std::max(datapath.bus_PC_plus4.ready_at,datapath.bus_PC_dest.ready_at),tmptime5) + mux_PC.get_delay();
 
-    uint32_t next_pc = mux_PC.select(pc_plus_4, branch_target, take_branch);
+    uint32_t next_pc = pc_plus_4;
+    if (take_conditional_branch) next_pc = branch_target;
+    else if (take_unconditional_jump) next_pc = jump_target;
+
     datapath.bus_PC_next = {next_pc,tmptime5};
-
-
-    // --- Lógica de ActivePath ---
     // Aquí desactivamos las rutas que no se usan para la instrucción actual.
     // Por defecto, todos los is_active son 'true' desde la definición de la struct Signal.
     if(info->PCsrc!=0)datapath.bus_PC_plus4.is_active=false;
@@ -629,6 +657,13 @@ void Simulator::simulate_single_cycle(uint32_t instruction) {
 
 
 
+    datapath.bus_PCsrc = {info->PCsrc, controlDelay};
+    datapath.bus_ALUsrc = {info->ALUsrc, controlDelay};
+    datapath.bus_ResSrc = {info->ResSrc, controlDelay};
+    datapath.bus_ImmSrc = {info->ImmSrc, controlDelay};
+    datapath.bus_ALUctr = {info->ALUctr, controlDelay};
+    datapath.bus_BRwr = {info->BRwr, controlDelay};
+    datapath.bus_MemWr = {info->MemWr, controlDelay};
 
 
 
@@ -648,7 +683,7 @@ void Simulator::simulate_multi_cycle(uint32_t instruction) {
     if (!info) info=control_unit.decode(0x00000013); // Si no se reconoce la instrucción, usamos NOP como fallback.
 
     instructionString = disassemble(instruction, info);
-    strcpy(datapath.instruction_cptr, instructionString.c_str());
+    strcpy_s(datapath.instruction_cptr, instructionString.c_str());
     datapath.total_micro_cycles = info->cycles;
 
     // --- Valores que se propagan a través de los ciclos ---
@@ -841,24 +876,25 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
     datapath.criticalTime = 1; // In a pipelined model, a result is produced each cycle.
 
     
+
+    copy_pipeline_registers_to_out(datapath);       
+
     const InstructionInfo* fetched_info = control_unit.decode(instruction);
-    const InstructionInfo* decoded_info = control_unit.decode(datapath.Pipe_IF_ID_Instr.value);
+    const InstructionInfo* decoded_info = control_unit.decode(datapath.Pipe_IF_ID_Instr_out.value);
 
     instructionString = fetched_info ? disassemble(instruction, fetched_info) : "c.unimp";
-
-    copy_pipeline_registers_to_out(datapath);    
-
 
     bool is_valid_instr_WB = datapath.Pipe_MEM_WB_NPC_out.is_active;
     bool is_valid_instr_MEM = datapath.Pipe_EX_MEM_NPC_out.is_active;
     bool is_valid_instr_EX = datapath.Pipe_ID_EX_NPC_out.is_active;
-    bool is_valid_instr_ID = datapath.Pipe_IF_ID_NPC_out.is_active;
+    bool is_valid_instr_ID = decoded_info != nullptr;
     bool is_valid_instr_IF = fetched_info != nullptr;
 
     /**
      * Control word for the instruction in the ID stage.
      */
-    uint16_t control_word = is_valid_instr_ID ? controlWord(decoded_info) : 0;
+    uint16_t id_control_word = is_valid_instr_ID ? controlWord(decoded_info) : -1;
+    uint16_t if_control_word = is_valid_instr_IF ? controlWord(fetched_info) : -1;
 
     if(m_logfile.is_open()&&DEBUG_INFO){
         m_logfile << "PC: " << std::hex << pc << ", Instruction: " << instructionString << std::endl
@@ -867,6 +903,8 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
                   << "Valid EX: " << is_valid_instr_EX << std::endl
                   << "Valid MEM: " << is_valid_instr_MEM << std::endl
                   << "Valid WB: " << is_valid_instr_WB << std::endl
+                  << "id control" << id_control_word << std::endl
+                  << "if control" << if_control_word << std::endl
                   << std::endl;
 
     }
@@ -936,28 +974,27 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
     uint32_t mem_read_data = INDETERMINADO;
 
     try{
-
-    if (datapath.Pipe_EX_MEM_Control.is_active) {
-        uint16_t mem_control = datapath.Pipe_EX_MEM_Control.value;
-        uint32_t alu_result = datapath.Pipe_EX_MEM_ALU_result.value;
+    if (datapath.Pipe_EX_MEM_Control_out.is_active) {
+        uint16_t mem_control = datapath.Pipe_EX_MEM_Control_out.value;
+        uint32_t alu_result = datapath.Pipe_EX_MEM_ALU_result_out.value;
         uint8_t MemWr = controlSignal(mem_control, "MemWr");
-        datapath.bus_MemWr = { MemWr, 1, is_valid_instr_MEM };
+        datapath.bus_MemWr = { MemWr, 1, datapath.Pipe_EX_MEM_Control_out.is_active };
 
 
         if (MemWr == 1) { // Store instruction (e.g., SW)
-            d_mem.write_word(alu_result, datapath.Pipe_EX_MEM_B.value);
+            d_mem.write_word(alu_result, datapath.Pipe_EX_MEM_B_out.value);
         } else if (controlSignal(mem_control, "ResSrc") == 1) { // Load instruction (e.g., LW)
             mem_read_data = d_mem.read_word(alu_result);
         }
     }
-    datapath.bus_Mem_read_data = { mem_read_data, 1, is_valid_instr_MEM };
+    datapath.bus_Mem_read_data = { mem_read_data, 1, datapath.Pipe_EX_MEM_Control_out.is_active };
 
     // Pass data to the next stage's register (MEM/WB)
-    datapath.Pipe_MEM_WB_Control      = {datapath.Pipe_EX_MEM_Control_out.value,1,is_valid_instr_MEM};
+    datapath.Pipe_MEM_WB_Control      = datapath.Pipe_EX_MEM_Control_out;
     datapath.Pipe_MEM_WB_NPC          = datapath.Pipe_EX_MEM_NPC_out;
-    datapath.Pipe_MEM_WB_ALU_result   = {datapath.Pipe_EX_MEM_ALU_result.value,1,is_valid_instr_MEM};
-    datapath.Pipe_MEM_WB_RD           = {datapath.Pipe_EX_MEM_RD.value,1,is_valid_instr_MEM};
-    datapath.Pipe_MEM_WB_RM           =  {mem_read_data,1,is_valid_instr_MEM};
+    datapath.Pipe_MEM_WB_ALU_result   = datapath.Pipe_EX_MEM_ALU_result_out;
+    datapath.Pipe_MEM_WB_RD           = datapath.Pipe_EX_MEM_RD_out;
+    datapath.Pipe_MEM_WB_RM           = {mem_read_data, 1, is_valid_instr_MEM};
 
 }
 catch(const std::exception& e){
@@ -1055,7 +1092,7 @@ catch(const std::exception& e){
         take_branch=false;
     }
     // --- CONTROL HAZARD (BRANCH FLUSH) ---
-    #define NO_BRANCH_FLUSH 1
+    #define NO_BRANCH_FLUSH 0
     if(! NO_BRANCH_FLUSH)
     if (take_branch) {
         flush = true;
@@ -1097,54 +1134,71 @@ catch(const std::exception& e){
     // Decodes instruction, reads registers.
     // Data comes from the IF/ID pipeline register.
 
-    uint8_t ImmSrc = is_valid_instr_ID ? controlSignal(control_word, "ImmSrc") : 0;
+    uint8_t ImmSrc = is_valid_instr_ID ? controlSignal(id_control_word, "ImmSrc") : 0;
     
+
     // --- LOAD-USE HAZARD DETECTION (STALL) ---
-    stall=false;
-    if(LOAD_USE_HAZARD)    
-    if (datapath.Pipe_ID_EX_Control.is_active) {
-        uint8_t ex_ResSrc = controlSignal(datapath.Pipe_ID_EX_Control.value, "ResSrc");
-        uint8_t ex_rd = datapath.Pipe_ID_EX_RD.value;
-        if (ex_ResSrc == 1) { // If the instruction in EX is a load...
-            uint32_t current_instr = datapath.Pipe_IF_ID_Instr.value;
-            uint8_t rs1 = (current_instr >> 15) & 0x1F;
-            uint8_t rs2 = (current_instr >> 20) & 0x1F;
-            if (ex_rd == rs1 || ex_rd == rs2) { // and its destination is a source for the instruction in ID...
-                stall = true; // ...we must stall.
+    stall = false;
+    if (LOAD_USE_HAZARD) {
+        // A load-use hazard occurs if the instruction in the EX stage is a load (lw)
+        // and its destination register (rd) is one of the source registers (rs1 or rs2)
+        // of the instruction currently in the ID stage.
+        if (datapath.Pipe_ID_EX_Control_out.is_active) {
+            uint16_t ex_control = datapath.Pipe_ID_EX_Control_out.value;
+            uint8_t ex_ResSrc = controlSignal(ex_control, "ResSrc");
+            uint8_t ex_BRwr = controlSignal(ex_control, "BRwr");
+
+            if (ex_ResSrc == 0 && ex_BRwr == 1) { // Es load
+                uint8_t ex_rd = datapath.Pipe_ID_EX_RD_out.value;
+
+                // Get the source registers for the instruction currently in the ID stage
+                uint32_t id_instr = datapath.Pipe_IF_ID_Instr_out.value;
+                uint8_t id_rs1 = (id_instr >> 15) & 0x1F;
+                uint8_t id_rs2 = (id_instr >> 20) & 0x1F;
+
+                // Check for dependency: if the destination of the load in EX is used as a source in ID
+                if (ex_rd != 0 && (ex_rd == id_rs1 || ex_rd == id_rs2)) {
+                    stall = true;
+                }
             }
         }
     }
 
-    if (stall) {
+    if (flush) {
+        // Squash the instruction in the ID stage by passing a NOP to the EX stage.
+        datapath.Pipe_ID_EX_Control = {0, 1, false}; // Control signals for NOP, inactive
+        datapath.Pipe_ID_EX_A = {0, 1, false};
+        datapath.Pipe_ID_EX_B = {0, 1, false};
+        datapath.Pipe_ID_EX_RD = {0, 1, false};
+        datapath.Pipe_ID_EX_Imm = {0, 1, false};
+        datapath.Pipe_ID_EX_NPC = {0, 1, false};
+        datapath.Pipe_ID_EX_PC = {0, 1, false};
+        if(m_logfile.is_open()&&DEBUG_INFO)        m_logfile << "Flush detectado: " << std::endl;
+
+    } else if (stall) {
         // Inject a "bubble" (NOP) into the pipeline
         datapath.Pipe_ID_EX_Control.is_active = false;
         datapath.Pipe_ID_EX_Control.value = 0;
+        if(m_logfile.is_open()&&DEBUG_INFO)        m_logfile << "Stall detectado: " << std::endl;
+
         //strcpy(datapath.Pipe_ID_instruction_cptr, "nop (stall)");
         // All other ID/EX fields are irrelevant
     } else {
         // Normal operation
-        
+
         uint32_t instruction_in_id = datapath.Pipe_IF_ID_Instr_out.value;
         uint8_t rs1_addr = (instruction_in_id >> 15) & 0x1F;
         uint8_t rs2_addr = (instruction_in_id >> 20) & 0x1F;
         uint8_t rd_addr  = (instruction_in_id >> 7)  & 0x1F;
-
-
-
 
         datapath.Pipe_ID_EX_A = {register_file.readA(rs1_addr),1,is_valid_instr_ID};
         datapath.Pipe_ID_EX_B = {register_file.readB(rs2_addr),1,is_valid_instr_ID};
         datapath.Pipe_ID_EX_RD = {rd_addr,1,is_valid_instr_ID};
         datapath.Pipe_ID_EX_Imm = {sign_extender.extender(instruction_in_id, ImmSrc),1,is_valid_instr_ID};
 
-        datapath.Pipe_ID_EX_Control= {control_word,1,is_valid_instr_ID}; //No necesitaríamos todo. Parte ya se ha consumido en ID.
+        datapath.Pipe_ID_EX_Control= {id_control_word,1,is_valid_instr_ID}; //No necesitaríamos todo. Parte ya se ha consumido en ID.
         datapath.Pipe_ID_EX_NPC = datapath.Pipe_IF_ID_NPC_out;
         datapath.Pipe_ID_EX_PC = datapath.Pipe_IF_ID_PC_out;
-
-        //datapath.Pipe_IF_ID_Instr.is_active = is_valid_instr_ID; 
-        //datapath.Pipe_IF_ID_NPC.is_active = is_valid_instr_ID;
-       // datapath.Pipe_IF_ID_PC.is_active = is_valid_instr_ID;
-        
 
         //Buses de esta etapa
         datapath.bus_DA = { rs1_addr, 1, is_valid_instr_ID }; // DA is the address of the first source register
@@ -1160,12 +1214,15 @@ catch(const std::exception& e){
         datapath.bus_immExt = { datapath.Pipe_ID_EX_Imm_out.value, 1, is_valid_instr_ID }; // Extended immediate value
 
         datapath.bus_ImmSrc = { ImmSrc, 1, is_valid_instr_ID }; // ImmSrc
-
+        if(m_logfile.is_open()&&DEBUG_INFO)        m_logfile << "No flush no stall: " << std::endl;
 
     }
 
     if(m_logfile.is_open()&&DEBUG_INFO){
         m_logfile << "ID Stage: " << std::endl
+                  << "id control" << id_control_word << std::endl
+                  << "if control" << if_control_word << std::endl
+                  << "IDctr: " << datapath.Pipe_ID_EX_Control.value << std::endl
                   << "Pipe0: " << datapath.Pipe_IF_ID_Instr.is_active << "\t" << (int)datapath.Pipe_IF_ID_Instr.value << std::endl
                   << "Pipe1: " << datapath.Pipe_ID_EX_Control.is_active << "\t" << (int)datapath.Pipe_ID_EX_Control.value << std::endl
                   << "Pipe2: " << datapath.Pipe_ID_EX_NPC.is_active << "\t" << (int)datapath.Pipe_ID_EX_NPC.value << std::endl
@@ -1192,6 +1249,9 @@ catch(const std::exception& e){
     // Fetches the next instruction from memory.
     
 if(NO_BRANCH_FLUSH)flush=false;
+
+
+    datapath.bus_Control = { if_control_word, 1 }; //En dart es 'Control'
 
 
 
@@ -1229,7 +1289,18 @@ if(NO_BRANCH_FLUSH)flush=false;
     // =================================================================================
 
     if (!stall) {
-        pc = take_branch ? branch_target : pc+4;
+        if (take_branch) {
+            // Para JALR (I-type jump), el destino es el resultado de la ALU.
+            // Para JAL (J-type) y branches (B-type), es PC + inmediato.
+            uint16_t ex_control = datapath.Pipe_ID_EX_Control_out.value;
+            if (controlSignal(ex_control, "PCsrc") == 2 && controlSignal(ex_control, "ImmSrc") == 1) { // JALR (ImmSrc I-type)
+                pc = alu_result;
+            } else { // JAL o Branch
+                pc = branch_target;
+            }
+        } else {
+            pc = pc + 4;
+        }
     }
     // If stalling, the PC is not updated, freezing the fetch stage.
 

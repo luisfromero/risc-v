@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:namer_app/simulation_mode.dart';
 import 'datapath_state.dart';
 import 'dart:typed_data';
+
 
 // --- Tooltip para el Banco de Registros ---
 
@@ -44,7 +46,159 @@ Widget buildRegisterFileTooltip(DatapathState datapathState) {
     ],
   );
 }
+// --- Tooltip para la Unidad de Control ---
 
+Widget buildControlUnitTooltip(DatapathState datapathState) {
+  final simulationMode = datapathState.simulationMode;
+
+  switch (simulationMode) {
+    case SimulationMode.singleCycle:
+    case SimulationMode.multiCycle:
+      return _buildSingleCycleControlTooltip(datapathState);
+    case SimulationMode.pipeline:
+      return _buildPipelineControlTooltip(datapathState);
+    default:
+      return const Text('Control Unit');
+  }
+}
+
+Widget _buildSingleCycleControlTooltip(DatapathState datapathState) {
+  final controlWord = datapathState.busValues['control_bus'];
+
+  if (controlWord == null) {
+    return const Text('No instruction decoded', style: TextStyle(color: Colors.grey));
+  }
+
+  final signals = getSignalValues(datapathState);
+
+
+  
+  final hexWord = '0x${controlWord.toRadixString(16).padLeft(4, '0')}';
+
+  List<TextSpan> spans = [
+    TextSpan(
+      text: 'Control Word: $hexWord\n\n',
+      style: const TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold, fontFamily: 'monospace', fontSize: 12),
+    ),
+  ];
+
+  signals.forEach((key, value) {
+    spans.add(TextSpan(
+      text: '${key.padRight(8)}: $value\n',
+      style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12),
+    ));
+  });
+
+  return RichText(text: TextSpan(children: spans));
+}
+
+Map getSignalValues(DatapathState d) {
+  return {'ALUctr':d.busValues['control_ALUctr'],
+  'ALUsrc':d.busValues['control_ALUsrc'],
+  'BRwr':d.busValues['control_BRwr'],
+  'ImmSrc':d.busValues['control_ImmSrc'],
+  'MemRead':d.busValues['control_MemRead'],
+  'MemWr':d.busValues['control_MemWr'],
+  'PCsrc':d.busValues['control_PCsrc'],
+  'ResSrc':d.busValues['control_ResSrc'],
+  };
+}
+Map getSignalValuesPipe(DatapathState d) {
+  return {'ALUctr':d.busValues['Pipe_ALUctr'],
+  'ALUsrc':d.busValues['Pipe_ALUsrc'],
+  'BRwr':d.busValues['Pipe_BRwr'],
+  'ImmSrc':d.busValues['Pipe_ImmSrc'],
+  'MemRead':d.busValues['Pipe_MemRead'],
+  'MemWr':d.busValues['Pipe_MemWr'],
+  'PCsrc':d.busValues['Pipe_PCsrc'],
+  'ResSrc':d.busValues['Pipe_ResSrc'],
+  };
+}
+
+
+Widget _buildPipelineControlTooltip(DatapathState datapathState) {
+  Widget buildStageColumn(String title, String instruction, int? controlWord, List<String> relevantSignals) {
+    final instructionName=instruction.padRight(30);
+    
+;
+    final String controlWordName = '0x' + (controlWord != null?controlWord.toRadixString(16).padLeft(4, '0'):'');
+
+    List<TextSpan> spans = [
+      TextSpan(
+        text: '$title\n',
+        style: const TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold, fontFamily: 'monospace', fontSize: 12),
+      ),
+      TextSpan(
+        text: '$instructionName\n----------------\n',
+        style: const TextStyle(color: Colors.cyan, fontFamily: 'monospace', fontSize: 12),
+      ),
+      TextSpan(
+        text: '$controlWordName\n----------------\n',
+        style: const TextStyle(color: Colors.cyan, fontFamily: 'monospace', fontSize: 12),
+      ),
+    ];
+
+    if (controlWord != null && instruction != 'nop') {
+      final signals = getSignalValuesPipe(datapathState);
+      relevantSignals.forEach((key) {
+        spans.add(TextSpan(
+          text: '${key.padRight(8)}: ${signals[key]}\n',
+          style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12),
+        ));
+      });
+    } else {
+       spans.add(const TextSpan(
+        text: '(bubble)',
+        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic, fontFamily: 'monospace', fontSize: 12),
+      ));
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: RichText(text: TextSpan(children: spans)),
+    );
+  }
+
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // IF Stage
+      buildStageColumn('IF',datapathState.pipeIfInstruction ,datapathState.busValues['control_bus'] , []),
+
+      // ID Stage
+      buildStageColumn(
+        'ID',
+        datapathState.pipeIdInstruction,
+        datapathState.busValues['Pipe_ID_EX_Control'],
+        ['ImmSrc'],
+      ),
+
+      // EX Stage
+      buildStageColumn(
+        'EX',
+        datapathState.pipeExInstruction,
+        datapathState.busValues['Pipe_ID_EX_Control_out'],
+        ['ALUsrc', 'ALUctr', 'PCsrc'],
+      ),
+
+      // MEM Stage
+      buildStageColumn(
+        'MEM',
+        datapathState.pipeMemInstruction,
+        datapathState.busValues['Pipe_EX_MEM_Control_out'],
+        ['MemWr',],
+      ),
+
+      // WB Stage
+      buildStageColumn(
+        'WB',
+        datapathState.pipeWbInstruction,
+        datapathState.busValues['Pipe_MEM_WB_Control_out'],
+        ['ResSrc', 'BRwr'],
+      ),
+    ],
+  );
+}
 // --- Tooltip para la Memoria de Instrucciones ---
 
 Widget buildInstructionMemoryTooltip(DatapathState datapathState) {
@@ -98,7 +252,6 @@ Widget buildInstructionMemoryTooltip(DatapathState datapathState) {
     ],
   );
 }
-
 
 // --- Tooltip para la Memoria de Datos ---
 

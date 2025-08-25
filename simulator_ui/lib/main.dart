@@ -23,6 +23,8 @@ import 'platform_init.dart'; // Importación condicional para la configuración 
 const String _registerFileHoverId = '##REGISTER_FILE_HOVER##';
 const String _instructionMemoryHoverId = '##INSTRUCTION_MEMORY_HOVER##';
 const String _dataMemoryHoverId = '##DATA_MEMORY_HOVER##';
+const String _controlHoverId = '##CONTROL_HOVER##';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -163,12 +165,17 @@ class MyApp extends StatelessWidget {
                   ),
                   const SizedBox(width: 20), // Espacio antes de la Unidad de Control
                   // Widget de la Unidad de Control
-                  SizedBox( // Mantenemos el SizedBox para fijar el tamaño de la ControlUnit
-                    width: 1070,
-                    height: 90,
-                    child: ControlUnitWidget(
-                      key: datapathState.controlUnitKey,
-                      isActive: datapathState.isControlActive,
+                  MouseRegion(
+                    onEnter: (_) => datapathState.setHoverInfo(_controlHoverId),
+                    onExit: (_) => datapathState.setHoverInfo(''),
+                    child: SizedBox(
+                      // Mantenemos el SizedBox para fijar el tamaño de la ControlUnit
+                      width: 1070,
+                      height: 90,
+                      child: ControlUnitWidget(
+                        key: datapathState.controlUnitKey,
+                        isActive: datapathState.isControlActive,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10), // Espacio entre la unidad de control y los checkboxes
@@ -839,6 +846,8 @@ class FloatingTooltip extends StatelessWidget {
       content = buildInstructionMemoryTooltip(datapathState);
     } else if (message == _dataMemoryHoverId) {
       content = buildDataMemoryTooltip(datapathState);
+    } else if (message == _controlHoverId) {
+      content = buildControlUnitTooltip(datapathState);
     } else {
       content = Text(
         message,

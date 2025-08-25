@@ -34,6 +34,8 @@ struct InstructionInfo {
     uint32_t value;
     char type;
     uint8_t cycles;  // Número de ciclos para el modo multiciclo
+    uint16_t controlWord;
+
     
 };
 

@@ -18,13 +18,13 @@ struct StateSnapshot {
     uint32_t pc;
     RegisterFile register_file; // Copia completa del banco de registros
     DatapathState datapath;     // Copia completa del estado del datapath
-    uint64_t current_cycle;
+    uint32_t current_cycle;
     std::string instructionString;
     Memory d_mem;               // Copia de la memoria de datos
 
     // Constructor explícito para inicializar todos los miembros.
     // Necesario porque Memory no tiene un constructor por defecto.
-    StateSnapshot(uint32_t p, const RegisterFile& rf, const DatapathState& dp, uint64_t cc, const std::string& is, const Memory& dm)
+    StateSnapshot(uint32_t p, const RegisterFile& rf, const DatapathState& dp, uint32_t cc, const std::string& is, const Memory& dm)
         : pc(p), register_file(rf), datapath(dp), current_cycle(cc), instructionString(is), d_mem(dm) {}
 
     // Constructor por defecto para que std::vector pueda manejarlo.

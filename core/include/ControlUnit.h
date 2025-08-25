@@ -11,7 +11,6 @@ public:
     void set_delay(uint32_t new_delay) { delay = new_delay; }
     uint32_t get_delay() const { return delay; }
     std::vector<InstructionInfo> get_control_table();
-    void load_control_table(const std::string& json_path);
     const InstructionInfo* decode(uint32_t instruction);
     uint32_t decode(uint32_t instruction, uint8_t status_register);
     uint32_t decode(uint32_t instruction, bool Z);

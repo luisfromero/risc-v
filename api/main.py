@@ -319,6 +319,31 @@ app.add_middleware(
     allow_headers=["*"],  # Permite todas las cabeceras
 )
 
+# --- Funciones de ayuda para la API ---
+
+# Importar la definición del layout de la palabra de control
+try:
+    from src.control_table_data import CONTROL_WORD_LAYOUT
+except ImportError:
+    print("ERROR: No se pudo encontrar 'control_table_data.py'.", file=sys.stderr)
+    print("Asegúrate de haber ejecutado el script 'generate_control_table.py' primero.", file=sys.stderr)
+    # Crear un layout por defecto para que la API no falle al arrancar
+    CONTROL_WORD_LAYOUT = {
+        "fields": {
+            "ALUctr": {"position": 13, "width": 3}, "ResSrc": {"position": 11, "width": 2},
+            "ImmSrc": {"position": 8, "width": 3}, "PCsrc": {"position": 6, "width": 2},
+            "ALUsrc": {"position": 4, "width": 1}, "BRwr": {"position": 3, "width": 1},
+            "MemWr": {"position": 2, "width": 1}
+        }
+    }
+
+def _get_signal_value(control_word: int, signal_name: str) -> int:
+    """Extrae el valor de una señal de control de la palabra de control."""
+    field_info = CONTROL_WORD_LAYOUT["fields"][signal_name]
+    pos = field_info["position"]
+    width = field_info["width"]
+    mask = (1 << width) - 1
+    return (control_word >> pos) & mask
 
 # --- Modelos de Pydantic para la respuesta de la API ---
 # Usar modelos de Pydantic mejora la validación, documentación (Swagger/OpenAPI) y claridad del código.
@@ -395,14 +420,25 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
     control_signal = datapath_c_struct.Control
     control_value = control_signal.value
 
+    # control_signals_model = ControlSignalsModel(
+    #     ALUctr=(control_value >> 13) & 0x7,
+    #     ResSrc=(control_value >> 11) & 0x3,
+    #     ImmSrc=(control_value >> 8) & 0x7,
+    #     PCsrc=(control_value >> 6) & 0x3,
+    #     ALUsrc=int((control_value >> 4) & 0x1), # dejo un bit posible ampliacion
+    #     BRwr=bool((control_value >> 3) & 0x1),        
+    #     MemWr=bool((control_value >> 2) & 0x1),
+    #     ready_at=control_signal.ready_at,
+    #     is_active=control_signal.is_active
+    # )
     control_signals_model = ControlSignalsModel(
-        ALUctr=(control_value >> 13) & 0x7,
-        ResSrc=(control_value >> 11) & 0x3,
-        ImmSrc=(control_value >> 8) & 0x7,
-        PCsrc=(control_value >> 6) & 0x3,
-        ALUsrc=int((control_value >> 4) & 0x1), # dejo un bit posible ampliacion
-        BRwr=bool((control_value >> 3) & 0x1),        
-        MemWr=bool((control_value >> 2) & 0x1),
+        ALUctr=_get_signal_value(control_value, "ALUctr"),
+        ResSrc=_get_signal_value(control_value, "ResSrc"),
+        ImmSrc=_get_signal_value(control_value, "ImmSrc"),
+        PCsrc=_get_signal_value(control_value, "PCsrc"),
+        ALUsrc=_get_signal_value(control_value, "ALUsrc"),
+        BRwr=bool(_get_signal_value(control_value, "BRwr")),
+        MemWr=bool(_get_signal_value(control_value, "MemWr")),
         ready_at=control_signal.ready_at,
         is_active=control_signal.is_active
     )
@@ -567,5 +603,3 @@ def get_instruction_memory():
     with simulator_lock:
         sim = simulator_instance["sim"]
         return sim.get_i_mem()
-
-

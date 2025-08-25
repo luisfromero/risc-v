@@ -737,7 +737,7 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
 
 
       
-      Bus(startPointLabel: 'CU-4', endPointLabel: 'DEControl-0', isActive: (s) => s.isPathActive("Pipe_IF_ID_NPC_out"),valueKey: 'Pipe_IF_ID_Control_out',waypoints: List.of([const Offset(660,95)]),isControl: true,size:3),
+      Bus(startPointLabel: 'CU-4', endPointLabel: 'DEControl-0', isActive: (s) => s.isPathActive("Pipe_IF_ID_NPC_out"),valueKey: 'Pipe_ID_EX_Control',waypoints: List.of([const Offset(660,95)]),isControl: true,size:3),
       Bus(startPointLabel: 'DEControl-1', endPointLabel: 'EMControl-0', isActive: (s) => s.isPathActive("Pipe_ID_EX_NPC_out"),valueKey: 'Pipe_ID_EX_Control_out',isControl: true,size:3),
       Bus(startPointLabel: 'EMControl-1', endPointLabel: 'MWControl-0', isActive: (s) => s.isPathActive("Pipe_EX_MEM_NPC_out"),valueKey: 'Pipe_EX_MEM_Control_out',isControl: true,size:3),
 

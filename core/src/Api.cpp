@@ -244,7 +244,7 @@ extern "C" {
             
             // Copiamos la cadena de instrucción, asegurando la terminación nula
             // y evitando desbordamientos de buffer.
-            strncpy(buffer_out[i].instruction, pair.second.c_str(), sizeof(InstructionEntry::instruction) - 1);
+            strncpy_s(buffer_out[i].instruction, pair.second.c_str(), sizeof(InstructionEntry::instruction) - 1);
             buffer_out[i].instruction[sizeof(InstructionEntry::instruction) - 1] = '\0';
         }
 

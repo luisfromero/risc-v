@@ -2,6 +2,7 @@
 /// debe cumplir. La UI solo interactuará con esta clase abstracta.
 //import 'dart:nativewrappers/_internal/vm/lib/ffi_native_type_patch.dart';
 
+import '../generated/control_table.g.dart';
 //import 'package:flutter/services.dart';
 
 import '../simulation_mode.dart';
@@ -89,43 +90,10 @@ class SimulationState {
       datapathJson = json;
     }
 
-    datapathJson['control_ALUctr'] = datapathJson['Control']['value'] >> 13 & 7;
-    datapathJson['control_ResSrc'] = datapathJson['Control']['value'] >> 11 & 3;
-    datapathJson['control_ImmSrc'] = datapathJson['Control']['value'] >> 8 & 7;
-    datapathJson['control_PCsrc'] = datapathJson['Control']['value'] >> 6 & 3;
-    datapathJson['control_BRwr'] = datapathJson['Control']['value'] >> 4 & 1;
-    datapathJson['control_ALUsrc'] = datapathJson['Control']['value'] >> 3 & 1;
-    datapathJson['control_MemWr'] = datapathJson['Control']['value'] >> 2 & 1;
+    // --- Helpers ---
+    // Es crucial definir los helpers ANTES de usarlos.
 
-    datapathJson['Pipe_ALUctr'] = datapathJson['ALUctr']['value'] >> 13 & 7;
-    datapathJson['Pipe_ResSrc'] = datapathJson['ResSrc']['value'] >> 11 & 3;
-    datapathJson['Pipe_ImmSrc'] = datapathJson['ImmSrc']['value'] >> 8 & 7;
-    datapathJson['Pipe_PCsrc'] = datapathJson['PCsrc']['value'] >> 6 & 3;
-    datapathJson['Pipe_BRwr'] = datapathJson['BRwr']['value'] >> 4 & 1;
-    datapathJson['Pipe_ALUsrc'] = datapathJson['ALUsrc']['value'] >> 3 & 1;
-    datapathJson['Pipe_MemWr'] = datapathJson['MemWr']['value'] >> 2 & 1;
-
-
-
-    // Helper para extraer de forma segura el 'ready_at' de una señal del JSON.
-    int getReadyAt(String key) {
-      final signal = datapathJson[key];
-      if (signal is Map<String, dynamic>) {
-        return signal['ready_at'] as int? ?? 0;
-      }
-      return 0;
-    }
-
-    // Helper para extraer de forma segura el 'is_active' de una señal del JSON.
-    bool getIsActive(String key) {
-      final signal = datapathJson[key];
-      if (signal is Map<String, dynamic>) {
-        return signal['is_active'] as bool? ?? false;
-      }
-      return false;
-    }
-
-    // Helper para extraer de forma segura el 'value' de una señal del JSON.
+    // Extrae de forma segura el 'value' de una señal del JSON.
     int getValue(String key) {
       final signal = datapathJson[key];
       if (signal is Map<String, dynamic>) {
@@ -137,6 +105,67 @@ class SimulationState {
       }
       return 0;
     }
+
+    // Extrae de forma segura el 'ready_at' de una señal del JSON.
+    int getReadyAt(String key) {
+      final signal = datapathJson[key];
+      if (signal is Map<String, dynamic>) {
+        return signal['ready_at'] as int? ?? 0;
+      }
+      return 0;
+    }
+
+    // Extrae de forma segura el 'is_active' de una señal del JSON.
+    bool getIsActive(String key) {
+      final signal = datapathJson[key];
+      if (signal is Map<String, dynamic>) {
+        return signal['is_active'] as bool? ?? false;
+      }
+      return false;
+    }
+
+    // Decodifica una señal específica a partir de una palabra de control completa.
+    int decodeSignal(String signalName, int controlWord) {
+      final field = controlWordLayout[signalName];
+      if (field == null) return 0;
+      final position = field.position;
+      final width = field.width;
+      final mask = (1 << width) - 1;
+      return (controlWord >> position) & mask;
+    }
+
+    // --- Decodificación de la palabra de control principal (Etapa ID) ---
+    // Se decodifican las señales de control para la etapa ID y se añaden al mapa
+    // para que la UI pueda mostrarlas.
+    final int controlWordID = getValue('Control');
+    final int control=controlWordID;
+
+    controlWordLayout.forEach((name, field) {
+      datapathJson['control_$name'] = decodeSignal(name, controlWordID);
+    });
+
+    // --- Decodificación de las palabras de control del Pipeline ---
+    // Se decodifican las señales de control que viajan por el pipeline desde
+    // la palabra de control del registro de pipeline correspondiente.
+    final int controlWordEX = getValue('Pipe_ID_EX_Control_out');
+    final int controlWordWB = getValue('Pipe_MEM_WB_Control_out');
+
+    datapathJson['Pipe_PCsrc']   = decodeSignal('PCsrc', controlWordEX);
+    datapathJson['Pipe_BRwr']    = decodeSignal('BRwr', controlWordWB);
+    datapathJson['Pipe_ALUsrc']  = decodeSignal('ALUsrc', controlWordEX);
+    datapathJson['Pipe_ImmSrc']  = decodeSignal('ImmSrc', controlWordID);
+    datapathJson['Pipe_ALUctr']  = decodeSignal('ALUctr', controlWordEX);
+    datapathJson['Pipe_MemWr']   = decodeSignal('MemWr', getValue('Pipe_EX_MEM_Control_out'));
+    datapathJson['Pipe_ResSrc']  = decodeSignal('ResSrc', getValue('Pipe_MEM_WB_Control_out'));
+
+    datapathJson['control_PCsrc']   = decodeSignal('PCsrc', control);
+    datapathJson['control_BRwr']    = decodeSignal('BRwr', control);
+    datapathJson['control_ALUsrc']  = decodeSignal('ALUsrc', control);
+    datapathJson['control_ImmSrc']  = decodeSignal('ImmSrc', control);
+    datapathJson['control_ALUctr']  = decodeSignal('ALUctr', control);
+    datapathJson['control_MemWr']   = decodeSignal('MemWr', control);
+    datapathJson['control_ResSrc']  = decodeSignal('ResSrc', control);
+
 
     // Mapea los nombres de las señales del backend a los nombres de los buses del frontend.
     final Map<String, int> readyAtMap = {
@@ -331,6 +360,15 @@ class SimulationState {
       'control_ALUctr':datapathJson['control_ALUctr'] as int? ?? 0,
       'control_ImmSrc':datapathJson['control_ImmSrc'] as int? ?? 0,
 
+
+      'control_bus':getValue('Control'),
+      'control_IF':getValue('Control'),
+      'control_ID':getValue('Pipe_ID_EX_Control'),
+      'control_EX':getValue('Pipe_EX_MEM_Control'),
+      'control_MEM':getValue('Pipe_MEM_WB_Control'),
+      'control_WB':getValue('Pipe_MEM_WB_Control'),
+
+    
 
       'Pipe_ImmSrc': datapathJson['Pipe_ImmSrc'] as int? ?? 0,
       'Pipe_ResSrc': datapathJson['Pipe_ResSrc'] as int? ?? 0,
