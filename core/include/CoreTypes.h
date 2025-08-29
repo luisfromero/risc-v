@@ -128,7 +128,7 @@ struct DatapathState {
     Signal<uint32_t> bus_PC_dest;        // Dirección destino de salto (PC + desplazamiento)
     Signal<uint32_t> bus_PC_next;        // Valor final de PC
 
-    Signal<bool>     bus_branch_taken;   // ¿Se tomó un salto condicional?
+    Signal<bool>     bus_branch_taken;   // Se ha tomado una dirección diferente a PC+4 (rg+imm o PC+imm)
     uint32_t criticalTime;
     uint32_t total_micro_cycles;
     //std::string instruction;

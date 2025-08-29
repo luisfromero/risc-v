@@ -10,79 +10,94 @@ import 'dart:typed_data';
 class ApiSimulationService implements SimulationService {
   
   final String _baseUrl = 'http://localhost:8000'; // URL de tu API
+  String? _sessionId; // <-- NUEVO: Para guardar el ID de sesión.
   SimulationMode _currentMode = SimulationMode.singleCycle;
   // Para mantener el estado actual, incluyendo las memorias que se cargan bajo demanda.
   SimulationState? _currentState;
 
   @override
   Future<void> initialize() async {
-    // Para una API, la inicialización podría ser comprobar si el servidor está vivo.
-    // Por ahora, no necesitamos hacer nada.
-    return Future.value();
+    // Ahora la inicialización se encarga de obtener un ID de sesión.
+    final response = await http.post(Uri.parse('$_baseUrl/session/start'));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      _sessionId = data['session_id'];
+      // ignore: avoid_print
+      print('Nueva sesión de API iniciada: $_sessionId');
+    } else {
+      throw Exception('Failed to start a new session: ${response.statusCode}');
+    }
+  }
+
+  // Helper para asegurarse de que la sesión está inicializada.
+  void _checkSession() {
+    if (_sessionId == null) {
+      throw Exception('El servicio de simulación no ha sido inicializado. Llama a initialize() primero.');
+    }
   }
 
   @override
   Future<SimulationState> step() async {
-        if (_currentState == null) {
+    if (_currentState == null) {
       throw Exception(
           "El estado del simulador no está inicializado. Llama a reset() primero.");
     }
-    // 
-    // Para el modo multiciclo, es probable que el backend necesite saber el modo
-    // en cada paso para devolver el número total de microciclos.
-    const modelMap = {
-      SimulationMode.singleCycle: 'SingleCycle',
-      SimulationMode.pipeline: 'PipeLined',
-      SimulationMode.multiCycle: 'MultiCycle',
-    };
-    final modelName = modelMap[_currentMode] ?? 'SingleCycle';
+    _checkSession();
 
-    final response = await http.post(Uri.parse('$_baseUrl/step'),
-        headers: {'Content-Type': 'application/json'}, body: jsonEncode({'model': modelName}));
-    if (response.statusCode == 200) {
-      final newState = SimulationState.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
+    // Guardamos el estado anterior antes de cualquier llamada asíncrona.
+    final stateBeforeStep = _currentState!;
 
-      bool needMemoryUpdate=false;
-      if(_currentMode==SimulationMode.pipeline)
-        needMemoryUpdate = newState.busValues["Pipe_MemWr"]==1;
-      else
-        needMemoryUpdate = newState.busValues["control_MemWr"]==1;
-      
+    final uri = Uri.parse('$_baseUrl/step').replace(queryParameters: {
+      'session_id': _sessionId!,
+    });
 
-      if(needMemoryUpdate){
-        var estado=await getDataMemory();
-      _currentState = newState.copyWith(
-        instructionMemory: _currentState?.instructionMemory,
-        dataMemory: estado.dataMemory
-        );
-      }
-      else{
-      // Conservamos las memorias ya cargadas y actualizamos el estado.
-      _currentState = newState.copyWith(
-        instructionMemory: _currentState?.instructionMemory,
-        dataMemory: _currentState?.dataMemory,
-        );
-      }
-
-
-      return _currentState!;
-    } else {
+    final response = await http.post(uri);
+    if (response.statusCode != 200) {
       // ignore: avoid_print
       print('Error en la API /step: ${response.statusCode}\n${response.body}');
       throw Exception('Failed to call step API: ${response.statusCode}');
     }
+
+    // Este es el nuevo estado con registros, PC, etc. actualizados, pero memorias vacías/antiguas.
+    final newStateFromStep =
+        SimulationState.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
+
+    // Comprobamos si la instrucción ejecutada requiere actualizar la memoria de datos.
+    bool needMemoryUpdate = false;
+    if (_currentMode == SimulationMode.pipeline) {
+      needMemoryUpdate = newStateFromStep.busValues["Pipe_MemWr"] == 1;
+    } else {
+      needMemoryUpdate = newStateFromStep.busValues["control_MemWr"] == 1;
+    }
+
+    // Si es necesario, obtenemos la nueva memoria de datos.
+    final dataMemory = needMemoryUpdate
+        ? (await getDataMemory()).dataMemory
+        : stateBeforeStep.dataMemory;
+
+    // Combinamos el nuevo estado de los registros con las memorias correctas.
+    _currentState = newStateFromStep.copyWith(
+      instructionMemory: stateBeforeStep.instructionMemory,
+      dataMemory: dataMemory,
+    );
+
+    return _currentState!;
   }
 
  // api_simulation_service.dart
 
 @override
 Future<SimulationState> getDataMemory() async {
+  _checkSession();
   if (_currentState == null) {
     throw Exception(
         "El estado del simulador no está inicializado. Llama a reset() primero.");
   }
 
-  final response = await http.get(Uri.parse('$_baseUrl/memory/data'));
+  final uri = Uri.parse('$_baseUrl/memory/data').replace(queryParameters: {
+    'session_id': _sessionId!,
+  });
+  final response = await http.get(uri);
       
   if (response.statusCode == 200) {
     // CORRECTO: Tomamos los bytes directamente de la respuesta.
@@ -91,6 +106,7 @@ Future<SimulationState> getDataMemory() async {
     _currentState = _currentState!.copyWith(dataMemory: dataMemory);
     return _currentState!;
   } else {
+    // ignore: avoid_print
     print(
         'Error en la API /memory/data: ${response.statusCode}\n${response.body}');
     throw Exception('Failed to call getDataMemory API: ${response.statusCode}');
@@ -100,12 +116,16 @@ Future<SimulationState> getDataMemory() async {
   @override
   Future<SimulationState> getInstructionMemory() async
   {
+    _checkSession();
     if (_currentState == null) {
       throw Exception(
           "El estado del simulador no está inicializado. Llama a reset() primero.");
     }
-    final response = await http.get(Uri.parse('$_baseUrl/memory/instructions'),
-        headers: {'Content-Type': 'application/json'});
+    final uri = Uri.parse('$_baseUrl/memory/instructions').replace(queryParameters: {
+      'session_id': _sessionId!,
+    });
+
+    final response = await http.get(uri);
     if (response.statusCode == 200) {
       final instructionMemoryList =
           jsonDecode(utf8.decode(response.bodyBytes)) as List;
@@ -128,8 +148,12 @@ Future<SimulationState> getDataMemory() async {
 
   @override
   Future<SimulationState> stepBack() async {
-    final response = await http.post(Uri.parse('$_baseUrl/step_back'),
-        headers: {'Content-Type': 'application/json'});
+    _checkSession();
+    final uri = Uri.parse('$_baseUrl/step_back').replace(queryParameters: {
+      'session_id': _sessionId!,
+    });
+
+    final response = await http.post(uri);
     if (response.statusCode == 200) {
       final newState =
           SimulationState.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
@@ -148,6 +172,7 @@ Future<SimulationState> getDataMemory() async {
 
   @override
   Future<SimulationState> reset({required SimulationMode mode}) async {
+    _checkSession();
     _currentMode = mode; // Guardamos el modo actual para usarlo en step()
     // Mapea el enum de Dart al string que espera la API de Python.
     const modelMap = {
@@ -158,45 +183,36 @@ Future<SimulationState> getDataMemory() async {
     };
     final modelName = modelMap[mode] ?? 'SingleCycle';
 
+    final uri = Uri.parse('$_baseUrl/reset').replace(queryParameters: {
+      'session_id': _sessionId!,
+    });
+
     final response = await http.post(
-      Uri.parse('$_baseUrl/reset'),
+      uri,
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'model': modelName}),
+      body: jsonEncode({'model': modelName, 'load_test_program': true}),
     );
+
     if (response.statusCode == 200) {
-      // 1. Obtenemos el estado inicial del simulador.
+      // 1. Obtenemos el estado inicial del simulador (registros, PC, etc.).
       final initialState = SimulationState.fromJson(
           jsonDecode(utf8.decode(response.bodyBytes)));
 
-      // 2. Ahora, consultamos la memoria de instrucciones.
-      final memResponse =
-          await http.get(Uri.parse('$_baseUrl/memory/instructions'));
-      if (memResponse.statusCode == 200) {
-        final instructionMemoryList =
-            jsonDecode(utf8.decode(memResponse.bodyBytes)) as List;
-        final instructionMemory = instructionMemoryList
-            .map((item) =>
-                InstructionMemoryItem.fromJson(item as Map<String, dynamic>))
-            .toList();
+      // 2. Establecemos un estado base para que las llamadas de memoria funcionen.
+      _currentState = initialState;
 
-      final dmemResponse =
-          await http.get(Uri.parse('$_baseUrl/memory/data'));
-      if (dmemResponse.statusCode == 200) {
-        final Uint8List dataMemory = dmemResponse.bodyBytes;
-        
-            // 3. Combinamos y guardamos el estado actual.
-        _currentState =
-            initialState.copyWith(instructionMemory: instructionMemory,dataMemory: dataMemory);
-        return _currentState!;
-      }
-      else { // <-- ESTE ES EL BLOQUE QUE FALTABA
-        throw Exception(
-            'Failed to call /memory/data API: ${dmemResponse.statusCode}');
-      }
-      } else {
-        throw Exception(
-            'Failed to call /memory/instructions API: ${memResponse.statusCode}');
-      }
+      // 3. Consultamos las memorias en paralelo para mayor eficiencia.
+      final results = await Future.wait([
+        getInstructionMemory(),
+        getDataMemory(),
+      ]);
+
+      // 4. Combinamos el estado inicial con las memorias obtenidas.
+      _currentState = initialState.copyWith(
+        instructionMemory: results[0].instructionMemory,
+        dataMemory: results[1].dataMemory,
+      );
+      return _currentState!;
     } else {
       // ignore: avoid_print
       print('Error en la API /reset: ${response.statusCode}\n${response.body}');

@@ -54,6 +54,7 @@ static const InstructionInfo control_table_data[] = {
     {"sll", 0, true, 1, static_cast<uint8_t>(6), false, static_cast<uint8_t>(1), static_cast<uint8_t>(-1), 0xFE00007F, 0x1033, 'R', 4, 0xCF18},
     {"ori", 0, true, 0, static_cast<uint8_t>(3), false, static_cast<uint8_t>(1), static_cast<uint8_t>(0), 0x707F, 0x6013, 'I', 4, 0x6808},
     {"lui", 0, true, 0, static_cast<uint8_t>(0), false, static_cast<uint8_t>(1), static_cast<uint8_t>(4), 0x7F, 0x37, 'U', 4, 0x0C08},
+    {"jalr", 2, true, 0, static_cast<uint8_t>(0), false, static_cast<uint8_t>(2), static_cast<uint8_t>(0), 0x707F, 0x67, 'I', 4, 0x1088},
 };
 
 } // namespace riscv_sim

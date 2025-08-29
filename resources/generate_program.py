@@ -1,0 +1,171 @@
+import pathlib
+
+# ==============================================================================
+#  ÚNICA FUENTE DE VERDAD PARA LOS PROGRAMAS POR DEFECTO
+# ==============================================================================
+#
+# Modifica los bytearrays en este archivo para cambiar los programas por defecto
+# que se cargan en la API y en la UI.
+#
+# Para regenerar los archivos de Python y Dart, ejecuta desde la raíz del proyecto:
+# python resources/generate_program.py
+#
+# ------------------------------------------------------------------------------
+
+# --- PROGRAMA A (para la API de Python) ---
+# Copiado del 'main.py' original.
+# El propósito original parece ser calcular la suma de los números del 1 al 9.
+PROGRAM_A = bytes([
+    0x23, 0x20, 0x05, 0x00,
+    0x93, 0x02, 0x00, 0x00,
+    0x13, 0x03, 0x90, 0x00,
+    0x23, 0xa0, 0x52, 0x00,
+    0x23, 0x20, 0x63, 0x00,
+    0x93, 0x03, 0x00, 0x00,
+    0xb3, 0x82, 0x62, 0x00,
+    0x13, 0x03, 0xf3, 0xff,
+    0xe3, 0x1c, 0x73, 0xfe,
+    0x6f, 0x00, 0x00, 0x00,
+])
+
+# --- PROGRAMA B (para la UI de Flutter) ---
+# Programa de ejemplo.
+# Simplemente suma dos números: 5 + 7 = 12.
+#
+# Ensamblador:
+#   addi x1, x0, 5
+#   addi x2, x0, 7
+#   add  x3, x1, x2
+PROGRAM_B = bytes([
+    0x93, 0x00, 0x50, 0x00,  # addi x1, x0, 5
+    0x13, 0x01, 0x70, 0x00,  # addi x2, x0, 7
+    0xb3, 0x81, 0x20, 0x00,  # add  x3, x1, x2
+])
+
+
+PROGRAM_C = bytes([
+    0x93, 0x00, 0xA0, 0x00, # 0x00A00093
+    0x13, 0x01, 0x40, 0x01, # 0x01400113
+    0x23, 0x20, 0x11, 0x00, # 0x00112023
+    0x83, 0x21, 0x01, 0x00, # 0x00012183
+    0x37, 0x11, 0x40, 0x00, # 
+    0x33, 0x02, 0x30, 0x00, # 0x00308233
+    0xb3, 0x82, 0x30, 0x00, # 0x003082b3
+    0x63, 0x06, 0x10, 0x00, # 0x00100663
+    0x13, 0x03, 0x40, 0x06, # 0x06400313
+    0x63, 0x04, 0x52, 0x00, # 0x00520463
+    0x93, 0x03, 0x80, 0x0C, # 0x0C800393
+    0x13, 0x04, 0xC0, 0x12, # 0x12C00413
+    0x6F, 0xF0, 0x5F, 0xFD, # 0xFD5FF06F
+])
+
+# --- PROGRAMA D (Programa de prueba completo de 64 instrucciones) ---
+# Este programa de 64 instrucciones (256 bytes) realiza lo siguiente:
+# 1. Inicializa un array de 10 elementos en memoria (direcciones 0x80 a 0xA4)
+#    con los valores 10, 20, 30, ..., 100.
+# 2. Llama a una subrutina (sum_array) para calcular la suma de los elementos
+#    del array.
+# 3. Almacena el resultado de la suma (550) en la dirección de memoria 0x10.
+# 4. Comprueba si la suma es mayor que 500 y guarda 1 (true) o 0 (false) en 0x14.
+# 5. Realiza algunas operaciones a nivel de bits para probar las instrucciones
+#    XOR, AND y OR.
+# 6. Entra en un bucle infinito para finalizar la ejecución.
+
+PROGRAM_D = bytes([
+    0x93, 0x04, 0xa0, 0x00, # addi x9 x0 10
+    0x13, 0x09, 0xa0, 0x00, # addi x18 x0 10
+    0x93, 0x09, 0x04, 0x08, # addi x19 x8 128
+    0x63, 0x8c, 0x04, 0x00, # beq x9 x0 24
+    0x23, 0xa0, 0x29, 0x01, # sw x18 0(x19)
+    0x13, 0x09, 0xa9, 0x00, # addi x18 x18 10
+    0x93, 0x89, 0x49, 0x00, # addi x19 x19 4
+    0x93, 0x84, 0xf4, 0xff, # addi x9 x9 -1
+    0x6f, 0xf0, 0xdf, 0xfe, # jal x0 -20
+    0x13, 0x05, 0x04, 0x08, # addi x10 x8 128
+    0x93, 0x05, 0xa0, 0x00, # addi x11 x0 10
+    0xef, 0x00, 0x40, 0x05, # jal x1 84
+    0x93, 0x02, 0x04, 0x01, # addi x5 x8 16
+    0x23, 0xa0, 0xc2, 0x00, # sw x12 0(x5)
+    0x13, 0x03, 0x40, 0x1f, # addi x6 x0 500
+    0xb3, 0x23, 0xc3, 0x00, # slt x7 x6 x12
+    0x93, 0x02, 0x44, 0x01, # addi x5 x8 20
+    0x23, 0xa0, 0x72, 0x00, # sw x7 0(x5)
+    0x13, 0x0e, 0x00, 0x0f, # addi x28 x0 240
+    0x93, 0x0e, 0xf0, 0x00, # addi x29 x0 15
+    0xb3, 0x42, 0xde, 0x01, # xor x5 x28 x29
+    0x33, 0x73, 0xde, 0x01, # and x6 x28 x29
+    0xb3, 0x63, 0xde, 0x01, # or x7 x28 x29
+    0x13, 0x00, 0x00, 0x00, # nop
+    0x13, 0x00, 0x00, 0x00, # nop
+    0x13, 0x00, 0x00, 0x00, # nop
+    0x13, 0x00, 0x00, 0x00, # nop
+    0x6f, 0x00, 0x00, 0x00, # jal x0 0
+    0x13, 0x00, 0x00, 0x00, # nop
+    0x13, 0x00, 0x00, 0x00, # nop
+    0x13, 0x00, 0x00, 0x00, # nop
+    0x13, 0x00, 0x00, 0x00, # nop
+    0xb3, 0x02, 0x05, 0x00, # add x5 x10 x0
+    0x33, 0x83, 0x05, 0x00, # add x6 x11 x0
+    0x13, 0x06, 0x00, 0x00, # addi x12 x0 0
+    0x63, 0x0c, 0x03, 0x00, # beq x6 x0 24
+    0x83, 0xa3, 0x02, 0x00, # lw x7 0(x5)
+    0x33, 0x06, 0x76, 0x00, # add x12 x12 x7
+    0x93, 0x82, 0x42, 0x00, # addi x5 x5 4
+    0x13, 0x03, 0xf3, 0xff, # addi x6 x6 -1
+    0x6f, 0xf0, 0xdf, 0xfe, # jal x0 -20
+    0x67, 0x80, 0x00, 0x00, # jalr x0 x1 0
+])
+
+f=open("../programs/bin/programD.bin", "rb")
+buffer=f.read()
+PROGRAM_D=buffer
+
+# ==============================================================================
+#  LÓGICA DE GENERACIÓN DE ARCHIVOS
+# ==============================================================================
+
+def generate_python_file(output_path: pathlib.Path):
+    """Genera el archivo program_data.py para la API."""
+    output_path.parent.mkdir(exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("# This file is auto-generated by resources/generate_program.py\n")
+        f.write("# Do not edit this file manually.\n\n")
+        f.write(f"DEFAULT_PROGRAM_A = {repr(PROGRAM_A)}\n\n")
+        f.write(f"DEFAULT_PROGRAM_B = {repr(PROGRAM_B)}\n\n")
+        f.write(f"DEFAULT_PROGRAM_C = {repr(PROGRAM_C)}\n\n")
+        f.write(f"DEFAULT_PROGRAM_D = {repr(PROGRAM_D)}\n")
+    print(f"Generated Python program data at: {output_path}")
+
+def generate_dart_file(output_path: pathlib.Path):
+    """Genera el archivo program_data.dart para la UI."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    def write_byte_list(f, name, program_bytes):
+        f.write(f"final List<int> {name} = <int>[\n  ")
+        for i, byte in enumerate(program_bytes):
+            f.write(f"0x{byte:02x}, ")
+            if (i + 1) % 8 == 0 and i < len(program_bytes) - 1:
+                f.write("\n  ")
+        f.write("\n];\n")
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("// This file is auto-generated by resources/generate_program.py\n")
+        f.write("// Do not edit this file manually.\n\n")
+        write_byte_list(f, "defaultProgramA", PROGRAM_A)
+        f.write("\n")
+        write_byte_list(f, "defaultProgramB", PROGRAM_B)
+        f.write("\n")
+        write_byte_list(f, "defaultProgramC", PROGRAM_C)
+        f.write("\n")
+        write_byte_list(f, "defaultProgramD", PROGRAM_D)
+
+    print(f"Generated Dart program data at: {output_path}")
+
+if __name__ == "__main__":
+    api_dir = pathlib.Path(__file__).parent.parent / "api"
+    python_output_path = api_dir / "src" / "program_data.py"
+    generate_python_file(python_output_path)
+
+    ui_dir = pathlib.Path(__file__).parent.parent / "simulator_ui"
+    dart_output_path = ui_dir / "lib" / "generated" / "program_data.g.dart"
+    generate_dart_file(dart_output_path)

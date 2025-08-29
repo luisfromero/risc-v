@@ -351,6 +351,7 @@ class SimulationState {
       'funct3': getValue('funct3'),
       'funct7': getValue('funct7'),
       'flagZ': getValue('ALU_zero'),
+      'branch_taken': getValue('branch_taken'),
 
       'control_PCsrc':datapathJson['control_PCsrc'] as int? ?? 0,
       'control_BRwr':datapathJson['control_BRwr'] as int? ?? 0,

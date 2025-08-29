@@ -57,4 +57,5 @@ CONTROL_TABLE = [
     {'instr': 'sll', 'PCsrc': 0, 'BRwr': True, 'ALUsrc': 1, 'ALUctr': 6, 'MemWr': False, 'ResSrc': 1, 'ImmSrc': -1, 'mask': 4261412991, 'value': 4147, 'type': 'R', 'cycles': 4, 'control_word': 53016},
     {'instr': 'ori', 'PCsrc': 0, 'BRwr': True, 'ALUsrc': 0, 'ALUctr': 3, 'MemWr': False, 'ResSrc': 1, 'ImmSrc': 0, 'mask': 28799, 'value': 24595, 'type': 'I', 'cycles': 4, 'control_word': 26632},
     {'instr': 'lui', 'PCsrc': 0, 'BRwr': True, 'ALUsrc': 0, 'ALUctr': 0, 'MemWr': False, 'ResSrc': 1, 'ImmSrc': 4, 'mask': 127, 'value': 55, 'type': 'U', 'cycles': 4, 'control_word': 3080},
+    {'instr': 'jalr', 'PCsrc': 2, 'BRwr': True, 'ALUsrc': 0, 'ALUctr': 0, 'MemWr': False, 'ResSrc': 2, 'ImmSrc': 0, 'mask': 28799, 'value': 103, 'type': 'I', 'cycles': 4, 'control_word': 4232},
 ]

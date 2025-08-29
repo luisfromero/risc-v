@@ -3,9 +3,10 @@ import pathlib
 import json
 import sys
 import threading
-from fastapi import FastAPI, Body,Response
+import uuid
+from fastapi import FastAPI, Body, Response, HTTPException, Query
 from pydantic import BaseModel, Field
-from typing import Literal, Union, List
+from typing import Literal, Union, List, Dict
 
 # --- Paso 1: Encontrar y cargar la biblioteca compartida C++ ---
 
@@ -305,7 +306,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # --- Lock para proteger el acceso concurrente al simulador ---
 # FastAPI maneja las peticiones en hilos separados. Como solo tenemos una
 # instancia del simulador, debemos protegerla para evitar condiciones de carrera.
-simulator_lock = threading.Lock()
+simulators_lock = threading.Lock()
 
 # --- Configuración de CORS ---
 # Esto es CRUCIAL para que las aplicaciones web (como Flutter Web)
@@ -319,14 +320,13 @@ app.add_middleware(
     allow_headers=["*"],  # Permite todas las cabeceras
 )
 
-# --- Funciones de ayuda para la API ---
-
 # Importar la definición del layout de la palabra de control
 try:
     from src.control_table_data import CONTROL_WORD_LAYOUT
+    from src.program_data import DEFAULT_PROGRAM_A, DEFAULT_PROGRAM_B, DEFAULT_PROGRAM_C, DEFAULT_PROGRAM_D
 except ImportError:
-    print("ERROR: No se pudo encontrar 'control_table_data.py'.", file=sys.stderr)
-    print("Asegúrate de haber ejecutado el script 'generate_control_table.py' primero.", file=sys.stderr)
+    print("ERROR: No se pudo encontrar 'control_table_data.py' o 'program_data.py'.", file=sys.stderr)
+    print("Asegúrate de haber ejecutado los scripts de generación en 'resources/' primero.", file=sys.stderr)
     # Crear un layout por defecto para que la API no falle al arrancar
     CONTROL_WORD_LAYOUT = {
         "fields": {
@@ -336,6 +336,14 @@ except ImportError:
             "MemWr": {"position": 2, "width": 1}
         }
     }
+    # Programa vacío para evitar fallos
+    DEFAULT_PROGRAM_A = b''
+    DEFAULT_PROGRAM_B = b''
+    DEFAULT_PROGRAM_C = b''
+    DEFAULT_PROGRAM_D = b''
+
+# --- Funciones de ayuda para la API ---
+
 
 def _get_signal_value(control_word: int, signal_name: str) -> int:
     """Extrae el valor de una señal de control de la palabra de control."""
@@ -486,96 +494,103 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
         datapath=datapath_model
     )
 
+# --- Gestión de Sesiones y Estado ---
+
+# Usaremos un diccionario para almacenar una instancia de simulador por sesión.
+simulators: Dict[str, Dict[str, Union[Simulator, str]]] = {}
+
+class SessionResponse(BaseModel):
+    session_id: str
+
+@app.post("/session/start", response_model=SessionResponse, summary="Inicia una nueva sesión de simulación")
+def start_session():
+    """Crea una nueva instancia del simulador y devuelve un ID de sesión único."""
+    with simulators_lock:
+        session_id = str(uuid.uuid4())
+        simulators[session_id] = {
+            "sim": Simulator(model=3),
+            "model_name": "General"
+        }
+        print(f"Nueva sesión iniciada: {session_id}")
+        return SessionResponse(session_id=session_id)
+
+def get_simulator_for_session(session_id: str) -> Dict[str, Union[Simulator, str]]:
+    """Obtiene el simulador para un ID de sesión, o lanza una excepción si no se encuentra."""
+    sim_instance = simulators.get(session_id)
+    if not sim_instance:
+        raise HTTPException(status_code=404, detail="Session ID not found. Please start a new session.")
+    return sim_instance
+
+
 @app.get("/state", response_model=SimulatorStateModel, summary="Obtener el estado actual del simulador")
-def get_state_endpoint() -> SimulatorStateModel:
-    with simulator_lock:
-        sim = simulator_instance["sim"]
-        model_name = simulator_instance["model_name"]
+def get_state_endpoint(session_id: str = Query(..., description="ID de la sesión")) -> SimulatorStateModel:
+    with simulators_lock:
+        sim_instance = get_simulator_for_session(session_id)
+        sim = sim_instance["sim"]
+        model_name = sim_instance["model_name"]
         return _get_full_state_data(sim, model_name)
-
-# Creamos una instancia global del simulador dentro de un diccionario
-# para que pueda ser reemplazada por los endpoints.
-simulator_instance = {"sim": Simulator(model=3), "model_name": "General"} # General por defecto
-
-# Cargamos un programa de prueba más completo, similar al de la UI de Flutter.
-# Este programa calcula la suma de los números del 1 al 9.
-# El resultado (45) se almacena en el registro x5.
-#
-# main:
-#   addi x5, x0, 0      # sum = 0
-#   addi x6, x0, 9      # i = 9
-#   addi x7, x0, 0      # limit = 0
-# loop:
-#   add x5, x5, x6      # sum = sum + i
-#   addi x6, x6, -1     # i = i - 1
-#   bne x6, x7, loop    # if i != 0, go to loop
-# end:
-#   j end               # infinite loop
-program_bytes = bytes([
-    0x23, 0x20, 0x05, 0x00,  # sw x5, 0(x0)
-    0x93, 0x02, 0x00, 0x00,  # addi x5, x0, 0
-    0x13, 0x03, 0x90, 0x00,  # addi x6, x0, 9
-    0x23, 0xa0, 0x52, 0x00,  # sw x5, 0(x5)
-    0x23, 0x20, 0x63, 0x00,  # sw x6, 0(x6)
-    0x93, 0x03, 0x00, 0x00,  # addi x7, x0, 0
-    0xb3, 0x82, 0x62, 0x00,  # loop: add x5, x5, x6
-    0x13, 0x03, 0xf3, 0xff,  # addi x6, x6, -1
-    0xe3, 0x1c, 0x73, 0xfe,  # bne x6, x7, loop
-    0x6f, 0x00, 0x00, 0x00,  # end: j end
-])
-
-simulator_instance["sim"].load_program(program_bytes)
 
 # Modelo para la petición de reset
 class ResetConfig(BaseModel):
     model: Literal['SingleCycle','PipeLined','MultiCycle','General'] = 'SingleCycle'
     load_test_program: bool = True
 
-@app.post("/reset", response_model=SimulatorStateModel, summary="Reinicia el simulador a un estado inicial")
-def reset_simulator(config: ResetConfig = ResetConfig()) -> SimulatorStateModel:
+@app.post("/reset", response_model=SimulatorStateModel, summary="Reinicia el simulador para una sesión")
+def reset_simulator(
+    session_id: str = Query(..., description="ID de la sesión a reiniciar"),
+    config: ResetConfig = ResetConfig()
+) -> SimulatorStateModel:
     """
     Reinicia el simulador. Permite cambiar el modelo de pipeline.
     - **model**: 'SingleCycle' (didáctico), 'MultiCycle', 'PipeLined', 'General'.
     - **load_test_program**: Si es true, carga el programa de prueba inicial.
     """
-    with simulator_lock:
+    with simulators_lock:
+        # Obtenemos la instancia existente para asegurarnos de que la sesión es válida
+        get_simulator_for_session(session_id)
+
         model_map = {'SingleCycle': 0,'PipeLined': 1,'MultiCycle': 2, 'General': 3, }
         model_id = model_map[config.model]
         print("Llamando a Simulator_reset...")
 
         # Al reemplazar la instancia, el __del__ del objeto antiguo se llama, liberando la memoria C++.
-        simulator_instance["sim"] = Simulator(model=model_id)
-        simulator_instance["model_name"] = config.model
+        simulators[session_id] = {
+            "sim": Simulator(model=model_id),
+            "model_name": config.model
+        }
         print("Creada nueva instancia del simulador...")
         
         if config.load_test_program:
-            simulator_instance["sim"].load_program(program_bytes)
+            simulators[session_id]["sim"].load_program(DEFAULT_PROGRAM_D)
             print("Cargado programa por defecto...")
             
         # Ejecuta el primer paso para tener un estado inicial y luego lo devuelve completo
-        simulator_instance["sim"].reset_with_model(model_id)
+        simulators[session_id]["sim"].reset_with_model(model_id)
         print();
-        sim = simulator_instance["sim"]
-        model_name = simulator_instance["model_name"]
+        sim_instance = simulators[session_id]
+        sim = sim_instance["sim"]
+        model_name = sim_instance["model_name"]
         print("Ejecutado reset (incluye step)...")
         return _get_full_state_data(sim, model_name)
 
 @app.post("/step", response_model=SimulatorStateModel, summary="Ejecutar un ciclo de instrucción")
-def execute_step() -> SimulatorStateModel:
+def execute_step(session_id: str = Query(..., description="ID de la sesión")) -> SimulatorStateModel:
     """Ejecuta un paso y devuelve el nuevo estado de los registros."""
-    with simulator_lock:
-        simulator_instance["sim"].step()
-        sim = simulator_instance["sim"]
-        model_name = simulator_instance["model_name"]
+    with simulators_lock:
+        sim_instance = get_simulator_for_session(session_id)
+        sim_instance["sim"].step()
+        sim = sim_instance["sim"]
+        model_name = sim_instance["model_name"]
         return _get_full_state_data(sim, model_name)
     
 @app.post("/step_back", response_model=SimulatorStateModel, summary="Ejecutar un ciclo de instrucción")
-def execute_step_back() -> SimulatorStateModel:
+def execute_step_back(session_id: str = Query(..., description="ID de la sesión")) -> SimulatorStateModel:
     """Ejecuta un paso y devuelve el nuevo estado de los registros."""
-    with simulator_lock:
-        simulator_instance["sim"].step_back()
-        sim = simulator_instance["sim"]
-        model_name = simulator_instance["model_name"]
+    with simulators_lock:
+        sim_instance = get_simulator_for_session(session_id)
+        sim_instance["sim"].step_back()
+        sim = sim_instance["sim"]
+        model_name = sim_instance["model_name"]
         return _get_full_state_data(sim, model_name)    
 
 @app.get("/memory/data", 
@@ -586,10 +601,11 @@ def execute_step_back() -> SimulatorStateModel:
                  "content": {"application/octet-stream": {}}
              }
          })
-def get_data_memory():
+def get_data_memory(session_id: str = Query(..., description="ID de la sesión")):
     """Devuelve los 256 bytes de la memoria de datos del modo didáctico como binario crudo."""
-    with simulator_lock:
-        sim = simulator_instance["sim"]
+    with simulators_lock:
+        sim_instance = get_simulator_for_session(session_id)
+        sim = sim_instance["sim"]
         # 1. Obtenemos los datos como un objeto de bytes
         memory_bytes = sim.get_d_mem()
         
@@ -598,8 +614,9 @@ def get_data_memory():
 
 
 @app.get("/memory/instructions", response_model=List[InstructionMemoryItem], summary="Obtener la memoria de instrucciones desensamblada")
-def get_instruction_memory():
+def get_instruction_memory(session_id: str = Query(..., description="ID de la sesión")):
     """Devuelve el contenido de la memoria de instrucciones, con cada instrucción desensamblada."""
-    with simulator_lock:
-        sim = simulator_instance["sim"]
+    with simulators_lock:
+        sim_instance = get_simulator_for_session(session_id)
+        sim = sim_instance["sim"]
         return sim.get_i_mem()

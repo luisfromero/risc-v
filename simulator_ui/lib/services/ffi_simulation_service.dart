@@ -7,7 +7,7 @@ import 'package:window_manager/window_manager.dart';
 import 'simulation_service.dart';
 // No es necesario, toDartString viene con ffi.dart
 import '../simulation_mode.dart';
-
+import '../generated/program_data.g.dart';
 import '../datapath_state.dart';
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -351,7 +351,7 @@ class FfiSimulationService implements SimulationService {
         // 0x00400024: branch_fail: addi x7, x0, 200
         // 0x00400028: branch_success: addi x8, x0, 300
         // 0x0040002c: jal  x0, -44      ; loop to start
-        final defaultProgram = Uint8List.fromList([
+        Uint8List defaultProgram = Uint8List.fromList([
           0x93, 0x00, 0xA0, 0x00, // 0x00A00093
           0x13, 0x01, 0x40, 0x01, // 0x01400113
           0x23, 0x20, 0x11, 0x00, // 0x00112023
@@ -366,6 +366,9 @@ class FfiSimulationService implements SimulationService {
           0x13, 0x04, 0xC0, 0x12, // 0x12C00413
           0x6F, 0xF0, 0x5F, 0xFD, // 0xFD5FF06F
         ]);
+        defaultProgram = Uint8List.fromList(defaultProgramD);
+        
+          
         simulador.loadProgram(defaultProgram,0);
       }
     } catch (e) {

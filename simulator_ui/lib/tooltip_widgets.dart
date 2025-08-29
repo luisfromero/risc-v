@@ -1,24 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:namer_app/simulation_mode.dart';
 import 'datapath_state.dart';
 import 'dart:typed_data';
+
+final miEstiloMono = GoogleFonts.robotoMono(
+  fontSize: 12,
+  fontFeatures: [const FontFeature.disable('liga')],
+);
 
 
 // --- Tooltip para el Banco de Registros ---
 
 Widget buildRegisterFileTooltip(DatapathState datapathState) {
   final registers = datapathState.registers;
-  final busDa = datapathState.busValues['bus_da'];
-  final busDb = datapathState.busValues['bus_db'];
-  final busDc = datapathState.busValues['bus_dc'];
-  final regWrite = datapathState.isPathActive('control_RegWrite') || datapathState.isPathActive('Pipe_MEM_WB_Control_out');
+  final busDa = datapathState.busValues['da_bus'];
+  final busDb = datapathState.busValues['db_bus'];
+  final busDc = datapathState.busValues['dc_bus'];
+  final regWrite = datapathState.busValues['control_BRwr']==1 || datapathState.isPathActive('Pipe_MEM_WB_Control_out');
 
   List<TextSpan> buildRegisterColumn(int start, int end) {
     List<TextSpan> spans = [];
     for (int i = start; i < end; i++) {
       final value = registers.values.elementAt(i) ;
-      final regName = 'x$i'.padRight(4);
-      final hexValue = '0x${value?.toRadixString(16).padLeft(8, '0')}';
+      final regName = 'x'+('$i'.padLeft(2,'0')).padRight(4);
+      final hexValue = '0x${value?.toRadixString(16).padLeft(8, '0').toUpperCase()}';
       
       Color color = Colors.white;
       if (i == busDa) color = Colors.yellow;
@@ -27,7 +33,7 @@ Widget buildRegisterFileTooltip(DatapathState datapathState) {
 
       spans.add(TextSpan(
         text: '$regName: $hexValue\n',
-        style: TextStyle(color: color, fontFamily: 'monospace', fontSize: 12),
+        style: miEstiloMono.copyWith(color: color),
       ));
     }
     return spans;
@@ -37,11 +43,11 @@ Widget buildRegisterFileTooltip(DatapathState datapathState) {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       RichText(
-        text: TextSpan(children: buildRegisterColumn(0, 16)),
+        text: TextSpan(style: miEstiloMono, children: buildRegisterColumn(0, 16)),
       ),
       const SizedBox(width: 16),
       RichText(
-        text: TextSpan(children: buildRegisterColumn(16, 32)),
+        text: TextSpan(style: miEstiloMono, children: buildRegisterColumn(16, 32)),
       ),
     ],
   );
@@ -73,23 +79,26 @@ Widget _buildSingleCycleControlTooltip(DatapathState datapathState) {
 
 
   
-  final hexWord = '0x${controlWord.toRadixString(16).padLeft(4, '0')}';
+  final hexWord = '0x${controlWord.toRadixString(16).padLeft(4, '0').toUpperCase()}';
 
   List<TextSpan> spans = [
     TextSpan(
       text: 'Control Word: $hexWord\n\n',
-      style: const TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold, fontFamily: 'monospace', fontSize: 12),
+      style: miEstiloMono.copyWith(
+        color: Colors.yellow,
+        fontWeight: FontWeight.bold,
+      ),
     ),
   ];
 
   signals.forEach((key, value) {
     spans.add(TextSpan(
       text: '${key.padRight(8)}: $value\n',
-      style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12),
+      style: const TextStyle(color: Colors.white),
     ));
   });
 
-  return RichText(text: TextSpan(children: spans));
+  return RichText(text: TextSpan(style: miEstiloMono, children: spans));
 }
 
 Map getSignalValues(DatapathState d) {
@@ -118,23 +127,23 @@ Map getSignalValuesPipe(DatapathState d) {
 
 Widget _buildPipelineControlTooltip(DatapathState datapathState) {
   Widget buildStageColumn(String title, String instruction, int? controlWord, List<String> relevantSignals) {
-    final instructionName=instruction.padRight(30);
+    final instructionName=instruction.padRight(20);
     
 ;
-    final String controlWordName = '0x' + (controlWord != null?controlWord.toRadixString(16).padLeft(4, '0'):'');
+    final String controlWordName = '0x' + (controlWord != null?controlWord.toRadixString(16).padLeft(4, '0').toUpperCase():'');
 
     List<TextSpan> spans = [
       TextSpan(
         text: '$title\n',
-        style: const TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold, fontFamily: 'monospace', fontSize: 12),
+        style: const TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold),
       ),
       TextSpan(
         text: '$instructionName\n----------------\n',
-        style: const TextStyle(color: Colors.cyan, fontFamily: 'monospace', fontSize: 12),
+        style: const TextStyle(color: Colors.cyan),
       ),
       TextSpan(
         text: '$controlWordName\n----------------\n',
-        style: const TextStyle(color: Colors.cyan, fontFamily: 'monospace', fontSize: 12),
+        style: const TextStyle(color: Colors.cyan),
       ),
     ];
 
@@ -143,19 +152,21 @@ Widget _buildPipelineControlTooltip(DatapathState datapathState) {
       relevantSignals.forEach((key) {
         spans.add(TextSpan(
           text: '${key.padRight(8)}: ${signals[key]}\n',
-          style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12),
+          style: const TextStyle(color: Colors.white),
         ));
       });
     } else {
        spans.add(const TextSpan(
         text: '(bubble)',
-        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic, fontFamily: 'monospace', fontSize: 12),
+        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
       ));
     }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: RichText(text: TextSpan(children: spans)),
+      child: RichText(
+        text: TextSpan(style: miEstiloMono, children: spans),
+      ),
     );
   }
 
@@ -213,11 +224,11 @@ Widget buildInstructionMemoryTooltip(DatapathState datapathState) {
     List<TextSpan> spans = [];
     spans.add(const TextSpan(
       text: 'Address   Instr (Hex)   Assembly\n',
-      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'monospace', fontSize: 12),
+      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
     ));
     spans.add(const TextSpan(
       text: '----------------------------------------\n',
-      style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12),
+      style: TextStyle(color: Colors.white),
     ));
 
     for (int i = start; i < end; i += 4) {
@@ -226,9 +237,9 @@ Widget buildInstructionMemoryTooltip(DatapathState datapathState) {
 
       final address = i;
       final item = instructionMemory[address ~/ 4];
-      final hexAddress = '0x${address.toRadixString(16).padLeft(4, '0')}';
-      final hexInstruction = '0x${item.value.toRadixString(16).padLeft(8, '0')}';
-      final assembly = item.instruction.padRight(20);
+      final hexAddress = '0x${address.toRadixString(16).padLeft(4, '0').toUpperCase()}';
+      final hexInstruction = '0x${item.value.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+      final assembly = item.instruction.padRight(10);
 
       Color color = Colors.white;
       if (address == pc) {
@@ -237,7 +248,7 @@ Widget buildInstructionMemoryTooltip(DatapathState datapathState) {
 
       spans.add(TextSpan(
         text: '$hexAddress: $hexInstruction  $assembly\n',
-        style: TextStyle(color: color, fontFamily: 'monospace', fontSize: 12),
+        style: miEstiloMono.copyWith(color: color),
       ));
     }
     return spans;
@@ -246,9 +257,13 @@ Widget buildInstructionMemoryTooltip(DatapathState datapathState) {
   return Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      RichText(text: TextSpan(children: buildInstructionColumn(0, 128))),
+      RichText(
+          text: TextSpan(
+              style: miEstiloMono, children: buildInstructionColumn(0, 128))),
       const SizedBox(width: 16),
-      RichText(text: TextSpan(children: buildInstructionColumn(128, 256))),
+      RichText(
+          text: TextSpan(
+              style: miEstiloMono, children: buildInstructionColumn(128, 256))),
     ],
   );
 }
@@ -257,9 +272,9 @@ Widget buildInstructionMemoryTooltip(DatapathState datapathState) {
 
 Widget buildDataMemoryTooltip(DatapathState datapathState) {
   final dataMemory = datapathState.dataMemory;
-  final addressBus = datapathState.busValues['bus_ALU_result_out'] ?? datapathState.busValues['Pipe_EX_MEM_ALU_result_out'];
-  final memWrite = datapathState.isPathActive('control_MemWr') || datapathState.isPathActive('Pipe_MEM_WB_Control_out_MemWrite');
-  final memRead = datapathState.isPathActive('control_MemRead') || datapathState.isPathActive('Pipe_MEM_WB_Control_out_MemRead');// ToDo
+  final addressBus = datapathState.busValues['alu_result_bus'] ?? datapathState.busValues['Pipe_EX_MEM_ALU_result_out'];
+  final memWrite = datapathState.busValues['control_MemWr']==1 || datapathState.isPathActive('Pipe_MEM_WB_Control_out_MemWrite');
+  final memRead = datapathState.busValues['control_ResSrc']==0;//datapathState.isPathActive('control_MemRead') || datapathState.isPathActive('Pipe_MEM_WB_Control_out_MemRead');// ToDo
 
   if (dataMemory == null || dataMemory.isEmpty) {
     return const Text('(Memory is empty)', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic));
@@ -269,11 +284,11 @@ Widget buildDataMemoryTooltip(DatapathState datapathState) {
     List<TextSpan> spans = [];
     spans.add(const TextSpan(
       text: 'Address   Value\n',
-      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'monospace', fontSize: 12),
+      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
     ));
     spans.add(const TextSpan(
       text: '---------------------\n',
-      style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12),
+      style: TextStyle(color: Colors.white),
     ));
 
     // Iteramos sobre las direcciones de memoria que queremos mostrar
@@ -287,8 +302,8 @@ Widget buildDataMemoryTooltip(DatapathState datapathState) {
       // Usamos Endian.little, ajústalo si tu simulador usa big-endian
       final value = byteData.getUint32(address, Endian.little);
 
-      final hexAddress = '0x${address.toRadixString(16).padLeft(4, '0')}';
-      final hexValue = '0x${value.toRadixString(16).padLeft(8, '0')}';
+      final hexAddress = '0x${address.toRadixString(16).padLeft(4, '0').toUpperCase()}';
+      final hexValue = '0x${value.toRadixString(16).padLeft(8, '0').toUpperCase()}';
       Color color = Colors.white;
       if (address == addressBus) {
         if (memWrite) {
@@ -300,7 +315,7 @@ Widget buildDataMemoryTooltip(DatapathState datapathState) {
 
       spans.add(TextSpan(
         text: '$hexAddress: $hexValue\n',
-        style: TextStyle(color: color, fontFamily: 'monospace', fontSize: 12),
+        style: TextStyle(color: color),
       ));
     }
     return spans;
@@ -312,16 +327,17 @@ Widget buildDataMemoryTooltip(DatapathState datapathState) {
   if (column1Spans.length <= 2 && column2Spans.length <= 2) {
     column1Spans.add(const TextSpan(
         text: '\n(Memory is empty in this range)',
-        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic, fontFamily: 'monospace', fontSize: 12)));
-    return RichText(text: TextSpan(children: column1Spans));
+        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)));
+    return RichText(
+        text: TextSpan(style: miEstiloMono, children: column1Spans));
   }
 
   return Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      RichText(text: TextSpan(children: column1Spans)),
+      RichText(text: TextSpan(style: miEstiloMono, children: column1Spans)),
       const SizedBox(width: 16),
-      RichText(text: TextSpan(children: column2Spans)),
+      RichText(text: TextSpan(style: miEstiloMono, children: column2Spans)),
     ],
   );
 }

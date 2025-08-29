@@ -34,77 +34,84 @@ void copy_pipeline_registers_to_out(DatapathState& datapath) {
     datapath.Pipe_MEM_WB_RD_out=datapath.Pipe_MEM_WB_RD;
     }
 
+// Función de ayuda para extender el signo de un valor a 32 bits.
+static int32_t sign_extend32(uint32_t value, unsigned bits) {
+    if (bits == 0 || bits >= 32) return static_cast<int32_t>(value);
+    uint32_t mask = (1u << bits) - 1u;
+    uint32_t v = value & mask;
+    if (v & (1u << (bits - 1))) {
+        // negative
+        return static_cast<int32_t>(v | ~mask);
+    } else {
+        return static_cast<int32_t>(v);
+    }
+}
 
-// (Puedes ponerlo como un método privado o función estática)
+// Versión corregida y más robusta
 std::string Simulator::disassemble(uint32_t instruction, const InstructionInfo* info) const {
     if (!info) return "not implemented";
-    if(instruction==0x00000013)
-        return "nop"; // Instrucción NOP (no operación) para 0x00000013
+    if (instruction == 0x00000013u) return "nop";
 
-    // Extraer campos comunes (ya los tienes en decode_and_execute, pásalos aquí o recalcúlalos)
     uint32_t rd  = (instruction >> 7) & 0x1F;
     uint32_t rs1 = (instruction >> 15) & 0x1F;
     uint32_t rs2 = (instruction >> 20) & 0x1F;
-    int32_t imm  = static_cast<int32_t>(instruction) >> 20; // I-type, puede variar según tipo
 
     std::ostringstream oss;
-
-    // Mostrar el nombre mnemónico
     oss << info->instr << " ";
 
-    // Según el tipo de instrucción
     switch (info->type) {
-        case 'R': // ej. add rd, rs1, rs2
+        case 'R': // rd, rs1, rs2
             oss << "x" << rd << ", x" << rs1 << ", x" << rs2;
             break;
-        case 'I': // ej. addi rd, rs1, imm
+
+        case 'I': { // rd, rs1, imm12
+            uint32_t imm12 = (instruction >> 20) & 0xFFFu;
+            int32_t imm = sign_extend32(imm12, 12);
             oss << "x" << rd << ", x" << rs1 << ", " << imm;
             break;
-        case 'S': { // ej. sw rs2, imm(rs1)
-            const uint32_t imm11_5 = (instruction >> 25) & 0x7F;
-            const uint32_t imm4_0  = (instruction >> 7)  & 0x1F;
-            uint32_t imm_s = (imm11_5 << 5) | imm4_0;
-            if (imm_s & 0x800) { // Sign-extend from 12 bits
-                imm_s |= 0xFFFFF000;
-            }
-            oss << "x" << rs2 << ", " << static_cast<int32_t>(imm_s) << "(x" << rs1 << ")";
-            break;
         }
-        case 'B': { // ej. beq rs1, rs2, imm
-            const uint32_t imm12   = (instruction >> 19) & 0x1000; // bit 31 -> bit 12
-            const uint32_t imm11   = (instruction << 4)  & 0x800;  // bit 7  -> bit 11
-            const uint32_t imm10_5 = (instruction >> 20) & 0x7E0;  // bits 30:25 -> 10:5
-            const uint32_t imm4_1  = (instruction >> 7)  & 0x1E;   // bits 11:8  -> 4:1
-            uint32_t imm_b   = imm12 | imm11 | imm10_5 | imm4_1;
 
-            // Sign-extend from 13 bits
-            if (imm_b & 0x1000) {
-                imm_b |= 0xFFFFE000;
-            }
-            oss << "x" << rs1 << ", x" << rs2 << ", " << static_cast<int32_t>(imm_b);
+        case 'S': { // sw rs2, imm(rs1)
+            uint32_t imm11_5 = (instruction >> 25) & 0x7Fu;
+            uint32_t imm4_0  = (instruction >> 7)  & 0x1Fu;
+            uint32_t imm12 = (imm11_5 << 5) | imm4_0;
+            int32_t imm = sign_extend32(imm12, 12);
+            oss << "x" << rs2 << ", " << imm << "(x" << rs1 << ")";
             break;
         }
-        case 'U': { // ej. lui rd, imm
-            const uint32_t imm = instruction >> 12;
-            oss << "x" << rd << ", 0x" << std::hex << imm;
-            break;
-        }
-        case 'J': { // ej. jal rd, imm
-            const uint32_t imm20    = (instruction >> 11) & 0x100000; // bit 31 -> bit 20
-            const uint32_t imm19_12 = instruction & 0xFF000;          // bits 19:12
-            const uint32_t imm11    = (instruction >> 9)  & 0x800;    // bit 20 -> bit 11
-            const uint32_t imm10_1  = (instruction >> 20) & 0x7FE;    // bits 30:21 -> 10:1
-            uint32_t imm_j    = imm20 | imm19_12 | imm11 | imm10_1;
 
-            // Sign-extend from 21 bits
-            if (imm_j & 0x100000) {
-                imm_j |= 0xFFE00000;
-            }
-            oss << "x" << rd << ", " << static_cast<int32_t>(imm_j);
+        case 'B': { // beq rs1, rs2, imm (imm is multiple of 2; represented as signed 13-bit)
+            uint32_t imm12   = (instruction >> 31) & 0x1u;        // bit 31 -> imm[12]
+            uint32_t imm11   = (instruction >> 7)  & 0x1u;        // bit 7  -> imm[11]
+            uint32_t imm10_5 = (instruction >> 25) & 0x3Fu;       // bits 30:25 -> imm[10:5]
+            uint32_t imm4_1  = (instruction >> 8)  & 0xFu;        // bits 11:8  -> imm[4:1]
+            uint32_t imm_b = (imm12 << 12) | (imm11 << 11) | (imm10_5 << 5) | (imm4_1 << 1);
+            int32_t imm = sign_extend32(imm_b, 13);
+            oss << "x" << rs1 << ", x" << rs2 << ", " << imm;
             break;
         }
+
+        case 'U': { // lui/auipc rd, imm20
+            uint32_t imm_val = instruction >> 12; // Desplaza para obtener el valor real
+            oss << "x" << rd << ", 0x" << std::hex << imm_val;
+            oss << std::dec; // Restaura el formato a decimal para otros casos
+            break;
+        }
+
+        case 'J': { // jal rd, imm (signed 21-bit immediate, LSB implied 0)
+            uint32_t imm20    = (instruction >> 31) & 0x1u;      // bit31 -> imm[20]
+            uint32_t imm19_12 = (instruction >> 12) & 0xFFu;     // bits 19:12
+            uint32_t imm11    = (instruction >> 20) & 0x1u;      // bit20 -> imm[11]
+            uint32_t imm10_1  = (instruction >> 21) & 0x3FFu;    // bits 30:21 -> imm[10:1]
+            uint32_t imm_j = (imm20 << 20) | (imm19_12 << 12) | (imm11 << 11) | (imm10_1 << 1);
+            int32_t imm = sign_extend32(imm_j, 21);
+            oss << "x" << rd << ", " << imm;
+            break;
+        }
+
         default:
-            oss << std::hex << "0x" << instruction;
+            oss << std::hex << "0x" << instruction << std::dec;
+            break;
     }
 
     return oss.str();
@@ -475,8 +482,14 @@ void Simulator::simulate_single_cycle(uint32_t instruction) {
 
 
     try{
+ 
     instructionString = disassemble(instruction, info);
-    //datapath.instruction=instructionString;
+        if (m_logfile.is_open()) {
+            m_logfile << "Instruccion reconocida: 0x" << std::hex << instruction << std::endl;
+            m_logfile << "Tipo: " << info->type << std::endl;
+            m_logfile << "Desensamblado: " << instructionString << std::endl;
+        }
+   //datapath.instruction=instructionString;
     datapath.total_micro_cycles = info->cycles;
     strcpy_s(datapath.instruction_cptr,instructionString.c_str());
     }
@@ -544,8 +557,8 @@ void Simulator::simulate_single_cycle(uint32_t instruction) {
 
 
     
-    uint32_t branch_target = adder.add(pc, imm_ext);
-    datapath.bus_PC_dest       = {branch_target, datapath.bus_immExt.ready_at+ adder.get_delay()};
+    uint32_t pc_plus_imm = adder.add(pc, imm_ext);
+    datapath.bus_PC_dest       = {pc_plus_imm, datapath.bus_immExt.ready_at+ adder.get_delay()};
 
 
     m_logfile <<  "ALU ok" << std::endl; 
@@ -600,23 +613,27 @@ void Simulator::simulate_single_cycle(uint32_t instruction) {
 
  
     // Mux para el PC
-    // Lógica corregida para la selección del siguiente PC
-    bool take_conditional_branch = (info->PCsrc == 1 && alu_zero);
-    bool take_unconditional_jump = (info->PCsrc == 1);
+    // Lógica de selección del siguiente PC
+    bool take_branch = false;
+    if (info->type == 'B') { // Instrucciones de salto condicional
+        if (info->instr == "beq" && alu_zero) take_branch = true;
+        if (info->instr == "bne" && !alu_zero) take_branch = true;
+        // Añadir aquí otros saltos condicionales (blt, bge, etc.) si se implementan
+    } else if (info->instr == "jal" || info->instr == "jalr") { // Saltos incondicionales (JAL, JALR)
+        take_branch = true;
+    }
 
     uint32_t tmptime5 = std::max(datapath.bus_ALU_zero.ready_at,datapath.bus_Control.ready_at)+DELAY_Z_AND; //Tiempo en llegar la sñal que controla el mux
     
-    datapath.bus_branch_taken = {take_conditional_branch || take_unconditional_jump, tmptime5};
+    datapath.bus_branch_taken = {take_branch, tmptime5};
     datapath.bus_PCsrc.ready_at = tmptime5;
 
     // La dirección de destino para JALR es el resultado de la ALU, no PC + imm.
-    uint32_t jump_target = (info->instr == "jalr") ? alu_result : branch_target;
+    uint32_t jump_target = (info->instr == "jalr") ? alu_result : pc_plus_imm;
 
     tmptime5 = std::max(std::max(datapath.bus_PC_plus4.ready_at,datapath.bus_PC_dest.ready_at),tmptime5) + mux_PC.get_delay();
 
-    uint32_t next_pc = pc_plus_4;
-    if (take_conditional_branch) next_pc = branch_target;
-    else if (take_unconditional_jump) next_pc = jump_target;
+    uint32_t next_pc = take_branch ? jump_target : pc_plus_4;
 
     datapath.bus_PC_next = {next_pc,tmptime5};
     // Aquí desactivamos las rutas que no se usan para la instrucción actual.
@@ -731,16 +748,16 @@ void Simulator::simulate_multi_cycle(uint32_t instruction) {
     // --- MICRO-CICLO 2: EX (Execute) ---
     // La ALU realiza la operación.
     const uint32_t alu_op_a = (info->type == 'U') ? 0 : rs1_val;
-    const uint32_t alu_op_b = mux_B.select(rs2_val, imm_ext, info->ALUsrc);
+    const uint32_t alu_op_b = mux_B.select(imm_ext, rs2_val, info->ALUsrc);
     const uint32_t alu_result = alu.calc(alu_op_a, alu_op_b, info->ALUctr);
     const bool alu_zero = (alu_result == 0);
-    const uint32_t branch_target = pc + imm_ext;
+    const uint32_t pc_plus_imm = pc + imm_ext;
 
     datapath.bus_ALU_A = { alu_op_a, 1 };
     datapath.bus_ALU_B = { alu_op_b, 2 };
     datapath.bus_ALU_result = { alu_result, 2 };
     datapath.bus_ALU_zero = { alu_zero, 2 };
-    datapath.bus_PC_dest = { branch_target, 2 };
+    datapath.bus_PC_dest = { pc_plus_imm, 2 };
 
     // --- Lógica variable para los ciclos 3 y 4 ---
     uint32_t mem_read_data = 0x00FABADA;
@@ -783,9 +800,9 @@ void Simulator::simulate_multi_cycle(uint32_t instruction) {
 
     } else if (info->type == 'B') { // BEQ (3 ciclos)
         // Ciclo 2: EX/Branch completion
-        bool take_branch = (alu_result == 0);
+        bool take_branch =info->instr == "beq" && (alu_result == 0) || info->instr == "bne" && (alu_result != 0);
         datapath.bus_branch_taken = { take_branch, 2 };
-        next_pc = take_branch ? branch_target : pc_plus_4;
+        next_pc = take_branch ? pc_plus_imm : pc_plus_4;
 
     } else { // Jumps, etc. (Tratamiento genérico, se puede refinar)
         // Asumimos 4 ciclos por defecto para JAL, etc.
@@ -793,9 +810,12 @@ void Simulator::simulate_multi_cycle(uint32_t instruction) {
         datapath.bus_C = { final_result, 3 };
         datapath.bus_C.is_active = info->BRwr;
         if (info->BRwr == 1) register_file.write(rd_addr, final_result);
-        bool take_branch = (info->PCsrc == 1 || (info->type == 'B' && alu_zero));
-        datapath.bus_branch_taken = { take_branch, 2 };
-        next_pc = take_branch ? branch_target : pc_plus_4;
+        bool is_jump = (info->PCsrc == 1 || info->PCsrc == 2);
+        datapath.bus_branch_taken = { is_jump, 2 };
+        // Para JALR, el destino es el resultado de la ALU. Para JAL, es PC + imm.
+        uint32_t jump_target = (info->PCsrc == 2) ? alu_result : pc_plus_imm;
+        next_pc = is_jump ? jump_target : pc_plus_4;
+
     }
 
     // El PC se actualiza al final del último microciclo de la instrucción anterior.
@@ -887,14 +907,14 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
     bool is_valid_instr_WB = datapath.Pipe_MEM_WB_NPC_out.is_active;
     bool is_valid_instr_MEM = datapath.Pipe_EX_MEM_NPC_out.is_active;
     bool is_valid_instr_EX = datapath.Pipe_ID_EX_NPC_out.is_active;
-    bool is_valid_instr_ID = decoded_info != nullptr;
+    bool is_valid_instr_ID = decoded_info != nullptr && datapath.Pipe_IF_ID_Instr_out.is_active;
     bool is_valid_instr_IF = fetched_info != nullptr;
 
     /**
      * Control word for the instruction in the ID stage.
      */
-    uint16_t id_control_word = is_valid_instr_ID ? controlWord(decoded_info) : -1;
-    uint16_t if_control_word = is_valid_instr_IF ? controlWord(fetched_info) : -1;
+    uint16_t id_control_word = is_valid_instr_ID ? controlWord(decoded_info) : 0;
+    uint16_t if_control_word = is_valid_instr_IF ? controlWord(fetched_info) : 0;
 
     if(m_logfile.is_open()&&DEBUG_INFO){
         m_logfile << "PC: " << std::hex << pc << ", Instruction: " << instructionString << std::endl
@@ -1022,7 +1042,7 @@ catch(const std::exception& e){
     // Data comes from the ID/EX pipeline register.
     uint32_t alu_result = INDETERMINADO;
     bool alu_zero = false;
-    uint32_t branch_target = 0;
+    uint32_t pc_plus_imm = 0;
     bool take_branch = false;
 
 #define FORWARDING 0
@@ -1063,7 +1083,7 @@ catch(const std::exception& e){
         uint8_t PCsrc = controlSignal(ex_control, "PCsrc");
 
         // MUX B: Selects the second operand for the ALU.
-        alu_op_b = mux_B.select(forwarded_b, datapath.Pipe_ID_EX_Imm_out.value, ALUsrc);
+        alu_op_b = mux_B.select(datapath.Pipe_ID_EX_Imm_out.value, forwarded_b, ALUsrc);
 
         // ALU Execution
         alu_result = alu.calc(forwarded_a, alu_op_b, ALUctr);
@@ -1071,11 +1091,26 @@ catch(const std::exception& e){
 
         // *** BUG FIX ***: Correct branch target calculation.
         // It uses the PC from the ID/EX register, not the current global PC.
-        branch_target = datapath.Pipe_ID_EX_PC_out.value + datapath.Pipe_ID_EX_Imm_out.value;
-
-        // Branch condition logic
-        take_branch = (PCsrc == 1 && alu_zero) || PCsrc == 2; // PCsrc=1 for BEQ, PCsrc=2 for JAL/JALR
-
+        pc_plus_imm = datapath.Pipe_ID_EX_PC_out.value + datapath.Pipe_ID_EX_Imm_out.value;
+        
+        bool condition_met = false;
+        if (PCsrc == 1) { // Salto condicional (B-type) o JAL
+            if (controlSignal(ex_control, "BRwr") == 0) { // Es un salto condicional (no escribe en registro)
+                uint8_t funct3 = datapath.Pipe_ID_EX_RD_out.value; // funct3 se pasó en el campo RD
+                switch (funct3) {
+                    case 0b000: // beq
+                        condition_met = alu_zero;
+                        break;
+                    case 0b001: // bne
+                        condition_met = !alu_zero;
+                        break;
+                    // Aquí se pueden añadir más saltos condicionales (blt, bge, etc.)
+                }
+            } else { // Es JAL (salto incondicional que escribe en registro)
+                condition_met = true;
+            }
+        }
+        take_branch = (PCsrc == 1 && condition_met) || PCsrc == 2; // PCsrc=2 para JALR
         datapath.bus_ALUsrc={ALUsrc,1,is_valid_instr_EX};
         datapath.bus_ALUctr={ALUctr,1,is_valid_instr_EX};
         datapath.bus_PCsrc={PCsrc,1,is_valid_instr_EX};
@@ -1088,7 +1123,7 @@ catch(const std::exception& e){
         m_logfile <<  "Error en la ejecución de la ALU: " << e.what() << std::endl; 
         alu_result=INDETERMINADO;
         alu_zero=false;
-        branch_target=0;
+        pc_plus_imm=0;
         take_branch=false;
     }
     // --- CONTROL HAZARD (BRANCH FLUSH) ---
@@ -1107,7 +1142,7 @@ catch(const std::exception& e){
     datapath.Pipe_EX_MEM_NPC        = datapath.Pipe_ID_EX_NPC_out;
 
     // Internal buses for this stage
-    datapath.bus_PC_dest = {branch_target, 1, is_valid_instr_EX}; // Pass the branch target to the next stage
+    datapath.bus_PC_dest = {pc_plus_imm, 1, is_valid_instr_EX}; // Pass the branch target to the next stage
     datapath.bus_ALU_result = {alu_result, 1, is_valid_instr_EX}; // Pass the ALU result to the next stage
     datapath.bus_ALU_zero = {alu_zero, 1, is_valid_instr_EX}; // Pass the ALU zero flag to the next stage
     datapath.bus_branch_taken = {take_branch, 1, is_valid_instr_EX}; // Pass the branch taken signal to the next stage
@@ -1123,7 +1158,7 @@ catch(const std::exception& e){
                   << "Pipe5: " << datapath.Pipe_ID_EX_PC.is_active << "\t" << (int)datapath.Pipe_ID_EX_PC.value << std::endl
 
                   << "ALU Result: " << alu_result << ", Zero: " << alu_zero 
-                  << ", Branch Target: " << branch_target 
+                  << ", Branch Target: " << pc_plus_imm 
                   << ", Take Branch: " << take_branch 
                   << std::endl;
     }
@@ -1166,6 +1201,12 @@ catch(const std::exception& e){
 
     if (flush) {
         // Squash the instruction in the ID stage by passing a NOP to the EX stage.
+        id_control_word = 0;
+        if_control_word = 0;
+        is_valid_instr_ID = false;
+
+
+
         datapath.Pipe_ID_EX_Control = {0, 1, false}; // Control signals for NOP, inactive
         datapath.Pipe_ID_EX_A = {0, 1, false};
         datapath.Pipe_ID_EX_B = {0, 1, false};
@@ -1173,6 +1214,8 @@ catch(const std::exception& e){
         datapath.Pipe_ID_EX_Imm = {0, 1, false};
         datapath.Pipe_ID_EX_NPC = {0, 1, false};
         datapath.Pipe_ID_EX_PC = {0, 1, false};
+
+        strcpy_s(datapath.Pipe_IF_instruction_cptr , "nop (flush)");
         if(m_logfile.is_open()&&DEBUG_INFO)        m_logfile << "Flush detectado: " << std::endl;
 
     } else if (stall) {
@@ -1193,7 +1236,16 @@ catch(const std::exception& e){
 
         datapath.Pipe_ID_EX_A = {register_file.readA(rs1_addr),1,is_valid_instr_ID};
         datapath.Pipe_ID_EX_B = {register_file.readB(rs2_addr),1,is_valid_instr_ID};
-        datapath.Pipe_ID_EX_RD = {rd_addr,1,is_valid_instr_ID};
+        // --- REUTILIZACIÓN DE Pipe_ID_EX_RD para funct3 en saltos ---
+        // Si la instrucción es de tipo 'B', usamos el registro RD (que no se usa en saltos)
+        // para pasar el campo funct3 a la siguiente etapa.
+        if (is_valid_instr_ID && decoded_info->type == 'B') {
+            uint8_t funct3 = (instruction_in_id >> 12) & 0x7;
+            datapath.Pipe_ID_EX_RD = {funct3, 1, is_valid_instr_ID};
+        } else {
+            datapath.Pipe_ID_EX_RD = {rd_addr,1,is_valid_instr_ID};
+        }
+
         datapath.Pipe_ID_EX_Imm = {sign_extender.extender(instruction_in_id, ImmSrc),1,is_valid_instr_ID};
 
         datapath.Pipe_ID_EX_Control= {id_control_word,1,is_valid_instr_ID}; //No necesitaríamos todo. Parte ya se ha consumido en ID.
@@ -1208,10 +1260,10 @@ catch(const std::exception& e){
         datapath.bus_funct3 = { (uint8_t)((instruction_in_id >> 12) & 0x07), 1, is_valid_instr_ID }; // Funct3 is bits 12-14
         datapath.bus_funct7 = { (uint8_t)((instruction_in_id >> 25) & 0x7F), 1, is_valid_instr_ID }; // Funct7 is bits 25-31
         //datapath.bus_Instr = { instruction_in_id, 1, is_valid_instr_ID }; // The instruction itself
-        datapath.bus_A = { datapath.Pipe_ID_EX_A_out.value, 1, is_valid_instr_ID }; // Value of the first source register
-        datapath.bus_B = { datapath.Pipe_ID_EX_B_out.value, 1, is_valid_instr_ID }; // Value of the second source register
+        datapath.bus_A = { datapath.Pipe_ID_EX_A.value, 1, is_valid_instr_ID }; // Value of the first source register
+        datapath.bus_B = { datapath.Pipe_ID_EX_B.value, 1, is_valid_instr_ID }; // Value of the second source register
         datapath.bus_imm = { instruction_in_id, 1, is_valid_instr_ID }; // Immediate value (not yet extended)
-        datapath.bus_immExt = { datapath.Pipe_ID_EX_Imm_out.value, 1, is_valid_instr_ID }; // Extended immediate value
+        datapath.bus_immExt = { datapath.Pipe_ID_EX_Imm.value, 1, is_valid_instr_ID }; // Extended immediate value
 
         datapath.bus_ImmSrc = { ImmSrc, 1, is_valid_instr_ID }; // ImmSrc
         if(m_logfile.is_open()&&DEBUG_INFO)        m_logfile << "No flush no stall: " << std::endl;
@@ -1222,6 +1274,7 @@ catch(const std::exception& e){
         m_logfile << "ID Stage: " << std::endl
                   << "id control" << id_control_word << std::endl
                   << "if control" << if_control_word << std::endl
+                  << "immSrc" << (int)ImmSrc << std::endl
                   << "IDctr: " << datapath.Pipe_ID_EX_Control.value << std::endl
                   << "Pipe0: " << datapath.Pipe_IF_ID_Instr.is_active << "\t" << (int)datapath.Pipe_IF_ID_Instr.value << std::endl
                   << "Pipe1: " << datapath.Pipe_ID_EX_Control.is_active << "\t" << (int)datapath.Pipe_ID_EX_Control.value << std::endl
@@ -1251,16 +1304,26 @@ catch(const std::exception& e){
 if(NO_BRANCH_FLUSH)flush=false;
 
 
-    datapath.bus_Control = { if_control_word, 1 }; //En dart es 'Control'
-
+    datapath.bus_Control = { id_control_word, 1 }; //En dart es 'Control'
 
 
     // Registro pipeline a final de etapa
     datapath.Pipe_IF_ID_Instr = {instruction,1, is_valid_instr_IF}; // PC + 4 
-    if(flush)datapath.Pipe_IF_ID_Instr = { 0x00000013, 1, true };
-    if(stall)datapath.Pipe_IF_ID_Instr = datapath.Pipe_IF_ID_Instr;// No change, we keep the previous instruction in IF/ID
     datapath.Pipe_IF_ID_NPC = {pc+4,1, is_valid_instr_IF}; // PC + 4 
     datapath.Pipe_IF_ID_PC =  {pc ,1, is_valid_instr_IF};
+
+    if(flush){
+        datapath.Pipe_IF_ID_Instr = { 0x00000013, 1, false };// No sólo nop en ID, también en IF
+        is_valid_instr_IF = false;
+        datapath.Pipe_IF_ID_NPC = {0, 1, false}; //Este cero se usa en el visualizador para ponerla en gris
+        datapath.Pipe_IF_ID_PC = {0, 1, false};
+        datapath.bus_Control={0,1,false};
+
+    }
+    if(stall){
+        datapath.Pipe_IF_ID_Instr = datapath.Pipe_IF_ID_Instr;// No change, we keep the previous instruction in IF/ID
+    }
+
 
     //No calculamos los bits de control. Le pasamos la instrucción a la siguiente etapa
 
@@ -1296,12 +1359,14 @@ if(NO_BRANCH_FLUSH)flush=false;
             if (controlSignal(ex_control, "PCsrc") == 2 && controlSignal(ex_control, "ImmSrc") == 1) { // JALR (ImmSrc I-type)
                 pc = alu_result;
             } else { // JAL o Branch
-                pc = branch_target;
+                pc = pc_plus_imm;
             }
         } else {
             pc = pc + 4;
         }
     }
+    datapath.bus_PC_next={pc ,1,true};
+
     // If stalling, the PC is not updated, freezing the fetch stage.
 
     // =================================================================================
@@ -1312,7 +1377,7 @@ if(NO_BRANCH_FLUSH)flush=false;
     strcpy_s(datapath.Pipe_MEM_instruction_cptr, datapath.Pipe_EX_instruction_cptr);
     strcpy_s(datapath.Pipe_EX_instruction_cptr, datapath.Pipe_ID_instruction_cptr);
     strcpy_s(datapath.Pipe_ID_instruction_cptr, datapath.Pipe_IF_instruction_cptr);
-    strcpy_s(datapath.Pipe_IF_instruction_cptr, instructionString.c_str());
+    strcpy_s(datapath.Pipe_IF_instruction_cptr,flush?"nop (flush)":instructionString.c_str()); // No sólo nop en ID, también en IF
     strcpy_s(datapath.instruction_cptr,instructionString.c_str());
 
     if(m_logfile.is_open() && DEBUG_INFO) {

@@ -66,7 +66,7 @@ class BusesPainter extends CustomPainter {
       // Generamos el texto del tooltip una sola vez por bus.
       final value = datapathState.busValues[bus.valueKey];
       final tooltipText = bus.valueKey != null
-          ? '${bus.valueKey} (${bus.size} bits): ${value != null ? '0x${value.toRadixString(16)}' : 'N/A'}'
+          ? '${bus.valueKey} (${bus.size} bits): ${value != null ? '0x${value.toRadixString(16).toUpperCase()}' : 'N/A'}'
           : 'Control/State Bus';
 
       // Iteramos por cada segmento (tramo) del bus.
@@ -164,7 +164,7 @@ class BusesPainter extends CustomPainter {
     }
 
     // 2. Formatear el texto del valor.
-    final valueText = '0x${value.toRadixString(16)}';
+    final valueText = '0x${value.toRadixString(16).toUpperCase()}';
 
     // 3. Configurar el TextPainter para dibujar el texto.
     final textStyle = TextStyle(

@@ -26,29 +26,83 @@ const String _dataMemoryHoverId = '##DATA_MEMORY_HOVER##';
 const String _controlHoverId = '##CONTROL_HOVER##';
 
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
   await setupWindow(); // Ahora esperamos a que la ventana se configure
 
+  // 1. Obtenemos la instancia del servicio (API o FFI según la plataforma).
+  final simulationService = getSimulationService();
+
+  // 2. Creamos la instancia del estado.
+  final datapathState = DatapathState(simulationService);
+
+  try {
+    // 3. Esperamos a que la inicialización del estado (que es asíncrona) termine.
+    //    Esto llamará internamente a `simulationService.initialize()` y esperará.
+    await datapathState.initialize();
+  } catch (e) {
+    // Es una buena práctica manejar el caso en que la API no esté disponible.
+    // ignore: avoid_print
+    print('Error fatal durante la inicialización: $e');
+  }
+
   runApp(
-    ChangeNotifierProvider(
-      // Creamos el estado y le "inyectamos" el servicio de simulación.
-      create: (context) => DatapathState(getSimulationService())..initialize(),
+    ChangeNotifierProvider.value(
+      value: datapathState,
       child: const MyApp(),
     ),
   );
 }
 
-String registerHover(int? val1, int? val2,[int digits = 8]) {
-  String in_=(val1==null)?'not set':'0x${val1.toRadixString(16).padLeft(digits, '0')}';
-  String out=(val2==null)?'not set':'0x${val2.toRadixString(16).padLeft(digits, '0')}';
+String registerHover(int? valIn, int? valOut,[int digits = 8]) {
+  String in_ =(valIn==null)?'not set':'0x${valIn.toRadixString(16).padLeft(digits, '0').toUpperCase()}';
+  String out=(valOut==null)?'not set':'0x${valOut.toRadixString(16).padLeft(digits, '0').toUpperCase()}';
   return "\nin : $in_ \nout: $out";
 
+}
+
+String registerHover2(int? val1in, int? val1out, int? val2in, int? val2out,List<String> nombres ) {
+  String in1_=(val1in==null)?'not set':'0x${val1in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String out1=(val1out==null)?'not set':'0x${val1out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String in2_=(val2in==null)?'not set':'0x${val2in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String out2=(val2out==null)?'not set':'0x${val2out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String part1="${nombres[0]}\nin : $in1_ \nout: $out1";
+  String part2="${nombres[1]}\nin : $in2_ \nout: $out2";
+  return "$part1\n\n$part2";
+}
+
+String registerHover3(int? val1in, int? val1out, int? val2in, int? val2out, int? val3in, int? val3out,List<String> nombres ) {
+  String in1_=(val1in==null)?'not set':'0x${val1in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String out1=(val1out==null)?'not set':'0x${val1out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String in2_=(val2in==null)?'not set':'0x${val2in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String out2=(val2out==null)?'not set':'0x${val2out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String in3_=(val3in==null)?'not set':'0x${val3in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String out3=(val3out==null)?'not set':'0x${val3out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String part1="${nombres[0]}\nin : $in1_ \nout: $out1";
+  String part2="${nombres[1]}\nin : $in2_ \nout: $out2";
+  String part3="${nombres[2]}\nin : $in3_ \nout: $out3";
+  return "$part1\n\n$part2\n\n$part3";
+}
+String registerHover4(int? val1in, int? val1out, int? val2in, int? val2out, int? val3in, int? val3out,int? val4in, int? val4out,List<String> nombres ) {
+  String in1_=(val1in==null)?'not set':'0x${val1in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String out1=(val1out==null)?'not set':'0x${val1out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String in2_=(val2in==null)?'not set':'0x${val2in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String out2=(val2out==null)?'not set':'0x${val2out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String in3_=(val3in==null)?'not set':'0x${val3in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String out3=(val3out==null)?'not set':'0x${val3out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String in4_=(val4in==null)?'not set':'0x${val4in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String out4=(val4out==null)?'not set':'0x${val4out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  String part1="${nombres[0]}\nin : $in1_ \nout: $out1";
+  String part2="${nombres[1]}\nin : $in2_ \nout: $out2";
+  String part3="${nombres[2]}\nin : $in3_ \nout: $out3";
+  String part4="${nombres[3]}\nin : $in4_ \nout: $out4";
+  return "$part1\n\n$part2\n\n$part3\n\n$part4";
 }
   
 Color pipelineColorForPC(int? pc) {
   // Ejemplo: elige entre 4 colores cíclicamente según el valor del PC
-  if(pc==null||pc==0)return Color.fromARGB(67, 0, 0, 0); // Si el PC es nulo, devolvemos un color transparente
+  if(pc==null||pc==0)return Color.fromARGB(30, 0, 0, 0); // Si el PC es nulo, devolvemos un color transparente
   const colors = [color1, color2, color3, color4, color5];
 
   return colors[((pc) ~/ 4) % colors.length];
@@ -98,10 +152,12 @@ class MyApp extends StatelessWidget {
             // Un pequeño tooltip para mostrar la información del hover
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Center(
-                child: Text(
-                  datapathState.hoverInfo,
-                  style: const TextStyle(fontSize: 16),
+              // Para asegurar que el estilo se aplique sobre el tema del AppBar,
+              // envolvemos el Text en un DefaultTextStyle.
+              child: DefaultTextStyle(
+                style: miEstiloMono,
+                child: Center(
+                  child: Text(datapathState.hoverInfo),
                 ),
               ),
             ),
@@ -118,7 +174,7 @@ class MyApp extends StatelessWidget {
                         groupValue: datapathState.simulationMode,
                         onChanged: (SimulationMode? value) => datapathState.setSimulationMode(value),
                         activeColor: Colors.white,
-                        fillColor: WidgetStateProperty.all(Colors.white70),
+                        fillColor: WidgetStateProperty.all(Colors.white),
 
                       ),
                     ],
@@ -233,7 +289,21 @@ class MyApp extends StatelessWidget {
                       top: 220,
                       left: 60,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('MuxPC'),
+                        onEnter: (_) {
+                          final valor = datapathState.busValues['control_PCsrc'] ?? 0;
+                          final taken = datapathState.busValues['branch_taken'] ?? 0;
+                          
+                          String info = 'MuxPC - Origen del Próximo PC\n';
+                          // En un datapath real, esto puede ser una cascada de Muxes,
+                          // pero conceptualmente, la decisión final es entre seguir o saltar.
+                          info += valor==0 || valor==1 && taken==0 ? '> ' : '  ';
+                          info += 'PC + 4 (Sequential, not taken branch)\n';
+                          info += valor==1 && taken==1 ? '> ' : '  ';
+                          info += 'PC + Imm (Taken branch/JAL)\n';
+                          info += valor==2 ? '>  ' : '  ';
+                          info += 'RG + Imm (JALR)';
+                          datapathState.setHoverInfo(info);
+                        },
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: MuxWidget(
                           key: datapathState.mux2Key,
@@ -322,7 +392,8 @@ class MyApp extends StatelessWidget {
                       top: 160,
                       left: 520,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo(isSingleCycleMode?'Instruction Buffer':'IF_ID_Instr ${registerHover(datapathState.busValues['Pipe_IF_ID_Instr'],datapathState.busValues['Pipe_IF_ID_Instr_out'])}'),
+                        onEnter: (_) => datapathState.setHoverInfo(isSingleCycleMode?'Instruction Buffer':
+                        'IF_ID_Instr ${registerHover(datapathState.busValues['Pipe_IF_ID_Instr'],datapathState.busValues['Pipe_IF_ID_Instr_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: IBWidget(
                           key: datapathState.ibKey,
@@ -456,13 +527,27 @@ class MyApp extends StatelessWidget {
                       top: 160,
                       left: 740,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (A,B,destRegName,immExt)'),
+                        onEnter: (_) => datapathState.setHoverInfo(
+                          (isMultiCycleMode)?
+                          registerHover3(
+                            datapathState.busValues['Pipe_ID_EX_A'],datapathState.busValues['Pipe_ID_EX_A_out'],
+                            datapathState.busValues['Pipe_ID_EX_B'],datapathState.busValues['Pipe_ID_EX_B_out'],
+                            datapathState.busValues['Pipe_ID_EX_Imm'],datapathState.busValues['Pipe_ID_EX_Imm_out'],
+                            ["ID/EX (A)","ID/EX (B)","ID/EX (Imm)"])
+                          :
+                          registerHover4(
+                            datapathState.busValues['Pipe_ID_EX_A'],datapathState.busValues['Pipe_ID_EX_A_out'],
+                            datapathState.busValues['Pipe_ID_EX_B'],datapathState.busValues['Pipe_ID_EX_B_out'],
+                            datapathState.busValues['Pipe_ID_EX_RD'],datapathState.busValues['Pipe_ID_EX_RD_out'],
+                            datapathState.busValues['Pipe_ID_EX_Imm'],datapathState.busValues['Pipe_ID_EX_Imm_out'],
+                            ["ID/EX (A)","ID/EX (B)","ID/EX (RD)","ID/EX (Imm)"])
+                        ),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           label:'DE1',
                           height: 262,
                           key: datapathState.pipereg_de1_Key,
-                          isActive: datapathState.isPathActive("Pipe_ID_EX_A_out"),
+                          isActive: datapathState.isPathActive("Pipe_ID_EX_NPC_out"),
                           visibility: !isSingleCycleMode,
                           connectionPoints: const [Offset(0, 0.269),Offset(0, 0.453),Offset(0, 0.7115),Offset(0, 0.838),Offset(1, 0.269),Offset(1, 0.453),Offset(1, 0.7115),Offset(1, 0.838)],
                           color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
@@ -585,7 +670,17 @@ class MyApp extends StatelessWidget {
                       top: 160,
                       left: 1020,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('EX/ME Register (ALU result, B, destRegName) ${registerHover(datapathState.busValues['Pipe_EX_MEM_ALU_result'],datapathState.busValues['Pipe_EX_MEM_ALU_result_out'])}'),
+                        onEnter: (_) => datapathState.setHoverInfo(
+                          (isMultiCycleMode)?
+                          registerHover2(datapathState.busValues['Pipe_EX_MEM_ALU_result'],datapathState.busValues['Pipe_EX_MEM_ALU_result_out'],datapathState.busValues['Pipe_EX_MEM_ALU_B'],datapathState.busValues['Pipe_EX_MEM_ALU_B_out'],
+                          ["EX/ME (ALU_result)","EX/ME (B)"])
+                          :
+                          registerHover3(
+                            datapathState.busValues['Pipe_EX_MEM_ALU_result'],datapathState.busValues['Pipe_EX_MEM_ALU_result_out'],
+                            datapathState.busValues['Pipe_EX_MEM_ALU_B'],datapathState.busValues['Pipe_EX_MEM_ALU_B_out'],
+                            datapathState.busValues['Pipe_EX_MEM_RD'],datapathState.busValues['Pipe_EX_MEM_RD_out'],
+                            ["EX/ME (ALU_result)","EX/ME (B)","EX/ME (RD)"])
+                          ),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           label:'EM1',
@@ -599,7 +694,6 @@ class MyApp extends StatelessWidget {
                       ),
                     ),
 
-                    // ToDo Sustituir el HOVER en los registros de segmentación que contienen varios
  
 
 
@@ -754,7 +848,24 @@ class MyApp extends StatelessWidget {
                       top: 160,
                       left: 1220,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('ME/WR Register (ALU result, Read mem, Dest reg name)'),
+                        onEnter: (_) => datapathState.setHoverInfo(
+                          (isMultiCycleMode)?
+                          registerHover2(
+                            datapathState.busValues['Pipe_MEM_WB_ALU_result'],
+                            datapathState.busValues['Pipe_MEM_WB_ALU_result_out'],
+                            datapathState.busValues['Pipe_MEM_WB_RM'],
+                            datapathState.busValues['Pipe_MEM_WB_RM_out'],
+                          ["ME/WB (ALU_result)","ME/WB (RM)"])
+                          :
+                          registerHover3(
+                            datapathState.busValues['Pipe_MEM_WB_ALU_result'],
+                            datapathState.busValues['Pipe_MEM_WB_ALU_result_out'],
+                            datapathState.busValues['Pipe_MEM_WB_RM'],
+                            datapathState.busValues['Pipe_MEM_WB_RM_out'],
+                            datapathState.busValues['Pipe_MEM_WB_RD'],
+                            datapathState.busValues['Pipe_MEM_WB_RD_out'],
+                            ["ME/WB (ALU_result)","ME/WB (RM)","ME/WB (RD)"])
+                        ),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           label:'MW1',
@@ -851,7 +962,7 @@ class FloatingTooltip extends StatelessWidget {
     } else {
       content = Text(
         message,
-        style: const TextStyle(color: Colors.white, fontSize: 13),
+        style: miEstiloMono.copyWith(color: Colors.white),
       );
     }
 
