@@ -187,7 +187,7 @@ def main():
 
     generate_cpp_header(instructions, control_word_layout, os.path.join(project_root, 'core', 'include', 'ControlTableData.h'))
     generate_dart_file(instructions, control_word_layout, os.path.join(project_root, 'simulator_ui', 'lib', 'generated', 'control_table.g.dart'))
-    generate_python_file(instructions, control_word_layout, os.path.join(project_root, 'api', 'src', 'control_table_data.py'))
+    generate_python_file(instructions, control_word_layout, os.path.join(project_root, 'api', 'control_table_data.py'))
 
     print("\nSource files generated successfully.")
     print("Please recompile your projects to apply the changes.")

@@ -1,147 +1,104 @@
-# Simulador Didáctico de RISC-V
+# Simulador RISC-V
 
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Language](https://img.shields.io/badge/language-C++%20%7C%20Python%20%7C%20Dart-blue)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
+Este proyecto es un simulador funcional de un procesador RISC-V con una interfaz gráfica de usuario moderna. Permite visualizar el flujo de datos a través del datapath, inspeccionar registros y memoria, y ejecutar programas paso a paso.
 
-Una plataforma modular y didáctica para la simulación de la arquitectura de conjunto de instrucciones (ISA) **RISC-V**. El proyecto está diseñado con una arquitectura de microservicios, incluyendo un núcleo de simulación de alto rendimiento en C++, APIs en Python (FastAPI) y una interfaz gráfica interactiva en Flutter.
+## Estructura del Proyecto
 
-![Captura de pantalla del simulador](images/ui_addi.jpg?raw=true)
+El proyecto está dividido en varios componentes principales:
 
-El objetivo principal es crear una herramienta flexible para aprender sobre la arquitectura de computadores, con aplicaciones prácticas como la preparación de exámenes (inspirado en el proyecto CASIUM) o la visualización del flujo de ejecución de un programa a bajo nivel.
+-   `core/`: Contiene el núcleo del simulador implementado en C++. Es una librería de alto rendimiento que se encarga de la lógica de la CPU.
+-   `api/`: Una API web construida con Python y FastAPI que expone la funcionalidad del núcleo C++ a través de una interfaz REST.
+-   `simulator_ui/`: La interfaz de usuario, desarrollada con Flutter, que se comunica con la API para visualizar el estado del simulador y controlar su ejecución.
+-   `tests/`: Contiene los tests unitarios para el núcleo del simulador.
 
-## 🚀 Características Clave
+## Preparación del Entorno de Desarrollo
 
-*   **Arquitectura de Microservicios:** Componentes desacoplados (simulador, API, servicio de exámenes) para mayor escalabilidad y mantenibilidad.
-*   **Núcleo en C++:** Simulación de bajo nivel de la CPU, memoria y registros para obtener el máximo rendimiento.
-*   **API RESTful (FastAPI):** Una interfaz moderna y desacoplada para controlar el simulador de forma remota, permitiendo la conexión de múltiples clientes.
-*   **Contenerización con Docker:** Todo el sistema está orquestado con Docker y Docker Compose para una configuración y despliegue sencillos en cualquier entorno.
-*   **Interfaz Gráfica Interactiva (Flutter):** Una UI de escritorio moderna que visualiza el datapath en tiempo real, resaltando los componentes y buses activos en cada ciclo.
-*   **Módulo de Exámenes (En desarrollo):** Un servicio dedicado para crear, gestionar y evaluar exámenes online, similar a la plataforma CASIUM.
-*   **Soporte RV32I:** Implementación progresiva del conjunto de instrucciones base de 32 bits para enteros.
+Sigue estos pasos para configurar tu entorno y poder compilar y ejecutar el proyecto.
 
+### 1. Prerrequisitos
 
-## Modos de trabajo
+Asegúrate de tener instaladas las siguientes herramientas en tu sistema:
 
-El proyecto está pensado para implementar 3 modos de trabajo didácticos y uno general:
+-   **Git:** Para clonar el repositorio.
+-   **Compilador de C++:**
+    -   **Windows:** Visual Studio con el workload "Desarrollo para el escritorio con C++".
+    -   **macOS:** Xcode Command Line Tools.
+    -   **Linux:** `build-essential` o un paquete similar que incluya `g++`.
+-   **CMake:** Versión 3.15 o superior.
+-   **Flutter SDK:** Versión 3.10 o superior. Instrucciones de instalación.
+-   **Python:** Versión 3.8 o superior.
 
-*   **Modo didáctico monociclo:** El simulador muestra la microarquitectura de un procesador monociclo, con un slider que simula el paso del tiempo en el ciclo.
+### 2. Configuración del Núcleo C++ (`core/`)
 
-![Captura de pantalla del simulador](images/ui_addi.jpg?raw=true)
+El núcleo del simulador se compila como una librería que es utilizada por la API de Python.
 
-
-*   **Modo didáctico multiciclo:** El slider se elimina y el step de instrucciones se sustituye por un contador de reloj
-
-![Captura de pantalla del simulador](images/ui_multiciclo.jpg?raw=true)
-
-
-
-*   **Modo didáctico segmentado:** Simula las estapas de un pipeline
-
-
-![Captura de pantalla del simulador](images/ui_segmentado.jpg?raw=true)
-
-
-*   **Modo general:** ToDo
-
-## 🏗️ Arquitectura del Proyecto
-
-El proyecto sigue una filosofía de separación de incumbencias, orquestada a través de Docker.
-
-1.  **`core/` (C++):** El corazón del simulador. Contiene la lógica pura de la máquina RISC-V y se compila como una librería compartida (`.so` o `.dll`). No sabe nada sobre APIs o interfaces de usuario.
-2.  **`api/` (Python + FastAPI):** Un microservicio que carga la librería del `core` y la expone a través de una API REST. Gestiona las peticiones, serializa los datos a JSON y se comunica con los clientes.
-3.  **`exam_service/` (Futuro):** Un microservicio independiente que gestionará la lógica de los exámenes, usuarios y calificaciones.
-4.  **`simulator_ui/` (Flutter):** Una interfaz gráfica de escritorio que se comunica directamente con la API del simulador para una visualización detallada del datapath.
-5.  **`frontend/` (Futuro):** Directorio destinado a albergar la interfaz web principal que consumirá tanto la API del simulador como la del servicio de exámenes.
-6.  **`docker-compose.yml`:** El fichero principal que define y orquesta todos los servicios para un despliegue unificado.
-
-## 🐳 Instalación y Uso con Docker (Recomendado)
-
-La forma más sencilla de ejecutar toda la plataforma sin preocuparse por las dependencias locales.
-
-### Prerrequisitos
-*   Docker
-*   Docker Compose
-
-### Pasos
-
-1.  **Clonar el repositorio:**
+1.  Abre una terminal en la raíz del proyecto.
+2.  Crea una carpeta de compilación y configúrala con CMake:
     ```bash
-    git clone https://github.com/luisfromero/risc-v.git
-    cd risc-v.git
-    cd riscv
+    cmake -S . -B build
     ```
-
-2.  **Construir y ejecutar los contenedores:**
-    Desde la raíz del proyecto, ejecuta:
+3.  Compila el núcleo:
     ```bash
-    docker-compose up --build
+    cmake --build build
     ```
-    Este comando construirá las imágenes de cada servicio (incluyendo la compilación del núcleo C++) y los levantará.
+    Esto generará la librería compartida (un `.dll` en Windows, `.so` en Linux, `.dylib` en macOS) dentro de la carpeta `build/`.
 
-3.  **Acceder a los servicios:**
-    *   **API del Simulador:** `http://localhost:8000`
-    *   **Documentación de la API (Swagger UI):** `http://localhost:8000/docs`
+### 3. Configuración de la API Python (`api/`)
 
-## 🛠️ Desarrollo Local (Alternativo)
+La API actúa como puente entre el núcleo C++ y la interfaz de Flutter.
 
-Si prefieres ejecutar los servicios de forma nativa para desarrollo.
-
-### Prerrequisitos
-*   Compilador C++ (GCC/Clang/MSVC)
-*   CMake (>= 3.10)
-*   Python (>= 3.10)
-*   Flutter SDK (>= 3.0)
-
-### Pasos
-
-1.  **Compilar el núcleo C++:**
+1.  Navega a la carpeta `api`:
     ```bash
-    # Desde la raíz del proyecto
-    cmake -S core -B core/build
-    cmake --build core/build
+    cd api
     ```
-    Esto generará la librería compartida en `core/build/`.
-
-2.  **Ejecutar la API del Simulador:**
+2.  Crea y activa un entorno virtual de Python:
+    -   **Windows:**
+        ```bash
+        python -m venv venv
+        .\venv\Scripts\activate
+        ```
+    -   **macOS / Linux:**
+        ```bash
+        python3 -m venv venv
+        source venv/bin/activate
+        ```
+3.  Instala las dependencias (asumiendo que tienes un archivo `requirements.txt`):
     ```bash
-    # Navegar al directorio de la API
-    cd api 
-
-    # (Recomendado) Crear y activar un entorno virtual
-    python -m venv venv
-    source venv/bin/activate  # En Linux/macOS
-    # .\venv\Scripts\activate    # En Windows
-
-    # Instalar dependencias
     pip install -r requirements.txt
-
-    # Iniciar el servidor
-    uvicorn --host 0.0.0.0 --port 8000 main:app --reload
     ```
 
-3.  **Ejecutar la Interfaz Gráfica (Flutter):**
+### 4. Configuración de la Interfaz Flutter (`simulator_ui/`)
+
+La interfaz gráfica te permite interactuar con el simulador.
+
+1.  Navega a la carpeta `simulator_ui`:
     ```bash
-    # Navegar al directorio de la UI
     cd simulator_ui
-    
-    # Ejecutar la aplicación (asume que la API está corriendo)
-    flutter run
+    ```
+2.  Obtén las dependencias de Flutter:
+    ```bash
+    flutter pub get
     ```
 
-## 🗺️ Roadmap y Futuras Ideas
+## Cómo Ejecutar la Aplicación Completa
 
-- [ ] **Servicio de Exámenes:** Implementar la lógica para crear, realizar y calificar exámenes.
-- [ ] **Frontend Web:** Desarrollar una interfaz web con React/Vue para interactuar con la plataforma.
-- [ ] **API Gateway:** Introducir un API Gateway para gestionar el enrutamiento y la autenticación de forma centralizada.
-- [ ] **Autenticación de Usuarios:** Añadir un sistema de registro y login.
-- [ ] **Persistencia de Datos:** Integrar una base de datos (ej. PostgreSQL) para los servicios que lo requieran.
-- [ ] **Completar RV32IM:** Implementar el conjunto de instrucciones base y la extensión 'M'.
+1.  **Inicia el backend:**
+    -   Asegúrate de estar en la carpeta `api/` con el entorno virtual activado.
+    -   Ejecuta el servidor:
+        ```bash
+        uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+        ```
+2.  **Inicia la interfaz:**
+    -   Abre otra terminal y navega a la carpeta `simulator_ui/`.
+    -   Ejecuta la aplicación de Flutter (puedes elegir la plataforma):
+        ```bash
+        # Para web
+        flutter run -d chrome
 
-## 🤝 Contribuciones
+        # Para escritorio (Windows/macOS/Linux)
+        flutter run -d windows # o macos, o linux
+        ```
 
-Las contribuciones son bienvenidas. Por favor, abre un *issue* para discutir cambios importantes antes de realizar un *pull request*.
+## Pruebas
 
-## 📄 Licencia
-
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+La carpeta `tests/` está dedicada a los tests unitarios del núcleo C++. Para más información sobre cómo ejecutar y añadir nuevos tests, consulta el archivo `tests/leeme.md`.

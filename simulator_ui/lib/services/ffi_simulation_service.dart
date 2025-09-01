@@ -3,7 +3,6 @@ import 'dart:ffi'; // Necesario para FFI
 import 'dart:io'; // Para comprobar el sistema operativo
 import 'dart:typed_data'; // Para Uint8List
 import 'package:ffi/ffi.dart';
-import 'package:window_manager/window_manager.dart';
 import 'simulation_service.dart';
 // No es necesario, toDartString viene con ffi.dart
 import '../simulation_mode.dart';

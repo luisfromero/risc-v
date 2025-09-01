@@ -1,7 +1,9 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
+
+const String _kWindowTitle = 'RISC-V Datapath Simulator';
+const Size _kInitialWindowSize = Size(1600, 900);
 
 // Implementación para plataformas de escritorio.
 // Configura el tamaño inicial de la ventana y su título.
@@ -9,11 +11,11 @@ Future<void> setupWindow() async {
   // Asegurarnos de que solo se ejecute en plataformas de escritorio
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     await windowManager.ensureInitialized();
-
+ 
     WindowOptions windowOptions = const WindowOptions(
-      size: Size(1600, 900),
+      size: _kInitialWindowSize,
       center: true,
-      title: "RISC-V Datapath Simulator",
+      title: _kWindowTitle,
       titleBarStyle: TitleBarStyle.normal,
     );
 

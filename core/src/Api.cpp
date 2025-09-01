@@ -51,7 +51,7 @@ struct InstructionEntry {
             {"PC_dest", {{"value", state.bus_PC_dest.value}, {"ready_at", state.bus_PC_dest.ready_at}, {"is_active", state.bus_PC_dest.is_active}}},
             {"PC_next", {{"value", state.bus_PC_next.value}, {"ready_at", state.bus_PC_next.ready_at}, {"is_active", state.bus_PC_next.is_active}}},
             {"branch_taken", {{"value", state.bus_branch_taken.value}, {"ready_at", state.bus_branch_taken.ready_at}, {"is_active", state.bus_branch_taken.is_active}}},
-            {"criticaltime", state.criticalTime},
+            {"criticalTime", state.criticalTime},
             {"totalMicroCycles",state.total_micro_cycles},
             {"instruction_cptr",state.instruction_cptr},
 

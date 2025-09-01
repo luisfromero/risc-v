@@ -141,6 +141,7 @@ Simulator::Simulator(size_t mem_size, PipelineModel model)
 
       // Reservar espacio para el historial para evitar realojamientos frecuentes
       history.reserve(1024);
+      m_logfile << "--- Historia reservada ---" << std::endl;
       
 }
 
@@ -992,7 +993,7 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
     // Accesses data memory for loads and stores.
     // Data comes from the EX/MEM pipeline register.
     uint32_t mem_read_data = INDETERMINADO;
-
+    bool isLWorSW=false;
     try{
     if (datapath.Pipe_EX_MEM_Control_out.is_active) {
         uint16_t mem_control = datapath.Pipe_EX_MEM_Control_out.value;
@@ -1003,11 +1004,13 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
 
         if (MemWr == 1) { // Store instruction (e.g., SW)
             d_mem.write_word(alu_result, datapath.Pipe_EX_MEM_B_out.value);
-        } else if (controlSignal(mem_control, "ResSrc") == 1) { // Load instruction (e.g., LW)
+            isLWorSW=true;
+        } else if (controlSignal(mem_control, "ResSrc") == 0) { // Load instruction (e.g., LW)
             mem_read_data = d_mem.read_word(alu_result);
+            isLWorSW=true;
         }
     }
-    datapath.bus_Mem_read_data = { mem_read_data, 1, datapath.Pipe_EX_MEM_Control_out.is_active };
+    datapath.bus_Mem_read_data = { mem_read_data, 1, isLWorSW };
 
     // Pass data to the next stage's register (MEM/WB)
     datapath.Pipe_MEM_WB_Control      = datapath.Pipe_EX_MEM_Control_out;
@@ -1074,7 +1077,7 @@ catch(const std::exception& e){
         // End of forwarding logic
 
         }//Forwarding
-    uint32_t alu_op_b=0xfabada;
+    uint32_t alu_op_b=INDETERMINADO;
     try{
     if (datapath.Pipe_ID_EX_Control_out.is_active) {
         uint16_t ex_control = datapath.Pipe_ID_EX_Control_out.value;
@@ -1084,6 +1087,8 @@ catch(const std::exception& e){
 
         // MUX B: Selects the second operand for the ALU.
         alu_op_b = mux_B.select(datapath.Pipe_ID_EX_Imm_out.value, forwarded_b, ALUsrc);
+
+        m_logfile << "ALUsrc: "<< ALUsrc << std::endl;
 
         // ALU Execution
         alu_result = alu.calc(forwarded_a, alu_op_b, ALUctr);
@@ -1114,6 +1119,7 @@ catch(const std::exception& e){
         datapath.bus_ALUsrc={ALUsrc,1,is_valid_instr_EX};
         datapath.bus_ALUctr={ALUctr,1,is_valid_instr_EX};
         datapath.bus_PCsrc={PCsrc,1,is_valid_instr_EX};
+
 
     }
     
@@ -1150,12 +1156,13 @@ catch(const std::exception& e){
     
     if(m_logfile.is_open()&&DEBUG_INFO){
         m_logfile << "EX Stage: " << std::endl
-                  << "Pipe0: " << datapath.Pipe_ID_EX_RD.is_active << "\t" << (int)datapath.Pipe_ID_EX_RD.value << std::endl
-                  << "Pipe1: " << datapath.Pipe_ID_EX_A.is_active << "\t" << (int)datapath.Pipe_ID_EX_A.value << std::endl
-                  << "Pipe2: " << datapath.Pipe_ID_EX_B.is_active << "\t" << (int)datapath.Pipe_ID_EX_B.value << std::endl
-                  << "Pipe3: " << datapath.Pipe_ID_EX_Imm.is_active << "\t" << (int)datapath.Pipe_ID_EX_Imm.value << std::endl
-                  << "Pipe4: " << datapath.Pipe_ID_EX_NPC.is_active << "\t" << (int)datapath.Pipe_ID_EX_NPC.value << std::endl
-                  << "Pipe5: " << datapath.Pipe_ID_EX_PC.is_active << "\t" << (int)datapath.Pipe_ID_EX_PC.value << std::endl
+                  << "ID/EX RDestino: " << datapath.Pipe_ID_EX_RD.is_active << "\t" << (int)datapath.Pipe_ID_EX_RD.value << std::endl
+                  << "ID/EX A: " << datapath.Pipe_ID_EX_A.is_active << "\t" << (int)datapath.Pipe_ID_EX_A.value << std::endl
+                  << "ID/EX B: " << datapath.Pipe_ID_EX_B.is_active << "\t" << (int)datapath.Pipe_ID_EX_B.value << std::endl
+                  << "ID/EX Imm: " << datapath.Pipe_ID_EX_Imm.is_active << "\t" << (int)datapath.Pipe_ID_EX_Imm.value << std::endl
+                  << "ID/EX NPC: " << datapath.Pipe_ID_EX_NPC.is_active << "\t" << (int)datapath.Pipe_ID_EX_NPC.value << std::endl
+                  << "ID/EX PC: " << datapath.Pipe_ID_EX_PC.is_active << "\t" << (int)datapath.Pipe_ID_EX_PC.value << std::endl
+                  << "alu_op_b: " << alu_op_b << std::endl
 
                   << "ALU Result: " << alu_result << ", Zero: " << alu_zero 
                   << ", Branch Target: " << pc_plus_imm 
@@ -1194,6 +1201,7 @@ catch(const std::exception& e){
                 // Check for dependency: if the destination of the load in EX is used as a source in ID
                 if (ex_rd != 0 && (ex_rd == id_rs1 || ex_rd == id_rs2)) {
                     stall = true;
+                    
                 }
             }
         }
@@ -1220,12 +1228,15 @@ catch(const std::exception& e){
 
     } else if (stall) {
         // Inject a "bubble" (NOP) into the pipeline
-        datapath.Pipe_ID_EX_Control.is_active = false;
-        datapath.Pipe_ID_EX_Control.value = 0;
-        if(m_logfile.is_open()&&DEBUG_INFO)        m_logfile << "Stall detectado: " << std::endl;
+        datapath.Pipe_ID_EX_Control = {0, 1, false};        if(m_logfile.is_open()&&DEBUG_INFO)        m_logfile << "Stall detectado: " << std::endl;
+        datapath.Pipe_ID_EX_A = {0, 1, false};
+        datapath.Pipe_ID_EX_B = {0, 1, false};
+        datapath.Pipe_ID_EX_RD = {0, 1, false};
+        datapath.Pipe_ID_EX_Imm = {0, 1, false};
+        datapath.Pipe_ID_EX_NPC = {0, 1, false};
+        datapath.Pipe_ID_EX_PC = {0, 1, false};
 
-        //strcpy(datapath.Pipe_ID_instruction_cptr, "nop (stall)");
-        // All other ID/EX fields are irrelevant
+
     } else {
         // Normal operation
 
@@ -1321,7 +1332,7 @@ if(NO_BRANCH_FLUSH)flush=false;
 
     }
     if(stall){
-        datapath.Pipe_IF_ID_Instr = datapath.Pipe_IF_ID_Instr;// No change, we keep the previous instruction in IF/ID
+        datapath.Pipe_IF_ID_Instr = datapath.Pipe_IF_ID_Instr_out; //;// No change, we keep the previous instruction in IF/ID
     }
 
 
@@ -1376,8 +1387,15 @@ if(NO_BRANCH_FLUSH)flush=false;
     strcpy_s(datapath.Pipe_WB_instruction_cptr, datapath.Pipe_MEM_instruction_cptr);
     strcpy_s(datapath.Pipe_MEM_instruction_cptr, datapath.Pipe_EX_instruction_cptr);
     strcpy_s(datapath.Pipe_EX_instruction_cptr, datapath.Pipe_ID_instruction_cptr);
-    strcpy_s(datapath.Pipe_ID_instruction_cptr, datapath.Pipe_IF_instruction_cptr);
-    strcpy_s(datapath.Pipe_IF_instruction_cptr,flush?"nop (flush)":instructionString.c_str()); // No sólo nop en ID, también en IF
+    if(!stall) {
+        strcpy_s(datapath.Pipe_ID_instruction_cptr, datapath.Pipe_IF_instruction_cptr);
+        strcpy_s(datapath.Pipe_IF_instruction_cptr,flush?"nop (flush)":instructionString.c_str()); // No sólo nop en ID, también en IF
+        }
+        else
+        {
+            strcpy_s(datapath.Pipe_ID_instruction_cptr , "nop (load stall)");
+        }
+
     strcpy_s(datapath.instruction_cptr,instructionString.c_str());
 
     if(m_logfile.is_open() && DEBUG_INFO) {

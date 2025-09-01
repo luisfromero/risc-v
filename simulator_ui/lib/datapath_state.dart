@@ -373,12 +373,16 @@ bool get isPCsrcActive => _isPCsrcActive;
     _pipeMemInstruction = simState.pipeMemInstructionCptr;
     _pipeWbInstruction = simState.pipeWbInstructionCptr;
 
-    if(simState.instructionMemory!=null) //En ciclos posteriores, el estado viene sin las instrucciones. No perdemos la que vino con reset
+    if(simState.instructionMemory!=null) {
+      //En ciclos posteriores, el estado viene sin las instrucciones. No perdemos la que vino con reset
       instructionMemory=simState.instructionMemory;
+    }
 
     //Solo algunos steps vienen con la memoria de datos
-    if(simState.dataMemory!=null) //En ciclos posteriores, el estado viene sin las instrucciones. No perdemos la que vino con reset
+    if(simState.dataMemory!=null) {
+      //En ciclos posteriores, el estado viene sin las instrucciones. No perdemos la que vino con reset
       dataMemory= simState.dataMemory;
+    }
 
 
 

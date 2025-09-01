@@ -2,22 +2,37 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Stop Uvicorn",
+            "label": "Clean Project",
             "type": "shell",
-            // Este comando busca y detiene el proceso de uvicorn de forma segura.
-            // Es para Windows (PowerShell). Si usas Linux/macOS, descomenta la otra línea.
-            "command": "powershell -Command \"Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*uvicorn*api.main:app*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }\"",
-            // "command": "pkill -f 'uvicorn api.main:app' || true", // Para Linux/macOS
+            "command": "if exist build ( rmdir /s /q build )",
             "problemMatcher": [],
             "presentation": {
-                "reveal": "silent", // No muestra la terminal para esta tarea
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Configure C++ Core (CMake)",
+            "type": "shell",
+            "command": "cmake -S . -B build",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Stop Uvicorn",
+            "type": "shell",
+            "command": "powershell -Command \"Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*uvicorn*api.main:app*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }\"",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent",
                 "panel": "shared"
             }
         },
         {
             "label": "Compile C++ Core",
             "type": "shell",
-            // Asume que tu carpeta de compilación se llama 'build'
             "command": "cmake --build build",
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -30,20 +45,19 @@
         {
             "label": "Start FastAPI Server",
             "type": "shell",
-            // Llama a python desde el entorno virtual para evitar problemas de activación.
-            // Ajusta la ruta a tu venv si es diferente.
-            // Para Windows:
-            "command": ".\\api\\venv\\Scripts\\python.exe -m uvicorn api.main:app --host 0.0.0.0",
-            // Para Linux/macOS:
-            // "command": "./api/venv/bin/python -m uvicorn api.main:app --host 0.0.0.0",
+            "command": "python -m uvicorn api.main:app --host 0.0.0.0 --port 8070",
             "options": {
-                "cwd": "${workspaceFolder}" // Ejecuta desde la raíz del proyecto
+                "cwd": "${workspaceFolder}"
             },
-            "isBackground": true, // Permite que VS Code siga funcionando mientras el servidor corre
+            "isBackground": true,
             "problemMatcher": [
                 {
                     "owner": "uvicorn",
-                    "pattern": [{ "regexp": ".*" }],
+                    "pattern": [
+                        {
+                            "regexp": ".*"
+                        }
+                    ],
                     "background": {
                         "activeOnStart": true,
                         "beginsPattern": "Uvicorn running on",
@@ -54,7 +68,7 @@
         },
         {
             "label": "API: Detener, Compilar y Reiniciar",
-            "dependsOrder": "sequence", // Ejecuta las tareas en orden
+            "dependsOrder": "sequence",
             "dependsOn": [
                 "Stop Uvicorn",
                 "Compile C++ Core",
@@ -62,7 +76,7 @@
             ],
             "group": {
                 "kind": "build",
-                "isDefault": true // Hace que esta sea la tarea de compilación por defecto (Ctrl+Shift+B)
+                "isDefault": true
             },
             "problemMatcher": []
         }

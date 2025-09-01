@@ -96,7 +96,7 @@ class DatapathState(ctypes.Structure):
         ("PC_dest", Signal_u32),
         ("PC_next", Signal_u32),
         ("branch_taken", Signal_bool),
-        ("criticaltime", ctypes.c_uint32),
+        ("criticalTime", ctypes.c_uint32),
         ("total_micro_cycles", ctypes.c_uint32),
 
         # ("instruction", ctypes.c_wchar_p),
@@ -311,7 +311,7 @@ simulators_lock = threading.Lock()
 # --- Configuración de CORS ---
 # Esto es CRUCIAL para que las aplicaciones web (como Flutter Web)
 # que se ejecutan en un origen diferente (ej. localhost:5000)
-# puedan comunicarse con esta API (ej. localhost:8000).
+# puedan comunicarse con esta API (ej. localhost:8070).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Permite todos los orígenes (ideal para desarrollo)
@@ -322,8 +322,8 @@ app.add_middleware(
 
 # Importar la definición del layout de la palabra de control
 try:
-    from src.control_table_data import CONTROL_WORD_LAYOUT
-    from src.program_data import DEFAULT_PROGRAM_A, DEFAULT_PROGRAM_B, DEFAULT_PROGRAM_C, DEFAULT_PROGRAM_D
+    from control_table_data import CONTROL_WORD_LAYOUT
+    from program_data import DEFAULT_PROGRAM_A, DEFAULT_PROGRAM_B, DEFAULT_PROGRAM_C, DEFAULT_PROGRAM_D
 except ImportError:
     print("ERROR: No se pudo encontrar 'control_table_data.py' o 'program_data.py'.", file=sys.stderr)
     print("Asegúrate de haber ejecutado los scripts de generación en 'resources/' primero.", file=sys.stderr)
@@ -377,8 +377,7 @@ class SimulatorStateModel(BaseModel):
     pc: int = Field(..., description="Contador de programa actual (en hexadecimal).")
     instruction: str = Field(..., description="Instrucción actual desensamblada.")
     status_register: int = Field(..., description="Registro de estado (ej. 'mstatus').")
-    # critical_time: int = Field(..., description="Ruta crítica en nanosegundos para el ciclo actual.")
-    criticaltime: int = Field(..., description="Ruta crítica en nanosegundos para el ciclo actual.")
+    criticalTime: int = Field(..., description="Ruta crítica en nanosegundos para el ciclo actual.")
     totalMicroCycles: int = Field(..., description="Número de ciclos totales de microarquitectura.")
     Pipe_IF_instruction_cptr: str = Field(..., description="Instrucción en el registro Pipe_IF (código C).")
     Pipe_ID_instruction_cptr: str = Field(..., description="Instrucción en el registro Pipe_ID (código C).")
@@ -410,8 +409,7 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
     registers = sim.get_registers()
     datapath_c_struct = sim.get_datapath_state()
     instruction_string = datapath_c_struct.instruction_cptr.decode('utf-8').strip('\x00')
-    critical_time = datapath_c_struct.criticaltime
-    criticaltime = datapath_c_struct.criticaltime
+    criticalTime = datapath_c_struct.criticalTime
     total_micro_cycles=datapath_c_struct.total_micro_cycles
     Pipe_IF_instruction_cptr = datapath_c_struct.Pipe_IF_instruction_cptr.decode('utf-8').strip('\x00')
     Pipe_ID_instruction_cptr = datapath_c_struct.Pipe_ID_instruction_cptr.decode('utf-8').strip('\x00')
@@ -480,8 +478,7 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
         instruction=instruction_string,
         # status_register=f"0x{status:08x}",
         status_register = status,
-        # critical_time=critical_time,
-        criticaltime=critical_time,
+        criticalTime=criticalTime,
         totalMicroCycles=total_micro_cycles,
         Pipe_IF_instruction_cptr=Pipe_IF_instruction_cptr,
         Pipe_ID_instruction_cptr=Pipe_ID_instruction_cptr,
@@ -559,7 +556,6 @@ def reset_simulator(
             "model_name": config.model
         }
         print("Creada nueva instancia del simulador...")
-        
         if config.load_test_program:
             simulators[session_id]["sim"].load_program(DEFAULT_PROGRAM_D)
             print("Cargado programa por defecto...")

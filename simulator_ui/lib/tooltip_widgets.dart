@@ -23,8 +23,8 @@ Widget buildRegisterFileTooltip(DatapathState datapathState) {
     List<TextSpan> spans = [];
     for (int i = start; i < end; i++) {
       final value = registers.values.elementAt(i) ;
-      final regName = 'x'+('$i'.padLeft(2,'0')).padRight(4);
-      final hexValue = '0x${value?.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+      final regName = 'x${('$i'.padLeft(2,'0')).padRight(4)}';
+      final hexValue = '0x${value.toRadixString(16).padLeft(8, '0').toUpperCase()}';
       
       Color color = Colors.white;
       if (i == busDa) color = Colors.yellow;
@@ -129,8 +129,7 @@ Widget _buildPipelineControlTooltip(DatapathState datapathState) {
   Widget buildStageColumn(String title, String instruction, int? controlWord, List<String> relevantSignals) {
     final instructionName=instruction.padRight(20);
     
-;
-    final String controlWordName = '0x' + (controlWord != null?controlWord.toRadixString(16).padLeft(4, '0').toUpperCase():'');
+    final String controlWordName = '0x${controlWord != null?controlWord.toRadixString(16).padLeft(4, '0').toUpperCase():''}';
 
     List<TextSpan> spans = [
       TextSpan(
@@ -149,12 +148,12 @@ Widget _buildPipelineControlTooltip(DatapathState datapathState) {
 
     if (controlWord != null && instruction != 'nop') {
       final signals = getSignalValuesPipe(datapathState);
-      relevantSignals.forEach((key) {
+      for (var key in relevantSignals) {
         spans.add(TextSpan(
           text: '${key.padRight(8)}: ${signals[key]}\n',
           style: const TextStyle(color: Colors.white),
         ));
-      });
+      }
     } else {
        spans.add(const TextSpan(
         text: '(bubble)',

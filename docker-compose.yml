@@ -4,8 +4,20 @@ services:
   riscv-api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.api
     ports:
-      - "8000:8000"
+      - "8070:8070"
     volumes:
-      - ./api:/app  # Monta el código de la API para desarrollo en vivo
+      - ./api:/app
+      - ./resources:/app/resources
+      - ./programs:/app/programs
+
+  riscv-ui:
+    image: nginx:alpine
+    ports:
+      - "8071:8071"
+    volumes:
+      - ./simulator_ui/build/web:/usr/share/nginx/html
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - riscv-api

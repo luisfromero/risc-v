@@ -163,7 +163,7 @@ def generate_dart_file(output_path: pathlib.Path):
 
 if __name__ == "__main__":
     api_dir = pathlib.Path(__file__).parent.parent / "api"
-    python_output_path = api_dir / "src" / "program_data.py"
+    python_output_path = api_dir / "program_data.py"
     generate_python_file(python_output_path)
 
     ui_dir = pathlib.Path(__file__).parent.parent / "simulator_ui"

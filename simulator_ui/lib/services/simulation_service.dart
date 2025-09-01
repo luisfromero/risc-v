@@ -1,5 +1,6 @@
 /// Define el "contrato" que cualquier proveedor de simulación (sea FFI, API, etc.)
 /// debe cumplir. La UI solo interactuará con esta clase abstracta.
+library;
 //import 'dart:nativewrappers/_internal/vm/lib/ffi_native_type_patch.dart';
 
 import '../generated/control_table.g.dart';
@@ -447,7 +448,7 @@ class SimulationState {
       // Extrae los nuevos campos del JSON.
       instruction: json['instruction'] as String? ?? '',
       instructionValue: getValue('Instr'),
-      criticalTime: json['criticaltime'] as int? ?? 0,
+      criticalTime: json['criticalTime'] as int? ?? 0,
       statusRegister: json['status_register'] as int? ?? 0,
       pcValue: json['pc'] as int? ?? 0,
       registers: Map<String, int>.from(json['registers'] as Map? ?? {}),

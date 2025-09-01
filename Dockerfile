@@ -33,5 +33,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ./api .
 
 # Exponer el puerto y ejecutar la API
-EXPOSE 8000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8070
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8070"]

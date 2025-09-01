@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:namer_app/colors.dart';
-import 'package:namer_app/reg_widget.dart';
+import 'colors.dart';
+import 'reg_widget.dart';
 import 'package:flutter/services.dart'; // Para RawKeyboard
-import 'dart:ui'; // Para FontFeature
+// Para FontFeature
 import 'package:provider/provider.dart';
 import 'buses_painter.dart';
 import 'datapath_state.dart';          // Importa nuestro estado
@@ -14,7 +14,6 @@ import 'mux_widget.dart';
 import 'mux2_widget.dart';
 import 'extender_widget.dart';
 import 'control_unit_widget.dart';
-import 'services/simulation_service.dart';
 import 'services/get_service.dart'; // Importación condicional del servicio
 import 'simulation_mode.dart';
 import 'tooltip_widgets.dart';
@@ -55,51 +54,37 @@ Future<void> main() async {
   );
 }
 
-String registerHover(int? valIn, int? valOut,[int digits = 8]) {
-  String in_ =(valIn==null)?'not set':'0x${valIn.toRadixString(16).padLeft(digits, '0').toUpperCase()}';
-  String out=(valOut==null)?'not set':'0x${valOut.toRadixString(16).padLeft(digits, '0').toUpperCase()}';
-  return "\nin : $in_ \nout: $out";
+/// Clase para encapsular los datos de un registro para el tooltip.
+class HoverRegisterData {
+  final String name;
+  final int? valIn;
+  final int? valOut;
+  final int digits;
 
-}
-
-String registerHover2(int? val1in, int? val1out, int? val2in, int? val2out,List<String> nombres ) {
-  String in1_=(val1in==null)?'not set':'0x${val1in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String out1=(val1out==null)?'not set':'0x${val1out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String in2_=(val2in==null)?'not set':'0x${val2in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String out2=(val2out==null)?'not set':'0x${val2out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String part1="${nombres[0]}\nin : $in1_ \nout: $out1";
-  String part2="${nombres[1]}\nin : $in2_ \nout: $out2";
-  return "$part1\n\n$part2";
+  HoverRegisterData(this.name, this.valIn, this.valOut, {this.digits = 8});
 }
 
-String registerHover3(int? val1in, int? val1out, int? val2in, int? val2out, int? val3in, int? val3out,List<String> nombres ) {
-  String in1_=(val1in==null)?'not set':'0x${val1in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String out1=(val1out==null)?'not set':'0x${val1out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String in2_=(val2in==null)?'not set':'0x${val2in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String out2=(val2out==null)?'not set':'0x${val2out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String in3_=(val3in==null)?'not set':'0x${val3in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String out3=(val3out==null)?'not set':'0x${val3out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String part1="${nombres[0]}\nin : $in1_ \nout: $out1";
-  String part2="${nombres[1]}\nin : $in2_ \nout: $out2";
-  String part3="${nombres[2]}\nin : $in3_ \nout: $out3";
-  return "$part1\n\n$part2\n\n$part3";
-}
-String registerHover4(int? val1in, int? val1out, int? val2in, int? val2out, int? val3in, int? val3out,int? val4in, int? val4out,List<String> nombres ) {
-  String in1_=(val1in==null)?'not set':'0x${val1in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String out1=(val1out==null)?'not set':'0x${val1out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String in2_=(val2in==null)?'not set':'0x${val2in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String out2=(val2out==null)?'not set':'0x${val2out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String in3_=(val3in==null)?'not set':'0x${val3in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String out3=(val3out==null)?'not set':'0x${val3out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String in4_=(val4in==null)?'not set':'0x${val4in.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String out4=(val4out==null)?'not set':'0x${val4out.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-  String part1="${nombres[0]}\nin : $in1_ \nout: $out1";
-  String part2="${nombres[1]}\nin : $in2_ \nout: $out2";
-  String part3="${nombres[2]}\nin : $in3_ \nout: $out3";
-  String part4="${nombres[3]}\nin : $in4_ \nout: $out4";
-  return "$part1\n\n$part2\n\n$part3\n\n$part4";
-}
+/// Formatea una única línea de tooltip para un registro.
+String _formatRegisterLine(String name, int? valIn, int? valOut, [int digits = 8]) {
+  final inStr = (valIn == null) ? 'not set' : '0x${valIn.toRadixString(16).padLeft(digits, '0').toUpperCase()}';
+  final outStr = (valOut == null) ? 'not set' : '0x${valOut.toRadixString(16).padLeft(digits, '0').toUpperCase()}';
   
+  final namePart = name.isNotEmpty ? '$name\n' : '\n';
+  return "${namePart}in : $inStr \nout: $outStr";
+}
+
+/// Genera un tooltip para un único registro sin nombre explícito.
+String formatSingleRegisterHover(int? valIn, int? valOut, {int digits = 8}) {
+  return _formatRegisterLine('', valIn, valOut, digits);
+}
+
+/// Genera un tooltip para múltiples registros, cada uno con su nombre.
+String formatMultiRegisterHover(List<HoverRegisterData> registers) {
+  return registers
+      .map((r) => _formatRegisterLine(r.name, r.valIn, r.valOut, r.digits))
+      .join('\n\n');
+}
+
 Color pipelineColorForPC(int? pc) {
   // Ejemplo: elige entre 4 colores cíclicamente según el valor del PC
   if(pc==null||pc==0)return Color.fromARGB(30, 0, 0, 0); // Si el PC es nulo, devolvemos un color transparente
@@ -174,7 +159,7 @@ class MyApp extends StatelessWidget {
                         groupValue: datapathState.simulationMode,
                         onChanged: (SimulationMode? value) => datapathState.setSimulationMode(value),
                         activeColor: Colors.white,
-                        fillColor: WidgetStateProperty.all(Colors.white),
+                        fillColor: MaterialStateProperty.all(Colors.white),
 
                       ),
                     ],
@@ -319,7 +304,7 @@ class MyApp extends StatelessWidget {
                       left: 200,
                       // MouseRegion detecta cuando el ratón entra o sale de su área.
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('PC: ${registerHover(datapathState.pcValue, datapathState.busValues['mux_pc_bus'])}'),
+                        onEnter: (_) => datapathState.setHoverInfo('PC: ${formatSingleRegisterHover(datapathState.pcValue, datapathState.busValues['mux_pc_bus'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: PcWidget(
                           key: datapathState.pcKey,
@@ -367,7 +352,7 @@ class MyApp extends StatelessWidget {
                           label: 'Instruct.\nMemory',
                           width: 80,
                           height: 120,
-                          isActive: datapathState.isIMemActive,
+                          isActive: !isSingleCycleMode?true: datapathState.isIMemActive,
                           color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC(datapathState.pcValue)),
                           // 2 Puntos para I-Mem
                           connectionPoints: const [
@@ -393,7 +378,7 @@ class MyApp extends StatelessWidget {
                       left: 520,
                       child: MouseRegion(
                         onEnter: (_) => datapathState.setHoverInfo(isSingleCycleMode?'Instruction Buffer':
-                        'IF_ID_Instr ${registerHover(datapathState.busValues['Pipe_IF_ID_Instr'],datapathState.busValues['Pipe_IF_ID_Instr_out'])}'),
+                        'IF_ID_Instr ${formatSingleRegisterHover(datapathState.busValues['Pipe_IF_ID_Instr'],datapathState.busValues['Pipe_IF_ID_Instr_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: IBWidget(
                           key: datapathState.ibKey,
@@ -409,7 +394,7 @@ class MyApp extends StatelessWidget {
                       top: 120,
                       left: 520,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('IF_ID_NPC ${registerHover(datapathState.busValues['Pipe_IF_ID_NPC'],datapathState.busValues['Pipe_IF_ID_NPC_out'])}'),
+                        onEnter: (_) => datapathState.setHoverInfo('IF_ID_NPC ${formatSingleRegisterHover(datapathState.busValues['Pipe_IF_ID_NPC'],datapathState.busValues['Pipe_IF_ID_NPC_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_fd0_Key,
@@ -426,7 +411,7 @@ class MyApp extends StatelessWidget {
                       top: 420,
                       left: 520,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('IF_ID_PC ${registerHover(datapathState.busValues['Pipe_IF_ID_PC'],datapathState.busValues['Pipe_IF_ID_PC_out'])}'),
+                        onEnter: (_) => datapathState.setHoverInfo('IF_ID_PC ${formatSingleRegisterHover(datapathState.busValues['Pipe_IF_ID_PC'],datapathState.busValues['Pipe_IF_ID_PC_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_fd1_Key,
@@ -490,7 +475,7 @@ class MyApp extends StatelessWidget {
                       top: 80,
                       left: 740,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Control ${registerHover(datapathState.busValues['Pipe_ID_EX_Control'],datapathState.busValues['Pipe_ID_EX_Control_out'], 4)}'),
+                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Control ${formatSingleRegisterHover(datapathState.busValues['Pipe_ID_EX_Control'],datapathState.busValues['Pipe_ID_EX_Control_out'], digits: 4)}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_deControl_Key,
@@ -509,7 +494,7 @@ class MyApp extends StatelessWidget {
                       top: 120,
                       left: 740,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (NPC)  ${registerHover(datapathState.busValues['Pipe_ID_EX_NPC'],datapathState.busValues['Pipe_ID_EX_NPC_out'])}'),
+                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (NPC)  ${formatSingleRegisterHover(datapathState.busValues['Pipe_ID_EX_NPC'],datapathState.busValues['Pipe_ID_EX_NPC_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_de0_Key,
@@ -529,18 +514,18 @@ class MyApp extends StatelessWidget {
                       child: MouseRegion(
                         onEnter: (_) => datapathState.setHoverInfo(
                           (isMultiCycleMode)?
-                          registerHover3(
-                            datapathState.busValues['Pipe_ID_EX_A'],datapathState.busValues['Pipe_ID_EX_A_out'],
-                            datapathState.busValues['Pipe_ID_EX_B'],datapathState.busValues['Pipe_ID_EX_B_out'],
-                            datapathState.busValues['Pipe_ID_EX_Imm'],datapathState.busValues['Pipe_ID_EX_Imm_out'],
-                            ["ID/EX (A)","ID/EX (B)","ID/EX (Imm)"])
+                          formatMultiRegisterHover([
+                            HoverRegisterData("ID/EX (A)", datapathState.busValues['Pipe_ID_EX_A'], datapathState.busValues['Pipe_ID_EX_A_out']),
+                            HoverRegisterData("ID/EX (B)", datapathState.busValues['Pipe_ID_EX_B'], datapathState.busValues['Pipe_ID_EX_B_out']),
+                            HoverRegisterData("ID/EX (Imm)", datapathState.busValues['Pipe_ID_EX_Imm'], datapathState.busValues['Pipe_ID_EX_Imm_out']),
+                          ])
                           :
-                          registerHover4(
-                            datapathState.busValues['Pipe_ID_EX_A'],datapathState.busValues['Pipe_ID_EX_A_out'],
-                            datapathState.busValues['Pipe_ID_EX_B'],datapathState.busValues['Pipe_ID_EX_B_out'],
-                            datapathState.busValues['Pipe_ID_EX_RD'],datapathState.busValues['Pipe_ID_EX_RD_out'],
-                            datapathState.busValues['Pipe_ID_EX_Imm'],datapathState.busValues['Pipe_ID_EX_Imm_out'],
-                            ["ID/EX (A)","ID/EX (B)","ID/EX (RD)","ID/EX (Imm)"])
+                          formatMultiRegisterHover([
+                            HoverRegisterData("ID/EX (A)", datapathState.busValues['Pipe_ID_EX_A'], datapathState.busValues['Pipe_ID_EX_A_out']),
+                            HoverRegisterData("ID/EX (B)", datapathState.busValues['Pipe_ID_EX_B'], datapathState.busValues['Pipe_ID_EX_B_out']),
+                            HoverRegisterData("ID/EX (RD)", datapathState.busValues['Pipe_ID_EX_RD'], datapathState.busValues['Pipe_ID_EX_RD_out']),
+                            HoverRegisterData("ID/EX (Imm)", datapathState.busValues['Pipe_ID_EX_Imm'], datapathState.busValues['Pipe_ID_EX_Imm_out']),
+                          ])
                         ),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
@@ -558,7 +543,7 @@ class MyApp extends StatelessWidget {
                       top: 420,
                       left: 740,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (PC) ${registerHover(datapathState.busValues['Pipe_ID_EX_PC'],datapathState.busValues['Pipe_ID_EX_PC_out'])}'),
+                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (PC) ${formatSingleRegisterHover(datapathState.busValues['Pipe_ID_EX_PC'],datapathState.busValues['Pipe_ID_EX_PC_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_de2_Key,
@@ -633,7 +618,7 @@ class MyApp extends StatelessWidget {
                       top: 80,
                       left: 1020,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('EX/MEM Control ${registerHover(datapathState.busValues['Pipe_EX_MEM_Control'],datapathState.busValues['Pipe_EX_MEM_Control_out'], 4)}'),
+                        onEnter: (_) => datapathState.setHoverInfo('EX/MEM Control ${formatSingleRegisterHover(datapathState.busValues['Pipe_EX_MEM_Control'],datapathState.busValues['Pipe_EX_MEM_Control_out'], digits: 4)}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_emControl_Key,
@@ -653,7 +638,7 @@ class MyApp extends StatelessWidget {
                       top: 120,
                       left: 1020,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('EX/ME Register (NPC) ${registerHover(datapathState.busValues['Pipe_EX_MEM_NPC'],datapathState.busValues['Pipe_EX_MEM_NPC_out'])}'),
+                        onEnter: (_) => datapathState.setHoverInfo('EX/ME Register (NPC) ${formatSingleRegisterHover(datapathState.busValues['Pipe_EX_MEM_NPC'],datapathState.busValues['Pipe_EX_MEM_NPC_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_em0_Key,
@@ -672,14 +657,16 @@ class MyApp extends StatelessWidget {
                       child: MouseRegion(
                         onEnter: (_) => datapathState.setHoverInfo(
                           (isMultiCycleMode)?
-                          registerHover2(datapathState.busValues['Pipe_EX_MEM_ALU_result'],datapathState.busValues['Pipe_EX_MEM_ALU_result_out'],datapathState.busValues['Pipe_EX_MEM_ALU_B'],datapathState.busValues['Pipe_EX_MEM_ALU_B_out'],
-                          ["EX/ME (ALU_result)","EX/ME (B)"])
+                          formatMultiRegisterHover([
+                            HoverRegisterData("EX/ME (ALU_result)", datapathState.busValues['Pipe_EX_MEM_ALU_result'], datapathState.busValues['Pipe_EX_MEM_ALU_result_out']),
+                            HoverRegisterData("EX/ME (B)", datapathState.busValues['Pipe_EX_MEM_ALU_B'], datapathState.busValues['Pipe_EX_MEM_ALU_B_out']),
+                          ])
                           :
-                          registerHover3(
-                            datapathState.busValues['Pipe_EX_MEM_ALU_result'],datapathState.busValues['Pipe_EX_MEM_ALU_result_out'],
-                            datapathState.busValues['Pipe_EX_MEM_ALU_B'],datapathState.busValues['Pipe_EX_MEM_ALU_B_out'],
-                            datapathState.busValues['Pipe_EX_MEM_RD'],datapathState.busValues['Pipe_EX_MEM_RD_out'],
-                            ["EX/ME (ALU_result)","EX/ME (B)","EX/ME (RD)"])
+                          formatMultiRegisterHover([
+                            HoverRegisterData("EX/ME (ALU_result)", datapathState.busValues['Pipe_EX_MEM_ALU_result'], datapathState.busValues['Pipe_EX_MEM_ALU_result_out']),
+                            HoverRegisterData("EX/ME (B)", datapathState.busValues['Pipe_EX_MEM_ALU_B'], datapathState.busValues['Pipe_EX_MEM_ALU_B_out']),
+                            HoverRegisterData("EX/ME (RD)", datapathState.busValues['Pipe_EX_MEM_RD'], datapathState.busValues['Pipe_EX_MEM_RD_out']),
+                          ])
                           ),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
@@ -792,7 +779,7 @@ class MyApp extends StatelessWidget {
                           key: datapathState.dataMemoryKey,
                           label: 'Data\nMemory',
                           width: 80,
-                          isActive: datapathState.isDMemActive,
+                          isActive: !isSingleCycleMode?datapathState.busValues["Pipe_MemWr"]==1||datapathState.isPathActive("mem_read_data_bus") : datapathState.isDMemActive,
                           height: 120,
                           // 4 Puntos para D-Mem
                           connectionPoints: const [
@@ -811,7 +798,7 @@ class MyApp extends StatelessWidget {
                       top: 80,
                       left: 1220,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('MEM/WB Control ${registerHover(datapathState.busValues['Pipe_MEM_WB_Control'],datapathState.busValues['Pipe_MEM_WB_Control_out'], 4)}'),
+                        onEnter: (_) => datapathState.setHoverInfo('MEM/WB Control ${formatSingleRegisterHover(datapathState.busValues['Pipe_MEM_WB_Control'],datapathState.busValues['Pipe_MEM_WB_Control_out'], digits: 4)}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_mwControl_Key,
@@ -831,7 +818,7 @@ class MyApp extends StatelessWidget {
                       top: 120,
                       left: 1220,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('ME/WR Register (NPC) ${registerHover(datapathState.busValues['Pipe_MEM_WB_NPC'],datapathState.busValues['Pipe_MEM_WB_NPC_out'])}'),
+                        onEnter: (_) => datapathState.setHoverInfo('ME/WR Register (NPC) ${formatSingleRegisterHover(datapathState.busValues['Pipe_MEM_WB_NPC'],datapathState.busValues['Pipe_MEM_WB_NPC_out'])}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_mw0_Key,
@@ -850,21 +837,16 @@ class MyApp extends StatelessWidget {
                       child: MouseRegion(
                         onEnter: (_) => datapathState.setHoverInfo(
                           (isMultiCycleMode)?
-                          registerHover2(
-                            datapathState.busValues['Pipe_MEM_WB_ALU_result'],
-                            datapathState.busValues['Pipe_MEM_WB_ALU_result_out'],
-                            datapathState.busValues['Pipe_MEM_WB_RM'],
-                            datapathState.busValues['Pipe_MEM_WB_RM_out'],
-                          ["ME/WB (ALU_result)","ME/WB (RM)"])
+                          formatMultiRegisterHover([
+                            HoverRegisterData("ME/WB (ALU_result)", datapathState.busValues['Pipe_MEM_WB_ALU_result'], datapathState.busValues['Pipe_MEM_WB_ALU_result_out']),
+                            HoverRegisterData("ME/WB (RM)", datapathState.busValues['Pipe_MEM_WB_RM'], datapathState.busValues['Pipe_MEM_WB_RM_out']),
+                          ])
                           :
-                          registerHover3(
-                            datapathState.busValues['Pipe_MEM_WB_ALU_result'],
-                            datapathState.busValues['Pipe_MEM_WB_ALU_result_out'],
-                            datapathState.busValues['Pipe_MEM_WB_RM'],
-                            datapathState.busValues['Pipe_MEM_WB_RM_out'],
-                            datapathState.busValues['Pipe_MEM_WB_RD'],
-                            datapathState.busValues['Pipe_MEM_WB_RD_out'],
-                            ["ME/WB (ALU_result)","ME/WB (RM)","ME/WB (RD)"])
+                          formatMultiRegisterHover([
+                            HoverRegisterData("ME/WB (ALU_result)", datapathState.busValues['Pipe_MEM_WB_ALU_result'], datapathState.busValues['Pipe_MEM_WB_ALU_result_out']),
+                            HoverRegisterData("ME/WB (RM)", datapathState.busValues['Pipe_MEM_WB_RM'], datapathState.busValues['Pipe_MEM_WB_RM_out']),
+                            HoverRegisterData("ME/WB (RD)", datapathState.busValues['Pipe_MEM_WB_RD'], datapathState.busValues['Pipe_MEM_WB_RD_out']),
+                          ])
                         ),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(

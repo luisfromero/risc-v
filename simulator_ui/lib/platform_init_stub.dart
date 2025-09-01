@@ -1,5 +1,5 @@
-// Implementación de respaldo para plataformas no soportadas explícitamente.
-
+// Implementación "stub" (vacía) para plataformas no-desktop (web, móvil).
+// No hace nada, ya que no hay una ventana que configurar.
 Future<void> setupWindow() async {
-  // No hace nada.
+  // No se requiere ninguna acción en web o móvil.
 }
