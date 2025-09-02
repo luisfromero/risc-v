@@ -8,6 +8,8 @@ project(riscv_simulator VERSION 1.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+
+
 # Indicar a CMake dónde encontrar los archivos de cabecera (.h)
 include_directories(core/include)
 

@@ -1,4 +1,5 @@
 #include <vector>
+#include <cstddef>
 #include <cstdint>
 #include "CoreExport.h"
 

@@ -8,7 +8,9 @@ services:
     ports:
       - "8070:8070"
     volumes:
-      - ./api:/app
+      # Montamos cada carpeta en su subdirectorio correspondiente dentro de /app.
+      # Esto permite el live-reload del código sin ocultar la librería compilada.
+      - ./api:/app/api
       - ./resources:/app/resources
       - ./programs:/app/programs
 

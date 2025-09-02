@@ -112,6 +112,33 @@ class MyApp extends StatelessWidget {
           title: Row(
             children: [
               const Text('RISC-V Datapath'),
+              const SizedBox(width: 20), // Espacio entre el selector y las coordenadas
+
+              ToggleButtons(
+                isSelected: SimulationMode.values
+                    .map((mode) => datapathState.simulationMode == mode)
+                    .toList(),
+                onPressed: (int index) {
+                  datapathState.setSimulationMode(SimulationMode.values[index]);
+                },
+                // Estilos para que se integre bien en la AppBar
+                color: Colors.white.withValues(alpha: 0.5),
+                selectedColor: Colors.white,
+                fillColor: Colors.white.withValues(alpha: 0.2),
+                borderColor: Colors.white.withValues(alpha: 0.5),
+                selectedBorderColor: Colors.white,
+                borderRadius: BorderRadius.circular(4.0),
+                constraints: const BoxConstraints(minHeight: 28.0), // Altura compacta
+                children: SimulationMode.values
+                    .map((mode) => Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: Text(mode.label, style: const TextStyle(fontSize: 10)),
+                        ))
+                    .toList(),
+              ),
+
+
+            const SizedBox(width: 20), // Espacio entre el selector y las coordenadas
               const Spacer(),
               if (datapathState.simulationMode == SimulationMode.multiCycle)
                 Text(
@@ -147,26 +174,6 @@ class MyApp extends StatelessWidget {
               ),
             ),
                       // --- Selector de modo de simulación ---
-            Row(
-              children: [
-                for (final mode in SimulationMode.values)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(mode.label, style: const TextStyle(color: Colors.white)),
-                      Radio<SimulationMode>(
-                        value: mode,
-                        groupValue: datapathState.simulationMode,
-                        onChanged: (SimulationMode? value) => datapathState.setSimulationMode(value),
-                        activeColor: Colors.white,
-                        fillColor: MaterialStateProperty.all(Colors.white),
-
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-            const SizedBox(width: 20), // Espacio entre el selector y las coordenadas
 
           ],
         ),
@@ -591,6 +598,7 @@ class MyApp extends StatelessWidget {
                             Offset(1,0.35),
                             Offset(1,0.5),
                             Offset(2.5,0.5),
+                            Offset(1.2,0.5),
                           ],
                         ),
                       ),
@@ -695,6 +703,26 @@ class MyApp extends StatelessWidget {
                         child: Text("Z")
                       ),
                     ),
+                    // --- Logos ---
+                    Positioned(
+                      top: 550,
+                      left: 150,
+                      child: Image.asset(
+                        'img/dac.png', // <-- CAMBIA ESTO por el nombre de tu primer logo
+                        width: 70,
+                        height: 70,
+                      ),
+                    ),
+                    Positioned(
+                      top: 550,
+                      left: 20, // 20 (inicio) + 100 (ancho logo 1) + 10 (espacio)
+                      child: Image.asset(
+                        'img/uma.png', // <-- CAMBIA ESTO por el nombre de tu segundo logo
+                        width: 80,
+                        height: 80,
+                      ),
+                    ),
+
                     // --- Instruction Labels ---
                     if (!isPipelineMode)
                       Positioned(

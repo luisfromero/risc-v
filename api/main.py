@@ -12,27 +12,30 @@ from typing import Literal, Union, List, Dict
 
 def find_library_path():
     """Encuentra la ruta a la biblioteca C++ compilada (.dll o .so)."""
-    lib_name = "simulator.dll" if sys.platform == "win32" else "libsimulator.so"
-    
-    # Buscar en las carpetas de compilación comunes relativas a este script
-    script_dir = pathlib.Path(__file__).parent.resolve()
-    root_dir = script_dir.parent # Sube un nivel desde /api a la raíz del proyecto
-    
-    search_paths = [
-        # Rutas de compilación comunes para Visual Studio y otros generadores
-        root_dir / "build" / "core" / "Debug",
-        root_dir / "build" / "core" / "Release",
-        root_dir / "build" / "Debug", # Si el target está en la raíz de build
-        root_dir / "build" / "Release",
-    ]
-    
-    for path in search_paths:
-        lib_path = path / lib_name
-        if lib_path.exists():
-            print(f"Biblioteca encontrada en: {lib_path}")
-            return lib_path
-            
-    raise FileNotFoundError(f"No se pudo encontrar '{lib_name}' en las rutas de búsqueda: {search_paths}")
+    isWindows=sys.platform == "win32"
+    if isWindows:
+        lib_name = "simulator.dll"
+        # Buscar en las carpetas de compilación comunes relativas a este script
+        script_dir = pathlib.Path(__file__).parent.resolve()
+        root_dir = script_dir.parent # Sube un nivel desde /api a la raíz del proyecto
+        
+        search_paths = [
+            # Rutas de compilación comunes para Visual Studio y otros generadores
+            root_dir / "build" / "core" / "Debug",
+            root_dir / "build" / "core" / "Release",
+            root_dir / "build" / "Debug", # Si el target está en la raíz de build
+            root_dir / "build" / "Release",
+        ]
+        
+        for path in search_paths:
+            lib_path = path / lib_name
+            if lib_path.exists():
+                print(f"Biblioteca encontrada en: {lib_path}")
+                return lib_path
+                
+        raise FileNotFoundError(f"No se pudo encontrar '{lib_name}' en las rutas de búsqueda: {search_paths}")
+    else:
+        return "/usr/local/lib/libsimulator.so"
 
 # Cargar la biblioteca
 try:

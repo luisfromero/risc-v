@@ -41,20 +41,20 @@ namespace ControlWord {
 
 // Fields: instr, PCsrc, BRwr, ALUsrc, ALUctr, MemWr, ResSrc, ImmSrc, mask, value, type, cycles, control_word
 static const InstructionInfo control_table_data[] = {
-    {"add", 0, true, 1, static_cast<uint8_t>(0), false, static_cast<uint8_t>(1), static_cast<uint8_t>(-1), 0xFE00007F, 0x33, 'R', 4, 0x0F18},
-    {"sub", 0, true, 1, static_cast<uint8_t>(1), false, static_cast<uint8_t>(1), static_cast<uint8_t>(-1), 0xFE00007F, 0x40000033, 'R', 4, 0x2F18},
-    {"and", 0, true, 1, static_cast<uint8_t>(2), false, static_cast<uint8_t>(1), static_cast<uint8_t>(-1), 0xFE00007F, 0x7033, 'R', 4, 0x4F18},
-    {"or", 0, true, 1, static_cast<uint8_t>(3), false, static_cast<uint8_t>(1), static_cast<uint8_t>(-1), 0xFE00007F, 0x6033, 'R', 4, 0x6F18},
-    {"addi", 0, true, 0, static_cast<uint8_t>(0), false, static_cast<uint8_t>(1), static_cast<uint8_t>(0), 0x707F, 0x13, 'I', 4, 0x0808},
-    {"lw", 0, true, 0, static_cast<uint8_t>(0), false, static_cast<uint8_t>(0), static_cast<uint8_t>(0), 0x707F, 0x2003, 'I', 5, 0x0008},
-    {"sw", 0, false, 0, static_cast<uint8_t>(0), true, static_cast<uint8_t>(-1), static_cast<uint8_t>(1), 0x707F, 0x2023, 'S', 4, 0x1904},
-    {"beq", 1, false, 1, static_cast<uint8_t>(1), false, static_cast<uint8_t>(-1), static_cast<uint8_t>(2), 0x707F, 0x63, 'B', 3, 0x3A50},
-    {"bne", 1, false, 1, static_cast<uint8_t>(1), false, static_cast<uint8_t>(-1), static_cast<uint8_t>(2), 0x707F, 0x1063, 'B', 3, 0x3A50},
-    {"jal", 1, true, -1, static_cast<uint8_t>(-1), false, static_cast<uint8_t>(2), static_cast<uint8_t>(3), 0x7F, 0x6F, 'J', 4, 0xF358},
-    {"sll", 0, true, 1, static_cast<uint8_t>(6), false, static_cast<uint8_t>(1), static_cast<uint8_t>(-1), 0xFE00007F, 0x1033, 'R', 4, 0xCF18},
-    {"ori", 0, true, 0, static_cast<uint8_t>(3), false, static_cast<uint8_t>(1), static_cast<uint8_t>(0), 0x707F, 0x6013, 'I', 4, 0x6808},
-    {"lui", 0, true, 0, static_cast<uint8_t>(0), false, static_cast<uint8_t>(1), static_cast<uint8_t>(4), 0x7F, 0x37, 'U', 4, 0x0C08},
-    {"jalr", 2, true, 0, static_cast<uint8_t>(0), false, static_cast<uint8_t>(2), static_cast<uint8_t>(0), 0x707F, 0x67, 'I', 4, 0x1088},
+    {"add", static_cast<uint8_t>(0), true, static_cast<uint8_t>(1), static_cast<uint8_t>(0), false, static_cast<uint8_t>(1), 0xFF, 0xFE00007F, 0x33, 'R', 4, 0x0F18},
+    {"sub", static_cast<uint8_t>(0), true, static_cast<uint8_t>(1), static_cast<uint8_t>(1), false, static_cast<uint8_t>(1), 0xFF, 0xFE00007F, 0x40000033, 'R', 4, 0x2F18},
+    {"and", static_cast<uint8_t>(0), true, static_cast<uint8_t>(1), static_cast<uint8_t>(2), false, static_cast<uint8_t>(1), 0xFF, 0xFE00007F, 0x7033, 'R', 4, 0x4F18},
+    {"or", static_cast<uint8_t>(0), true, static_cast<uint8_t>(1), static_cast<uint8_t>(3), false, static_cast<uint8_t>(1), 0xFF, 0xFE00007F, 0x6033, 'R', 4, 0x6F18},
+    {"addi", static_cast<uint8_t>(0), true, static_cast<uint8_t>(0), static_cast<uint8_t>(0), false, static_cast<uint8_t>(1), static_cast<uint8_t>(0), 0x707F, 0x13, 'I', 4, 0x0808},
+    {"lw", static_cast<uint8_t>(0), true, static_cast<uint8_t>(0), static_cast<uint8_t>(0), false, static_cast<uint8_t>(0), static_cast<uint8_t>(0), 0x707F, 0x2003, 'I', 5, 0x0008},
+    {"sw", static_cast<uint8_t>(0), false, static_cast<uint8_t>(0), static_cast<uint8_t>(0), true, 0xFF, static_cast<uint8_t>(1), 0x707F, 0x2023, 'S', 4, 0x1904},
+    {"beq", static_cast<uint8_t>(1), false, static_cast<uint8_t>(1), static_cast<uint8_t>(1), false, 0xFF, static_cast<uint8_t>(2), 0x707F, 0x63, 'B', 3, 0x3A50},
+    {"bne", static_cast<uint8_t>(1), false, static_cast<uint8_t>(1), static_cast<uint8_t>(1), false, 0xFF, static_cast<uint8_t>(2), 0x707F, 0x1063, 'B', 3, 0x3A50},
+    {"jal", static_cast<uint8_t>(1), true, 0xFF, 0xFF, false, static_cast<uint8_t>(2), static_cast<uint8_t>(3), 0x7F, 0x6F, 'J', 4, 0xF358},
+    {"sll", static_cast<uint8_t>(0), true, static_cast<uint8_t>(1), static_cast<uint8_t>(6), false, static_cast<uint8_t>(1), 0xFF, 0xFE00007F, 0x1033, 'R', 4, 0xCF18},
+    {"ori", static_cast<uint8_t>(0), true, static_cast<uint8_t>(0), static_cast<uint8_t>(3), false, static_cast<uint8_t>(1), static_cast<uint8_t>(0), 0x707F, 0x6013, 'I', 4, 0x6808},
+    {"lui", static_cast<uint8_t>(0), true, static_cast<uint8_t>(0), static_cast<uint8_t>(0), false, static_cast<uint8_t>(1), static_cast<uint8_t>(4), 0x7F, 0x37, 'U', 4, 0x0C08},
+    {"jalr", static_cast<uint8_t>(2), true, static_cast<uint8_t>(0), static_cast<uint8_t>(0), false, static_cast<uint8_t>(2), static_cast<uint8_t>(0), 0x707F, 0x67, 'I', 4, 0x1088},
 };
 
 } // namespace riscv_sim

@@ -1,12 +1,52 @@
-FROM python:3.9-slim
+# --- Etapa de Compilación (Builder) ---
+# Usamos una imagen completa con las herramientas de compilación de C++ y Python.
+FROM ubuntu:22.04 AS builder
 
+# Install build dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    git && \
+    rm -rf /var/lib/apt/lists/*
+
+
+
+WORKDIR /src
+
+COPY . .
+
+
+RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+RUN cmake --build build
+
+# --- Etapa de Ejecución (Runtime) ---
+# Usamos una imagen ligera de Python para la aplicación final.
+FROM python:3.10-slim
+
+# Establecemos el directorio de trabajo de la aplicación.
 WORKDIR /app
 
-# Copiamos e instalamos las dependencias primero para aprovechar el cache de Docker
-COPY ./api/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copiamos la librería compilada desde la etapa de "builder".
+# La copiamos a una carpeta 'lib' local de la app.
+# La librería se genera en la raíz de 'build', no en 'build/core'.
+COPY --from=builder /src/build/libsimulator.so /usr/local/lib/
 
-# Copiamos el resto del código de la API
-COPY ./api /app
+# Copiamos el código de la API y los recursos necesarios.
+COPY ./api /app/api
+COPY ./resources /app/resources
+COPY ./programs /app/programs
 
+# Le decimos al sistema dónde encontrar nuestra librería.
+# Actualizamos la caché del enlazador dinámico para que encuentre la nueva librería.
+RUN ldconfig
+
+# Instalamos las dependencias de Python.
+RUN pip install --no-cache-dir -r /app/api/requirements.txt
+
+# Cambiamos al directorio de la API para ejecutar el servidor.
+WORKDIR /app/api
+
+# Exponemos el puerto y ejecutamos la aplicación.
+EXPOSE 8070
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8070"]

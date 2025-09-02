@@ -492,7 +492,7 @@ void Simulator::simulate_single_cycle(uint32_t instruction) {
         }
    //datapath.instruction=instructionString;
     datapath.total_micro_cycles = info->cycles;
-    strcpy_s(datapath.instruction_cptr,instructionString.c_str());
+    strcpy(datapath.instruction_cptr,instructionString.c_str());
     }
     catch(const std::exception& e){
         m_logfile << "Error al formatear la instrucción: " << e.what() << std::endl;
@@ -701,7 +701,7 @@ void Simulator::simulate_multi_cycle(uint32_t instruction) {
     if (!info) info=control_unit.decode(0x00000013); // Si no se reconoce la instrucción, usamos NOP como fallback.
 
     instructionString = disassemble(instruction, info);
-    strcpy_s(datapath.instruction_cptr, instructionString.c_str());
+    strcpy(datapath.instruction_cptr, instructionString.c_str());
     datapath.total_micro_cycles = info->cycles;
 
     // --- Valores que se propagan a través de los ciclos ---
@@ -829,11 +829,11 @@ void Simulator::simulate_multi_cycle(uint32_t instruction) {
     // Estos buses simulan la salida de los registros de segmentación en el ciclo *siguiente*
     // a donde se calculan sus entradas.
 
-    strcpy_s(datapath.Pipe_IF_instruction_cptr, instructionString.c_str());
-    strcpy_s(datapath.Pipe_ID_instruction_cptr, instructionString.c_str());
-    strcpy_s(datapath.Pipe_EX_instruction_cptr, instructionString.c_str());
-    strcpy_s(datapath.Pipe_MEM_instruction_cptr, instructionString.c_str());
-    strcpy_s(datapath.Pipe_WB_instruction_cptr, instructionString.c_str());
+    strcpy(datapath.Pipe_IF_instruction_cptr, instructionString.c_str());
+    strcpy(datapath.Pipe_ID_instruction_cptr, instructionString.c_str());
+    strcpy(datapath.Pipe_EX_instruction_cptr, instructionString.c_str());
+    strcpy(datapath.Pipe_MEM_instruction_cptr, instructionString.c_str());
+    strcpy(datapath.Pipe_WB_instruction_cptr, instructionString.c_str());
 
 
 
@@ -1223,7 +1223,7 @@ catch(const std::exception& e){
         datapath.Pipe_ID_EX_NPC = {0, 1, false};
         datapath.Pipe_ID_EX_PC = {0, 1, false};
 
-        strcpy_s(datapath.Pipe_IF_instruction_cptr , "nop (flush)");
+        strcpy(datapath.Pipe_IF_instruction_cptr , "nop (flush)");
         if(m_logfile.is_open()&&DEBUG_INFO)        m_logfile << "Flush detectado: " << std::endl;
 
     } else if (stall) {
@@ -1367,7 +1367,7 @@ if(NO_BRANCH_FLUSH)flush=false;
             // Para JALR (I-type jump), el destino es el resultado de la ALU.
             // Para JAL (J-type) y branches (B-type), es PC + inmediato.
             uint16_t ex_control = datapath.Pipe_ID_EX_Control_out.value;
-            if (controlSignal(ex_control, "PCsrc") == 2 && controlSignal(ex_control, "ImmSrc") == 1) { // JALR (ImmSrc I-type)
+            if (controlSignal(ex_control, "PCsrc") == 2 && controlSignal(ex_control, "ImmSrc") == 0) { // JALR (ImmSrc I-type)
                 pc = alu_result;
             } else { // JAL o Branch
                 pc = pc_plus_imm;
@@ -1384,19 +1384,19 @@ if(NO_BRANCH_FLUSH)flush=false;
     // LABELLING PIPELINE STAGES
     // =================================================================================
 
-    strcpy_s(datapath.Pipe_WB_instruction_cptr, datapath.Pipe_MEM_instruction_cptr);
-    strcpy_s(datapath.Pipe_MEM_instruction_cptr, datapath.Pipe_EX_instruction_cptr);
-    strcpy_s(datapath.Pipe_EX_instruction_cptr, datapath.Pipe_ID_instruction_cptr);
+    strcpy(datapath.Pipe_WB_instruction_cptr, datapath.Pipe_MEM_instruction_cptr);
+    strcpy(datapath.Pipe_MEM_instruction_cptr, datapath.Pipe_EX_instruction_cptr);
+    strcpy(datapath.Pipe_EX_instruction_cptr, datapath.Pipe_ID_instruction_cptr);
     if(!stall) {
-        strcpy_s(datapath.Pipe_ID_instruction_cptr, datapath.Pipe_IF_instruction_cptr);
-        strcpy_s(datapath.Pipe_IF_instruction_cptr,flush?"nop (flush)":instructionString.c_str()); // No sólo nop en ID, también en IF
+        strcpy(datapath.Pipe_ID_instruction_cptr, datapath.Pipe_IF_instruction_cptr);
+        strcpy(datapath.Pipe_IF_instruction_cptr,flush?"nop (flush)":instructionString.c_str()); // No sólo nop en ID, también en IF
         }
         else
         {
-            strcpy_s(datapath.Pipe_ID_instruction_cptr , "nop (load stall)");
+            strcpy(datapath.Pipe_ID_instruction_cptr , "nop (load stall)");
         }
 
-    strcpy_s(datapath.instruction_cptr,instructionString.c_str());
+    strcpy(datapath.instruction_cptr,instructionString.c_str());
 
     if(m_logfile.is_open() && DEBUG_INFO) {
         m_logfile << "Pipeline Stage 1 (IF): " << datapath.Pipe_IF_instruction_cptr << std::endl;
