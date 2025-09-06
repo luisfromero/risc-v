@@ -109,6 +109,13 @@ class DatapathState(ctypes.Structure):
         ("Pipe_EX_instruction_cptr", ctypes.c_char * 256),
         ("Pipe_MEM_instruction_cptr", ctypes.c_char * 256),
         ("Pipe_WB_instruction_cptr", ctypes.c_char * 256),
+        
+        ("Pipe_IF_instruction", ctypes.c_uint32),
+        ("Pipe_ID_instruction", ctypes.c_uint32),
+        ("Pipe_EX_instruction", ctypes.c_uint32),
+        ("Pipe_MEM_instruction", ctypes.c_uint32),
+        ("Pipe_WB_instruction", ctypes.c_uint32),
+
 
         # --- Buses de Salida de los Registros de Segmentación ---
         ("Pipe_IF_ID_NPC", Signal_u32),

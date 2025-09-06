@@ -1,6 +1,7 @@
 #include <array>
 #include <cstdint>
 #include <utility>
+#include "Config.h"
 #include "CoreExport.h"
 
 class SIMULATOR_API RegisterFile {
@@ -25,8 +26,8 @@ public:
     uint32_t get_delay() const { return delay; }
 
 private:
-    uint32_t delay=20;
-    uint32_t write_delay=5;
+    uint32_t delay=DELAY_REGS;
+    uint32_t write_delay=DELAY_REG_WR;
 private:
     // x0 a x31
     std::array<uint32_t, 32> regs;

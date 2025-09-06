@@ -3,6 +3,8 @@
 library;
 //import 'dart:nativewrappers/_internal/vm/lib/ffi_native_type_patch.dart';
 
+//import 'dart:ffi';
+
 import '../generated/control_table.g.dart';
 //import 'package:flutter/services.dart';
 
@@ -31,6 +33,19 @@ class SimulationState {
   final String pipeMemInstructionCptr;
   final String pipeWbInstructionCptr;
 
+  final int pipeIfInstructionValue;
+  final int pipeIdInstructionValue;
+  final int pipeExInstructionValue;
+  final int pipeMemInstructionValue;
+  final int pipeWbInstructionValue;
+
+  final instructionInfo;
+  final pipeIfInstructionInfo;
+  final pipeIdInstructionInfo;
+  final pipeExInstructionInfo;
+  final pipeMemInstructionInfo;
+  final pipeWbInstructionInfo;
+
     // Nuevos campos para las memorias
   final List<InstructionMemoryItem>? instructionMemory;
   final Uint8List? dataMemory;
@@ -51,8 +66,19 @@ class SimulationState {
     this.pipeExInstructionCptr = '',
     this.pipeMemInstructionCptr = '',
     this.pipeWbInstructionCptr = '',
+    this.pipeIfInstructionValue = 0x00000013,
+    this.pipeIdInstructionValue = 0x00000013,
+    this.pipeExInstructionValue = 0x00000013,
+    this.pipeMemInstructionValue = 0x00000013,
+    this.pipeWbInstructionValue = 0x00000013,
     this.instructionMemory,
     this.dataMemory,
+    this.instructionInfo,
+    this.pipeIfInstructionInfo,
+    this.pipeIdInstructionInfo,
+    this.pipeExInstructionInfo,
+    this.pipeMemInstructionInfo,
+    this.pipeWbInstructionInfo,
   });
 
   SimulationState copyWith({
@@ -75,8 +101,19 @@ class SimulationState {
       pipeExInstructionCptr: pipeExInstructionCptr,
       pipeMemInstructionCptr: pipeMemInstructionCptr,
       pipeWbInstructionCptr: pipeWbInstructionCptr,
+      pipeIfInstructionValue: pipeIfInstructionValue,
+      pipeIdInstructionValue: pipeIdInstructionValue,
+      pipeExInstructionValue: pipeExInstructionValue,
+      pipeMemInstructionValue: pipeMemInstructionValue,
+      pipeWbInstructionValue: pipeWbInstructionValue,
       instructionMemory: instructionMemory ?? this.instructionMemory,
       dataMemory: dataMemory ?? this.dataMemory,
+      instructionInfo: instructionInfo,
+      pipeIfInstructionInfo: pipeIfInstructionInfo,
+      pipeIdInstructionInfo: pipeIdInstructionInfo,
+      pipeExInstructionInfo: pipeExInstructionInfo,
+      pipeMemInstructionInfo: pipeMemInstructionInfo,
+      pipeWbInstructionInfo: pipeWbInstructionInfo,
     );
   }
 
@@ -461,6 +498,11 @@ class SimulationState {
       pipeExInstructionCptr: json['Pipe_EX_instruction_cptr'] as String? ?? '',
       pipeMemInstructionCptr: json['Pipe_MEM_instruction_cptr'] as String? ?? '',
       pipeWbInstructionCptr: json['Pipe_WB_instruction_cptr'] as String? ?? '',
+      pipeIfInstructionValue: json['Pipe_IF_instruction'] as int? ?? 0,
+      pipeIdInstructionValue: json['Pipe_ID_instruction'] as int? ?? 0,
+      pipeExInstructionValue: json['Pipe_EX_instruction'] as int? ?? 0,
+      pipeMemInstructionValue: json['Pipe_MEM_instruction'] as int? ?? 0,
+      pipeWbInstructionValue: json['Pipe_WB_instruction'] as int? ?? 0,
     );
   }
 

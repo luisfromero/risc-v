@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include "Config.h"
 #include "CoreExport.h"
 #include "CoreTypes.h"
 
@@ -13,7 +14,7 @@ public:
         uint32_t get_delay() const { return delay; }
 
 private:
-    uint32_t delay=5;
+    uint32_t delay=DELAY_MUXES;
 
 protected:
     uint32_t output = 0;

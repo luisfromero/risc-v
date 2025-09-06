@@ -11,17 +11,20 @@ Future<void> setupWindow() async {
   // Asegurarnos de que solo se ejecute en plataformas de escritorio
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     await windowManager.ensureInitialized();
- 
+
     WindowOptions windowOptions = const WindowOptions(
       size: _kInitialWindowSize,
-      center: true,
       title: _kWindowTitle,
       titleBarStyle: TitleBarStyle.normal,
     );
-
+ 
     windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.show();
       await windowManager.focus();
+ 
+      // Volvemos a usar el método center() del window_manager.
+      // Se ejecuta lo suficientemente tarde para no causar la excepción original.
+      //await windowManager.center();
     });
   }
 }

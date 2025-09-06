@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include "Config.h"
 #include "CoreExport.h"
 
 /**
@@ -23,7 +24,7 @@ public:
     uint32_t add(uint32_t a, uint32_t b);
 
 private:
-    uint32_t delay=10;
+    uint32_t delay = DELAY_ADDERS;
 };
 
 /**
@@ -33,7 +34,7 @@ private:
  */
 class SIMULATOR_API Adder4 {
 private:
-    uint32_t delay=10;
+    uint32_t delay = DELAY_ADDERS;
 public:
     Adder4() = default;
     uint32_t add(uint32_t val);

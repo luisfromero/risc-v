@@ -1,13 +1,41 @@
+//import 'dart:ffi';
+
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:namer_app/generated/control_table.g.dart';
 import 'package:namer_app/simulation_mode.dart';
 import 'datapath_state.dart';
 import 'dart:typed_data';
 
-final miEstiloMono = GoogleFonts.robotoMono(
+final miEstiloTooltip = TextStyle(
+  fontFamily: 'RobotoMono',
   fontSize: 12,
+  color: Colors.white,
+  fontWeight: FontWeight.bold,
   fontFeatures: [const FontFeature.disable('liga')],
 );
+
+Map getSignalValues(DatapathState d) {
+  return {'ALUctr':d.busValues['control_ALUctr'],
+  'ALUsrc':d.busValues['control_ALUsrc'],
+  'BRwr':d.busValues['control_BRwr'],
+  'ImmSrc':d.busValues['control_ImmSrc'],
+  'MemWr':d.busValues['control_MemWr'],
+  'PCsrc':d.busValues['control_PCsrc'],
+  'ResSrc':d.busValues['control_ResSrc'],
+  };
+}
+
+Map getSignalValuesPipe(DatapathState d) {
+  return {'ALUctr':d.busValues['Pipe_ALUctr'],
+  'ALUsrc':d.busValues['Pipe_ALUsrc'],
+  'BRwr':d.busValues['Pipe_BRwr'],
+  'ImmSrc':d.busValues['Pipe_ImmSrc'],
+  'MemWr':d.busValues['Pipe_MemWr'],
+  'PCsrc':d.busValues['Pipe_PCsrc'],
+  'ResSrc':d.busValues['Pipe_ResSrc'],
+  };
+}
+
 
 
 // --- Tooltip para el Banco de Registros ---
@@ -33,7 +61,7 @@ Widget buildRegisterFileTooltip(DatapathState datapathState) {
 
       spans.add(TextSpan(
         text: '$regName: $hexValue\n',
-        style: miEstiloMono.copyWith(color: color),
+        style: miEstiloTooltip.copyWith(color: color),
       ));
     }
     return spans;
@@ -43,11 +71,11 @@ Widget buildRegisterFileTooltip(DatapathState datapathState) {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       RichText(
-        text: TextSpan(style: miEstiloMono, children: buildRegisterColumn(0, 16)),
+        text: TextSpan(style: miEstiloTooltip, children: buildRegisterColumn(0, 16)),
       ),
       const SizedBox(width: 16),
       RichText(
-        text: TextSpan(style: miEstiloMono, children: buildRegisterColumn(16, 32)),
+        text: TextSpan(style: miEstiloTooltip, children: buildRegisterColumn(16, 32)),
       ),
     ],
   );
@@ -84,7 +112,7 @@ Widget _buildSingleCycleControlTooltip(DatapathState datapathState) {
   List<TextSpan> spans = [
     TextSpan(
       text: 'Control Word: $hexWord\n\n',
-      style: miEstiloMono.copyWith(
+      style: miEstiloTooltip.copyWith(
         color: Colors.yellow,
         fontWeight: FontWeight.bold,
       ),
@@ -94,34 +122,12 @@ Widget _buildSingleCycleControlTooltip(DatapathState datapathState) {
   signals.forEach((key, value) {
     spans.add(TextSpan(
       text: '${key.padRight(8)}: $value\n',
-      style: const TextStyle(color: Colors.white),
+      style: miEstiloTooltip.copyWith(color: Colors.white),
     ));
   });
 
-  return RichText(text: TextSpan(style: miEstiloMono, children: spans));
+  return RichText(text: TextSpan(style: miEstiloTooltip, children: spans));
 }
-
-Map getSignalValues(DatapathState d) {
-  return {'ALUctr':d.busValues['control_ALUctr'],
-  'ALUsrc':d.busValues['control_ALUsrc'],
-  'BRwr':d.busValues['control_BRwr'],
-  'ImmSrc':d.busValues['control_ImmSrc'],
-  'MemWr':d.busValues['control_MemWr'],
-  'PCsrc':d.busValues['control_PCsrc'],
-  'ResSrc':d.busValues['control_ResSrc'],
-  };
-}
-Map getSignalValuesPipe(DatapathState d) {
-  return {'ALUctr':d.busValues['Pipe_ALUctr'],
-  'ALUsrc':d.busValues['Pipe_ALUsrc'],
-  'BRwr':d.busValues['Pipe_BRwr'],
-  'ImmSrc':d.busValues['Pipe_ImmSrc'],
-  'MemWr':d.busValues['Pipe_MemWr'],
-  'PCsrc':d.busValues['Pipe_PCsrc'],
-  'ResSrc':d.busValues['Pipe_ResSrc'],
-  };
-}
-
 
 Widget _buildPipelineControlTooltip(DatapathState datapathState) {
   Widget buildStageColumn(String title, String instruction, int? controlWord, List<String> relevantSignals) {
@@ -132,15 +138,15 @@ Widget _buildPipelineControlTooltip(DatapathState datapathState) {
     List<TextSpan> spans = [
       TextSpan(
         text: '$title\n',
-        style: const TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold),
+        style: miEstiloTooltip.copyWith(color: Colors.yellow, fontWeight: FontWeight.bold),
       ),
       TextSpan(
         text: '$instructionName\n----------------\n',
-        style: const TextStyle(color: Colors.cyan),
+        style: miEstiloTooltip.copyWith(color: Colors.cyan),
       ),
       TextSpan(
         text: '$controlWordName\n----------------\n',
-        style: const TextStyle(color: Colors.cyan),
+        style: miEstiloTooltip.copyWith(color: Colors.cyan),
       ),
     ];
 
@@ -149,21 +155,19 @@ Widget _buildPipelineControlTooltip(DatapathState datapathState) {
       for (var key in relevantSignals) {
         spans.add(TextSpan(
           text: '${key.padRight(8)}: ${signals[key]}\n',
-          style: const TextStyle(color: Colors.white),
+          style: miEstiloTooltip.copyWith(color: Colors.white),
         ));
       }
     } else {
-       spans.add(const TextSpan(
+       spans.add(TextSpan(
         text: '(bubble)',
-        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+        style: miEstiloTooltip.copyWith(color: Colors.grey, fontStyle: FontStyle.italic),
       ));
     }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: RichText(
-        text: TextSpan(style: miEstiloMono, children: spans),
-      ),
+      child: RichText(text: TextSpan(style: miEstiloTooltip, children: spans)),
     );
   }
 
@@ -219,13 +223,13 @@ Widget buildInstructionMemoryTooltip(DatapathState datapathState) {
 
   List<TextSpan> buildInstructionColumn(int start, int end) {
     List<TextSpan> spans = [];
-    spans.add(const TextSpan(
+    spans.add( TextSpan(
       text: 'Address   Instr (Hex)   Assembly\n',
-      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      style: miEstiloTooltip.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
     ));
-    spans.add(const TextSpan(
+    spans.add( TextSpan(
       text: '----------------------------------------\n',
-      style: TextStyle(color: Colors.white),
+      style: miEstiloTooltip.copyWith(color: Colors.white),
     ));
 
     for (int i = start; i < end; i += 4) {
@@ -245,7 +249,7 @@ Widget buildInstructionMemoryTooltip(DatapathState datapathState) {
 
       spans.add(TextSpan(
         text: '$hexAddress: $hexInstruction  $assembly\n',
-        style: miEstiloMono.copyWith(color: color),
+        style: miEstiloTooltip.copyWith(color: color),
       ));
     }
     return spans;
@@ -255,12 +259,12 @@ Widget buildInstructionMemoryTooltip(DatapathState datapathState) {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       RichText(
-          text: TextSpan(
-              style: miEstiloMono, children: buildInstructionColumn(0, 128))),
+          text:
+              TextSpan(style: miEstiloTooltip, children: buildInstructionColumn(0, 128))),
       const SizedBox(width: 16),
       RichText(
           text: TextSpan(
-              style: miEstiloMono, children: buildInstructionColumn(128, 256))),
+              style: miEstiloTooltip, children: buildInstructionColumn(128, 256))),
     ],
   );
 }
@@ -279,13 +283,13 @@ Widget buildDataMemoryTooltip(DatapathState datapathState) {
 
   List<TextSpan> buildDataColumn(int start, int end) {
     List<TextSpan> spans = [];
-    spans.add(const TextSpan(
+    spans.add( TextSpan(
       text: 'Address   Value\n',
-      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      style: miEstiloTooltip.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
     ));
-    spans.add(const TextSpan(
+    spans.add( TextSpan(
       text: '---------------------\n',
-      style: TextStyle(color: Colors.white),
+      style: miEstiloTooltip.copyWith(color: Colors.white),
     ));
 
     // Iteramos sobre las direcciones de memoria que queremos mostrar
@@ -312,7 +316,7 @@ Widget buildDataMemoryTooltip(DatapathState datapathState) {
 
       spans.add(TextSpan(
         text: '$hexAddress: $hexValue\n',
-        style: TextStyle(color: color),
+        style: miEstiloTooltip.copyWith(color: color),
       ));
     }
     return spans;
@@ -322,19 +326,474 @@ Widget buildDataMemoryTooltip(DatapathState datapathState) {
   final column2Spans = buildDataColumn(128, 256);
 
   if (column1Spans.length <= 2 && column2Spans.length <= 2) {
-    column1Spans.add(const TextSpan(
+    column1Spans.add( TextSpan(
         text: '\n(Memory is empty in this range)',
-        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)));
-    return RichText(
-        text: TextSpan(style: miEstiloMono, children: column1Spans));
+        style: miEstiloTooltip.copyWith(color: Colors.grey, fontStyle: FontStyle.italic)));
+    return RichText(text: TextSpan(style: miEstiloTooltip, children: column1Spans));
   }
 
   return Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      RichText(text: TextSpan(style: miEstiloMono, children: column1Spans)),
+      RichText(text: TextSpan(style: miEstiloTooltip, children: column1Spans)),
       const SizedBox(width: 16),
-      RichText(text: TextSpan(style: miEstiloMono, children: column2Spans)),
+      RichText(text: TextSpan(style: miEstiloTooltip, children: column2Spans)),
     ],
   );
 }
+
+
+// --- Helpers para Tooltips de Muxes ---
+
+TextSpan _buildMuxInputLine(String text, bool isSelected, {bool isLast = false}) {
+  final selectedStyle = miEstiloTooltip.copyWith(color: Colors.cyan);
+  final defaultStyle = miEstiloTooltip.copyWith(color: Colors.white);
+
+  return TextSpan(
+    children: [
+      TextSpan(
+        text: isSelected ? '> ' : '  ',
+        style: isSelected ? selectedStyle : defaultStyle,
+      ),
+      TextSpan(
+        text: text + (isLast ? '' : '\n'),
+        style: isSelected ? selectedStyle : defaultStyle,
+      ),
+    ],
+  );
+}
+
+// --- Tooltip para el Mux del PC ---
+
+Widget buildMuxPcTooltip(DatapathState datapathState) {
+  final valor = datapathState.busValues['control_PCsrc'] ?? 0;
+  final taken = datapathState.busValues['branch_taken'] ?? 0;
+
+  final isSequential = valor == 0 || (valor == 1 && taken == 0);
+  final isBranchOrJal = valor == 1 && taken == 1;
+  final isJalr = valor == 2;
+
+  String? val0=toHex(datapathState.busValues['npc_bus']);
+  String? val1=toHex(datapathState.busValues['branch_target_bus']);
+  String? val2=toHex(datapathState.busValues['alu_result_bus']);
+
+
+  return RichText(
+    text: TextSpan(
+      style: miEstiloTooltip,
+      children: [
+        TextSpan(
+          text: 'MuxPC - Next PC Source\n',
+          style: miEstiloTooltip.copyWith(fontWeight: FontWeight.bold, color: Colors.yellow),
+        ),
+        _buildMuxInputLine('PC + 4:   $val0 (Sequential, not taken branch)', isSequential),
+        _buildMuxInputLine('PC + Imm: $val1 (Taken branch/JAL)', isBranchOrJal),
+        _buildMuxInputLine('RG + Imm: $val2 (JALR)', isJalr, isLast: true),
+      ],
+    ),
+  );
+}
+
+// --- Tooltip para el Mux C (escritura en registros) ---
+
+Widget buildMuxCTooltip(DatapathState datapathState) {
+  bool isPipelineMode = datapathState.simulationMode == SimulationMode.pipeline;
+  bool isMultiCycleMode = datapathState.simulationMode == SimulationMode.multiCycle;
+  final selector =  !isPipelineMode?datapathState.busValues['control_ResSrc']:datapathState.busValues['Pipe_ResSrc'];
+
+  int? val0=datapathState.busValues['mem_read_data_bus'];
+  int? val1=datapathState.busValues['alu_result_bus'];
+  int? val2=datapathState.busValues['npc_bus'];
+  
+  if(isPipelineMode)
+  {
+   val0=datapathState.busValues['Pipe_MEM_WB_RM_out'];
+   val1=datapathState.busValues['Pipe_MEM_WB_result_out'];
+   val2=datapathState.busValues['Pipe_MEM_WB_NPC_out'];
+  
+  }
+  if(isMultiCycleMode)
+  {
+   val0=datapathState.busValues['Pipe_MEM_WB_RM_out'];
+   val1=datapathState.busValues['Pipe_MEM_WB_result_out'];
+  }
+  
+  
+  datapathState.busValues['Pipe_EX_MEM_ALU_result_out']?.toRadixString(16).padLeft(8, '0').toUpperCase();
+
+  return RichText(
+    text: TextSpan(
+      style: miEstiloTooltip,
+      children: [
+        TextSpan(
+          text: 'MuxC - WriteBack source\n',
+          style: miEstiloTooltip.copyWith(fontWeight: FontWeight.bold, color: Colors.yellow),
+        ),
+        _buildMuxInputLine('PC + 4     : ${toHex(val2)} ', selector == 2),
+        _buildMuxInputLine('ALU result : ${toHex(val1)}', selector == 1),
+        _buildMuxInputLine('Memory read: ${toHex(val0)}', selector == 0),
+        _buildMuxInputLine('Unused:      ${toHex(indeterminado)}', selector == 3, isLast: true),
+      ],
+    ),
+  );
+}
+
+// --- Tooltip para el Mux B (operando B del ALU) ---
+
+Widget buildMuxBTooltip(DatapathState datapathState) {
+  bool isPipelineMode = datapathState.simulationMode == SimulationMode.pipeline;
+  bool isSingleCycleMode = datapathState.simulationMode == SimulationMode.singleCycle;
+
+  final selector =  !isPipelineMode?datapathState.busValues['control_ALUsrc']:datapathState.busValues['Pipe_ALUsrc'];
+  String val0=toHex(datapathState.busValues['immExt_bus']);
+  String val1=toHex(datapathState.busValues['rd2_bus']);
+  if(!isSingleCycleMode){
+    val0=toHex(datapathState.busValues['Pipe_ID_EX_Imm_out']);
+    val1=toHex(datapathState.busValues['Pipe_ID_EX_B_out']);
+  }
+
+  return RichText(
+    text: TextSpan(
+      style: miEstiloTooltip,
+      children: [
+        TextSpan(
+          text: 'MuxB - ALU B source\n',
+          style: miEstiloTooltip.copyWith(fontWeight: FontWeight.bold, color: Colors.yellow),
+        ),
+        _buildMuxInputLine('Rd2 register: $val1', selector == 1),
+        _buildMuxInputLine('Imm extended: $val0', selector == 0, isLast: true),
+      ],
+    ),
+  );
+}
+
+Widget buildBranchTooltip(DatapathState datapathState)
+{
+  bool isPipelineMode = datapathState.simulationMode == SimulationMode.pipeline;
+  bool isSingleCycleMode = datapathState.simulationMode == SimulationMode.singleCycle;
+
+  final op1=isSingleCycleMode?datapathState.busValues['immExt_bus']:datapathState.busValues['Pipe_ID_EX_Imm_out'];
+  final op2=isPipelineMode?datapathState.busValues['pc_bus']:datapathState.busValues['Pipe_ID_EX_PC_out'];
+  final res=op1!+op2!;
+  return RichText(
+    text: TextSpan(
+      style: miEstiloTooltip,
+      children: [
+        TextSpan(
+          text: 'Branch target adder',
+          style: miEstiloTooltip.copyWith(fontWeight: FontWeight.bold, color: Colors.yellow),
+        ),
+        TextSpan(
+          text: '\n\nOp1: ${toHex(op1)} ($op1, immediate)',
+          style: miEstiloTooltip,
+        ),
+        TextSpan(
+          text: '\nOp2: ${toHex(op2)} ($op2, PC)',
+          style: miEstiloTooltip,
+        ),
+        TextSpan(
+          text: '\n\nRes: ${toHex(res)} ($res)',
+          style: miEstiloTooltip,
+        ),
+      ],  
+    ),
+  );
+}
+
+
+
+
+
+Widget buildImmTooltip(DatapathState datapathState)
+{
+  final int? entrada = datapathState.busValues['imm_bus'];
+  final int? salidaDesdeBackend = datapathState.busValues['immExt_bus'];
+  final InstructionInfo info = (datapathState.simulationMode==SimulationMode.pipeline)?datapathState.pipeIdInstructionInfo:datapathState.instructionInfo;
+
+  if (entrada == null || salidaDesdeBackend == null) {
+    return const Text('Waiting for data...', style: TextStyle(color: Colors.grey));
+  }
+
+  final spans = <TextSpan>[];
+  int calculatedSalida = 0;
+  List<List<int>> instructionBits = [];
+  List<List<int>> resultBits = [];
+  String typeName = '';
+
+  switch (info.type) {
+    case 'I':
+      typeName = 'I-Type Immediate';
+      instructionBits = [[20, 31]];
+      resultBits = [[0, 11]];
+      calculatedSalida = (entrada >> 20).toSigned(12);
+      break;
+    case 'S':
+      typeName = 'S-Type Immediate';
+      instructionBits = [[7, 11], [25, 31]];
+      resultBits = [[0, 11]];
+      calculatedSalida = (((entrada >> 25) & 0x7F) << 5 | ((entrada >> 7) & 0x1F)).toSigned(12);
+      break;
+    case 'B':
+      typeName = 'B-Type Immediate';
+      instructionBits = [[7, 7], [8, 11], [25, 30], [31, 31]];
+      resultBits = [[0, 12]]; // El bit 0 es implícito, pero lo mostramos
+      calculatedSalida = (((entrada >> 31) & 1) << 12 | ((entrada >> 7) & 1) << 11 | ((entrada >> 25) & 0x3F) << 5 | ((entrada >> 8) & 0xF) << 1).toSigned(13);
+      break;
+    case 'J':
+      typeName = 'J-Type Immediate';
+      instructionBits = [[12, 19], [20, 20], [21, 30], [31, 31]];
+      resultBits = [[0, 20]]; // El bit 0 es implícito
+      calculatedSalida = (((entrada >> 31) & 1) << 20 | ((entrada >> 12) & 0xFF) << 12 | ((entrada >> 20) & 1) << 11 | ((entrada >> 21) & 0x3FF) << 1).toSigned(21);
+      break;
+    case 'U':
+      typeName = 'U-Type Immediate';
+      instructionBits = [[12, 31]];
+      resultBits = [[12, 31]];
+      calculatedSalida = entrada & 0xFFFFF000;
+      break;
+    default:
+      return Text('Unknown instruction type: ${info.type}', style: miEstiloTooltip);
+  }
+
+  // Comprobación para detectar bugs entre frontend y backend.
+  // Comparamos los valores como si fueran enteros de 32 bits sin signo
+  // para manejar correctamente los números negativos, que el backend envía como
+  // uint32_t y el frontend calcula como int con signo.
+  assert((calculatedSalida & 0xFFFFFFFF) == (salidaDesdeBackend & 0xFFFFFFFF),
+      'Immediate calculation mismatch! UI: ${toHex(calculatedSalida)}, Backend: ${toHex(salidaDesdeBackend)} for instruction ${toHex(entrada)}');
+
+  spans.add(TextSpan(
+    text: '$typeName (${info.instr})\n\n',
+    style: miEstiloTooltip.copyWith(fontWeight: FontWeight.bold, color: Colors.yellow),
+  ));
+
+  spans.add(_buildBinaryRepresentation('Instruction:', entrada, instructionBits));
+  spans.add(_buildBinaryRepresentation('Result:', salidaDesdeBackend, resultBits));
+
+  return RichText(text: TextSpan(style: miEstiloTooltip, children: spans));
+}
+
+
+Widget buildAluTooltip(DatapathState datapathState)
+{
+    bool isPipelineMode = datapathState.simulationMode == SimulationMode.pipeline;
+  bool isSingleCycleMode = datapathState.simulationMode == SimulationMode.singleCycle;
+
+  final op1=isSingleCycleMode?datapathState.busValues['rd1_bus']:datapathState.busValues['Pipe_ID_EX_A_out'];
+  final op2=datapathState.busValues['mux_alu_b_bus'];
+  final res=datapathState.busValues['alu_result_bus'];
+  final rg=datapathState.busValues['da_bus'];
+  final op=!isPipelineMode?datapathState.busValues['control_ALUctr']:datapathState.busValues['Pipe_ALUctr'];
+  final ops=['add','sub','and','or','slt','srl','sll','sra'];
+
+  return RichText(
+    text: TextSpan(
+      style: miEstiloTooltip,
+      children: [
+        TextSpan(
+          text: 'Arithmetic-Logic Unit (ALU) as ${ops[op!]}\n',
+          style: miEstiloTooltip.copyWith(fontWeight: FontWeight.bold, color: Colors.yellow),
+        ),
+        TextSpan(
+          text: '\n\nOp1: ${toHex(op1)} ($op1)',
+          style: miEstiloTooltip,
+        ),
+        TextSpan(
+          text: '\nOp2: ${toHex(op2)} ($op2)',
+          style: miEstiloTooltip,
+        ),
+        TextSpan(
+          text: '\n\nRes: ${toHex(res)} ($res)',
+          style: miEstiloTooltip,
+        ),
+      ],  
+    ),
+  );
+}
+
+Widget buildPcAdderTooltip(DatapathState datapathState)
+{
+  return RichText(
+    text: TextSpan(
+      style: miEstiloTooltip,
+      children: [
+        TextSpan(
+          text: 'NPC\n\n',
+          style: miEstiloTooltip.copyWith(fontWeight: FontWeight.bold, color: Colors.yellow),
+        ),
+        TextSpan(
+          text: '${toHex(datapathState.busValues['pc_bus'])} + 4 = \n${toHex(datapathState.busValues['npc_bus'])}'
+        ),
+      ],  
+    ),
+  );
+}
+
+
+/// Construye un [TextSpan] que representa un valor binario de 32 bits,
+/// resaltando los rangos de bits especificados.
+TextSpan _buildBinaryRepresentation(String title, int value, List<List<int>> highlightedBitRanges) {
+  final binaryString = (value & 0xFFFFFFFF).toRadixString(2).padLeft(32, '0');
+  final spans = <TextSpan>[];
+
+  final highlightedIndices = <int>{};
+  for (final range in highlightedBitRanges) {
+    for (int i = range[0]; i <= range[1]; i++) {
+      highlightedIndices.add(i);
+    }
+  }
+
+  int lastIndex = 0;
+  bool wasHighlighted = highlightedIndices.contains(31);
+
+  for (int i = 0; i < 32; i++) {
+    final bitIndex = 31 - i;
+    bool isHighlighted = highlightedIndices.contains(bitIndex);
+    if (isHighlighted != wasHighlighted) {
+      spans.add(TextSpan(
+        text: binaryString.substring(lastIndex, i),
+        style: miEstiloTooltip.copyWith(color: wasHighlighted ? Colors.cyan : Colors.white),
+      ));
+      lastIndex = i;
+      wasHighlighted = isHighlighted;
+    }
+  }
+
+  spans.add(TextSpan(
+    text: binaryString.substring(lastIndex),
+    style: miEstiloTooltip.copyWith(color: wasHighlighted ? Colors.cyan : Colors.white),
+  ));
+
+  return TextSpan(children: [
+    TextSpan(text:'', style: miEstiloTooltip.copyWith(fontWeight: FontWeight.bold)),
+    ...spans,
+    TextSpan(text: '\n\n'),
+  ]);
+}
+
+
+
+/// Construye un widget que muestra una instrucción de 32 bits formateada
+/// con colores y etiquetas para cada campo, según su tipo (R, I, S, B, J, U).
+Widget buildFormattedInstruction(InstructionInfo info, int instruction) {
+  final opcodeColor = Colors.red[700]!;
+  final rdColor = Colors.yellow;
+  final rs1Color = const Color.fromARGB(255, 197, 183, 55);
+  final rs2Color = Colors.yellow;
+  final funct3Color = Colors.red[400]!;
+  final funct7Color = Colors.red[300]!;
+  final immColor = Colors.blue;
+
+  List<_Field> fields = [];
+
+  switch (info.type) {
+    case 'R':
+      fields = [
+        _Field('funct7', 25, 31, funct7Color),
+        _Field('rs2', 20, 24, rs2Color),
+        _Field('rs1', 15, 19, rs1Color),
+        _Field('funct3', 12, 14, funct3Color),
+        _Field('rd', 7, 11, rdColor),
+        _Field('op_code', 0, 6, opcodeColor),
+      ];
+      break;
+    case 'I':
+      fields = [
+        _Field('imm[11:0]', 20, 31, immColor),
+        _Field('rs1', 15, 19, rs1Color),
+        _Field('funct3', 12, 14, funct3Color),
+        _Field('rd', 7, 11, rdColor),
+        _Field('op_code', 0, 6, opcodeColor),
+      ];
+      break;
+    case 'S':
+      fields = [
+        _Field('imm[11:5]', 25, 31, immColor),
+        _Field('rs2', 20, 24, rs2Color),
+        _Field('rs1', 15, 19, rs1Color),
+        _Field('funct3', 12, 14, funct3Color),
+        _Field('imm[4:0]', 7, 11, immColor),
+        _Field('op_code', 0, 6, opcodeColor),
+      ];
+      break;
+    case 'B':
+      fields = [
+        _Field('A', 31, 31, immColor),
+        _Field('CCCCCC', 25, 30, immColor),
+        _Field('rs2', 20, 24, rs2Color),
+        _Field('rs1', 15, 19, rs1Color),
+        _Field('funct3', 12, 14, funct3Color),
+        _Field('DDDD', 8, 11, immColor),
+        _Field('B', 7, 7, immColor),
+        _Field('op_code', 0, 6, opcodeColor),
+      ];
+      break;
+    case 'U':
+      fields = [
+        _Field('imm[31:12]', 12, 31, immColor),
+        _Field('rd', 7, 11, rdColor),
+        _Field('op_code', 0, 6, opcodeColor),
+      ];
+      break;
+    case 'J':
+      fields = [
+        _Field('A', 31, 31, immColor),
+        _Field('DDDDDDDDDD', 21, 30, immColor),
+        _Field('C', 20, 20, immColor),
+        _Field('BBBBBBBBB', 12, 19, immColor),
+        _Field('rd', 7, 11, rdColor),
+        _Field('op_code', 0, 6, opcodeColor),
+      ];
+      break;
+    default:
+      return RichText(text: TextSpan(text: (instruction & 0xFFFFFFFF).toRadixString(2).padLeft(32, '0'), style: miEstiloTooltip));
+  }
+
+  final binaryString = (instruction & 0xFFFFFFFF).toRadixString(2).padLeft(32, '0');
+  final bitSpans = <TextSpan>[];
+  final labelSpans = <TextSpan>[];
+
+  fields.sort((a, b) => b.start.compareTo(a.start));
+
+  for (final field in fields) {
+    final startIndex = 31 - field.end;
+    final endIndex = 31 - field.start + 1;
+    final bitSubstring = binaryString.substring(startIndex, endIndex);
+
+    bitSpans.add(TextSpan(text: bitSubstring, style: miEstiloTooltip.copyWith(color: field.color, fontSize: 24)));
+    labelSpans.add(TextSpan(text: _padCenter(field.name, field.width), style: miEstiloTooltip.copyWith(color: field.color, fontSize: 24)));
+  }
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      RichText(text: TextSpan(style: miEstiloTooltip, children: bitSpans)),
+      RichText(text: TextSpan(style: miEstiloTooltip, children: labelSpans)),
+    ],
+  );
+}
+
+
+/// Clase auxiliar para definir un campo dentro de una instrucción.
+class _Field {
+  final String name;
+  final int start;
+  final int end;
+  final Color color;
+
+  _Field(this.name, this.start, this.end, this.color);
+
+  int get width => end - start + 1;
+}
+
+/// Centra un texto dentro de un ancho dado, rellenando con espacios.
+String _padCenter(String text, int width) {
+  if (text.length >= width) {
+    return text.substring(0, width);
+  }
+  int padding = width - text.length;
+  int left = padding ~/ 2;
+  int right = padding - left;
+  return (' ' * left) + text + (' ' * right);
+}
+

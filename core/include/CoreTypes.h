@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <string>
-#define INDETERMINADO 0x00FABADA
 
 // Modos de pipeline para configurar el simulador
 enum class PipelineModel {
@@ -84,7 +83,7 @@ struct DatapathState {
     Signal<uint32_t> bus_Instr;          // Instrucción actual (salida de Memoria Instrucciones)
 
     // --- Decodificación de campos ---
-    Signal<uint8_t>  bus_Opcode;         // opcode [6:0]
+    Signal<uint8_t>  bus_opcode;         // opcode [6:0]
     Signal<uint8_t>  bus_funct3;         // funct3 [14:12]
     Signal<uint8_t>  bus_funct7;         // funct7 [31:25]
     Signal<uint8_t>  bus_DA;             // rs1 [19:15]
@@ -129,6 +128,7 @@ struct DatapathState {
     Signal<uint32_t> bus_PC_next;        // Valor final de PC
 
     Signal<bool>     bus_branch_taken;   // Se ha tomado una dirección diferente a PC+4 (rg+imm o PC+imm)
+    
     uint32_t criticalTime;
     uint32_t total_micro_cycles;
     //std::string instruction;
@@ -141,6 +141,14 @@ struct DatapathState {
     char Pipe_EX_instruction_cptr[256];
     char Pipe_MEM_instruction_cptr[256];
     char Pipe_WB_instruction_cptr[256];
+
+    uint32_t Pipe_IF_instruction=0x00000013;
+    uint32_t Pipe_ID_instruction=0x00000013;
+    uint32_t Pipe_EX_instruction=0x00000013;
+    uint32_t Pipe_MEM_instruction=0x00000013;
+    uint32_t Pipe_WB_instruction=0x00000013;
+
+
 
 
     // IF/ID Stage
@@ -191,7 +199,6 @@ struct DatapathState {
     Signal<uint8_t> Pipe_MEM_WB_RD; // Nombre registro destino
     Signal<uint8_t> Pipe_MEM_WB_RD_out;
 
-    //ToDo flush & stall
 
 
 };

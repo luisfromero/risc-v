@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include "Config.h"
 #include "CoreExport.h"
 
 /**
@@ -26,6 +27,6 @@ public:
     uint32_t get_delay() const { return delay; }
 
 private:
-    uint32_t delay=10;
+    uint32_t delay=DELAY_IMM_EXT;
 
 };

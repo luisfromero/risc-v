@@ -5,7 +5,7 @@ class AdderWidget extends StatelessWidget {
   final String label;
   final bool isActive; // Para recibir si debe estar "activo" (color verde)
   final List<Offset> connectionPoints;
-  final color; // Color por defecto
+  final Color color; // Color por defecto
   const AdderWidget({
     super.key,
     required this.label,
@@ -90,7 +90,8 @@ class _AdderPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return false;
+  bool shouldRepaint(covariant _AdderPainter oldDelegate) {
+    return oldDelegate.color != color ||
+        oldDelegate.borderColor != borderColor;
   }
 }

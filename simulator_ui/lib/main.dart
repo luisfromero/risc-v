@@ -23,6 +23,14 @@ const String _registerFileHoverId = '##REGISTER_FILE_HOVER##';
 const String _instructionMemoryHoverId = '##INSTRUCTION_MEMORY_HOVER##';
 const String _dataMemoryHoverId = '##DATA_MEMORY_HOVER##';
 const String _controlHoverId = '##CONTROL_HOVER##';
+const String _muxPcHoverId = '##MUX_PC_HOVER##';
+const String _muxBHoverId = '##MUX_B_HOVER##';
+const String _muxCHoverId = '##MUX_C_HOVER##';
+const String _immHoverId = '##IMM_HOVER##';
+const String _branchHoverId = '##BRANCH_HOVER##';
+const String _aluHoverId = '##ALU_HOVER##';
+const String _pcAdderHoverId = '##PC_ADDER_HOVER##';
+
 
 
 Future<void> main() async {
@@ -167,7 +175,7 @@ class MyApp extends StatelessWidget {
               // Para asegurar que el estilo se aplique sobre el tema del AppBar,
               // envolvemos el Text en un DefaultTextStyle.
               child: DefaultTextStyle(
-                style: miEstiloMono,
+                style: miEstiloTooltip,
                 child: Center(
                   child: Text(datapathState.hoverInfo),
                 ),
@@ -182,8 +190,7 @@ class MyApp extends StatelessWidget {
           children: [
             // --- Panel de Control Superior ---
             Container(
-              padding: const EdgeInsets.all(12.0),
-              //color: Colors.blueGrey.shade50,
+              padding: const EdgeInsets.only(top: 12, left:12),
               child: Row(
                 children: [
                   ElevatedButton.icon(
@@ -226,34 +233,26 @@ class MyApp extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10), // Espacio entre la unidad de control y los checkboxes
-                  // Checkboxes de depuración, ahora fuera del SizedBox
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Expanded(
+                    child: 
+                  Row(
+                    //mainAxisAlignment:MainAxisAlignment.center,
                     children: [
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: datapathState.showConnectionLabels,
-                            onChanged: (value) => datapathState.setShowConnectionLabels(value),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          const Text('Show connectors', style: TextStyle(fontSize: 10)),
-                        ],
+                  const SizedBox(width: 60),
+                  Image.asset(
+                        'img/dac.png', // <-- CAMBIA ESTO por el nombre de tu primer logo
+                        width: 60,
+                        height: 50,
                       ),
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: datapathState.showBusesLabels,
-                            onChanged:(value) => datapathState.setShowBusesLabels(value), 
-                            visualDensity: VisualDensity.compact),
-                          const Text('Show buses values', style: TextStyle(fontSize: 10, color: Colors.black)),
-                        ],
+                  const SizedBox(width: 10),
+                  Image.asset(
+                        'img/uma.png', // <-- CAMBIA ESTO por el nombre de tu primer logo
+                        width: 70,
+                        height: 70,
                       ),
-                    ],
-                  ),
-
+                ],)
+                
+              ),
                 ],
               ),
             ),
@@ -281,21 +280,7 @@ class MyApp extends StatelessWidget {
                       top: 220,
                       left: 60,
                       child: MouseRegion(
-                        onEnter: (_) {
-                          final valor = datapathState.busValues['control_PCsrc'] ?? 0;
-                          final taken = datapathState.busValues['branch_taken'] ?? 0;
-                          
-                          String info = 'MuxPC - Origen del Próximo PC\n';
-                          // En un datapath real, esto puede ser una cascada de Muxes,
-                          // pero conceptualmente, la decisión final es entre seguir o saltar.
-                          info += valor==0 || valor==1 && taken==0 ? '> ' : '  ';
-                          info += 'PC + 4 (Sequential, not taken branch)\n';
-                          info += valor==1 && taken==1 ? '> ' : '  ';
-                          info += 'PC + Imm (Taken branch/JAL)\n';
-                          info += valor==2 ? '>  ' : '  ';
-                          info += 'RG + Imm (JALR)';
-                          datapathState.setHoverInfo(info);
-                        },
+                        onEnter: (_) => datapathState.setHoverInfo(_muxPcHoverId),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: MuxWidget(
                           key: datapathState.mux2Key,
@@ -326,8 +311,7 @@ class MyApp extends StatelessWidget {
                       top: 90,
                       left: 300,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo(
-                            'ADD4: 0x${datapathState.pcValue.toRadixString(16)} + 4 = 0x${(datapathState.pcValue + 4).toRadixString(16)}'),
+                        onEnter: (_) => datapathState.setHoverInfo(_pcAdderHoverId),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         // El color del sumador ahora depende del estado global
                         child: AdderWidget(
@@ -407,7 +391,7 @@ class MyApp extends StatelessWidget {
                           key: datapathState.pipereg_fd0_Key,
                           label: 'FD0',
                           height: 42,
-                          isActive: datapathState.isPathActive("Pipe_IF_ID_NPC_out"),
+                          isActive: datapathState.isPathActive("Pipe_IF_ID_Instr_out"),
                           color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC_out'])),
                           visibility: isPipelineMode,
                           connectionPoints: const [Offset(0, 0.715),Offset(1, 0.715),],
@@ -424,7 +408,7 @@ class MyApp extends StatelessWidget {
                           key: datapathState.pipereg_fd1_Key,
                           label: 'FD1',
                           height: 40,
-                          isActive: datapathState.isPathActive("Pipe_IF_ID_PC_out"),
+                          isActive: datapathState.isPathActive("Pipe_IF_ID_Instr_out"),
                           visibility: isPipelineMode,
                           color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC_out'])),
                         ),
@@ -441,7 +425,7 @@ class MyApp extends StatelessWidget {
                         child: MemoryUnitWidget(
                           key: datapathState.registerFileKey,
                           label: 'Register\nFile',
-                          isActive: isPipelineMode?datapathState.isPathActive("rd1_bus"): datapathState.isRegFileActive,
+                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_IF_ID_Instr_out"): datapathState.isRegFileActive,
                           height: 120,
                           // 7 Puntos para el Banco de Registros
                           connectionPoints: const [
@@ -463,12 +447,12 @@ class MyApp extends StatelessWidget {
                       top: 364,
                       left: 620,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('Immediate extender'),
+                        onEnter: (_) => datapathState.setHoverInfo(_immHoverId),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: ExtenderWidget(
                           key: datapathState.extenderKey,
                           label: 'Imm. ext.',
-                          isActive: isPipelineMode?datapathState.isPathActive("immExt_bus"): datapathState.isExtenderActive,
+                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_IF_ID_Instr_out"): datapathState.isExtenderActive,
                           color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC_out'])),
 
                           width: 100,
@@ -478,6 +462,7 @@ class MyApp extends StatelessWidget {
                     ),
 
                     // --- Pipeline Registers ---
+                    if(datapathState.showControl)
                     Positioned(
                       top: 80,
                       left: 740,
@@ -563,18 +548,20 @@ class MyApp extends StatelessWidget {
                       ),
                     ),
 
-                    // --- Sumador de Saltos (Branch) ---
+                    // --- MuxB ---
                     Positioned(
-                      top: 350,
-                      left: 900,
+                      top: 265,
+                      left: 860,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('Branch target: Sumador para saltos condicionales'),
+                        onEnter: (_) => datapathState.setHoverInfo(_muxBHoverId),
                         onExit: (_) => datapathState.setHoverInfo(''),
-                        child: AdderWidget(
-                          key: datapathState.branchAdderKey,
-                          label: '  BR\ntarget',
-                          isActive: !isSingleCycleMode?datapathState.isPathActive("branch_target_bus"): datapathState.isBranchAdderActive,
+                        child: Mux2Widget(
+                          key: datapathState.mux3Key,
+                          value: datapathState.busValues['control_ALUsrc'] ?? 0,
+                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_ID_EX_B_out"): datapathState.isMux3Active,
+                          labels: ['0', '1', '2', ' '],
                           color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
+
                         ),
                       ),
                     ),
@@ -583,7 +570,7 @@ class MyApp extends StatelessWidget {
                       top: 200,
                       left: 920,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('ALU: Unidad Aritmético-Lógica'),
+                        onEnter: (_) => datapathState.setHoverInfo(_aluHoverId),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: AdderWidget(
                           key: datapathState.aluKey,
@@ -603,25 +590,24 @@ class MyApp extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // --- MuxB ---
+                    // --- Sumador de Saltos (Branch) ---
                     Positioned(
-                      top: 265,
-                      left: 860,
+                      top: 350,
+                      left: 900,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('MuxB'),
+                        onEnter: (_) => datapathState.setHoverInfo(_branchHoverId),
                         onExit: (_) => datapathState.setHoverInfo(''),
-                        child: Mux2Widget(
-                          key: datapathState.mux3Key,
-                          value: datapathState.busValues['control_ALUsrc'] ?? 0,
-                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_ID_EX_B_out"): datapathState.isMux3Active,
-                          labels: ['0', '1', '2', ' '],
+                        child: AdderWidget(
+                          key: datapathState.branchAdderKey,
+                          label: '  BR\ntarget',
+                          isActive: !isSingleCycleMode?datapathState.isPathActive("branch_target_bus"): datapathState.isBranchAdderActive,
                           color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
-
                         ),
                       ),
                     ),
                     
                     // --- Pipeline Registers ---
+                    if(datapathState.showControl)
                     Positioned(
                       top: 80,
                       left: 1020,
@@ -703,97 +689,7 @@ class MyApp extends StatelessWidget {
                         child: Text("Z")
                       ),
                     ),
-                    // --- Logos ---
-                    Positioned(
-                      top: 550,
-                      left: 150,
-                      child: Image.asset(
-                        'img/dac.png', // <-- CAMBIA ESTO por el nombre de tu primer logo
-                        width: 70,
-                        height: 70,
-                      ),
-                    ),
-                    Positioned(
-                      top: 550,
-                      left: 20, // 20 (inicio) + 100 (ancho logo 1) + 10 (espacio)
-                      child: Image.asset(
-                        'img/uma.png', // <-- CAMBIA ESTO por el nombre de tu segundo logo
-                        width: 80,
-                        height: 80,
-                      ),
-                    ),
 
-                    // --- Instruction Labels ---
-                    if (!isPipelineMode)
-                      Positioned(
-                        top: 540,
-                        left: 800,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              datapathState.instruction,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontFamily: 'monospace',
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              datapathState.instructionValue.toRadixString(2).padLeft(32, '0'),
-                              style: const TextStyle(fontSize: 20, fontFamily: 'monospace'),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    // --- Pipeline Instruction Labels ---
-                    if (isPipelineMode)
-                      Positioned(
-                        top: 540,
-                        left: 300,
-                        child: Text(
-                          datapathState.pipeIfInstruction,
-                          style: const TextStyle(fontSize: 24, fontFamily: 'monospace', fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    if (isPipelineMode)
-                      Positioned(
-                        top: 540,
-                        left: 550,
-                        child: Text(
-                          datapathState.pipeIdInstruction,
-                          style: const TextStyle(fontSize: 24, fontFamily: 'monospace', fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    if (isPipelineMode)
-                      Positioned(
-                        top: 540,
-                        left: 800,
-                        child: Text(
-                          datapathState.pipeExInstruction,
-                          style: const TextStyle(fontSize: 24, fontFamily: 'monospace', fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    if (isPipelineMode)
-                      Positioned(
-                        top: 540,
-                        left: 1050,
-                        child: Text(
-                          datapathState.pipeMemInstruction,
-                          style: const TextStyle(fontSize: 24, fontFamily: 'monospace', fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    if (isPipelineMode)
-                      Positioned(
-                        top: 540,
-                        left: 1300,
-                        child: Text(
-                          datapathState.pipeWbInstruction,
-                          style: const TextStyle(fontSize: 24, fontFamily: 'monospace', fontWeight: FontWeight.bold),
-                        ),
-                      ),
                     
 
                     // --- Memoria de Datos ---
@@ -807,7 +703,7 @@ class MyApp extends StatelessWidget {
                           key: datapathState.dataMemoryKey,
                           label: 'Data\nMemory',
                           width: 80,
-                          isActive: !isSingleCycleMode?datapathState.busValues["Pipe_MemWr"]==1||datapathState.isPathActive("mem_read_data_bus") : datapathState.isDMemActive,
+                          isActive: isPipelineMode?(datapathState.busValues["Pipe_MemWr"]==1)||datapathState.isPathActive("mem_read_data_bus") : datapathState.isDMemActive,
                           height: 120,
                           // 4 Puntos para D-Mem
                           connectionPoints: const [
@@ -822,6 +718,7 @@ class MyApp extends StatelessWidget {
                     ),
 
                     // --- Pipeline Registers ---
+                    if(datapathState.showControl)
                     Positioned(
                       top: 80,
                       left: 1220,
@@ -896,7 +793,7 @@ class MyApp extends StatelessWidget {
                       top: 220,
                       left: 1300,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('MuxC'),
+                        onEnter: (_) => datapathState.setHoverInfo(_muxCHoverId),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: MuxWidget(
                           key: datapathState.muxCKey,
@@ -908,6 +805,120 @@ class MyApp extends StatelessWidget {
                         ),
                       ),
                     ),
+
+                    // --- Instruction Labels ---
+                    if (!isPipelineMode)
+                      Positioned(
+                        top: 540,
+                        left: 840,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            //Text(datapathState.instructionValue.toRadixString(2).padLeft(32, '0'),style: miEstiloTooltip.copyWith(fontSize: 24,fontWeight: FontWeight.bold,),                            ),
+                            buildFormattedInstruction(datapathState.instructionInfo, datapathState.instructionValue),
+                          ],
+                        ),
+                      ),
+                    if (!isPipelineMode)
+                      Positioned(
+                        top: 540,
+                        left: 430,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "${datapathState.instruction} (tipo ${datapathState.instructionInfo.type})",
+                              style: miEstiloInst.copyWith(fontSize: 24),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      if (isPipelineMode)
+                      Positioned(
+                        top: 540,
+                        left: 300,
+                        child: Text(
+                          datapathState.pipeIfInstruction,
+                              style: miEstiloInst,
+                        ),
+                      ),                     
+                      if (isPipelineMode)
+                      Positioned(
+                        top: 540,
+                        left: 550,
+                        child: Text(
+                          datapathState.pipeIdInstruction,
+                              style: miEstiloInst,
+                        ),
+                      ),
+                      if (isPipelineMode)
+                      Positioned(
+                        top: 540,
+                        left: 800,
+                        child: Text(
+                          datapathState.pipeExInstruction,
+                              style: miEstiloInst,
+                        ),
+                      ),
+                      if (isPipelineMode)
+                      Positioned(
+                        top: 540,
+                        left: 1050,
+                        child: Text(
+                          datapathState.pipeMemInstruction,
+                              style: miEstiloInst,
+                        ),
+                      ),
+                      if (isPipelineMode)
+                      Positioned(
+                        top: 540,
+                        left: 1300,
+                        child: Text(
+                          datapathState.pipeWbInstruction,
+                              style: miEstiloInst,
+                        ),
+                      ),                    
+                      
+                      
+                  Positioned(top:100,left:1430,child:
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: datapathState.showConnectionLabels,
+                            onChanged: (value) => datapathState.setShowConnectionLabels(value),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          const Text('Show connectors', style: TextStyle(fontSize: 10)),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: datapathState.showBusesLabels,
+                            onChanged:(value) => datapathState.setShowBusesLabels(value), 
+                            visualDensity: VisualDensity.compact),
+                          const Text('Show buses values', style: TextStyle(fontSize: 10, color: Colors.black)),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: datapathState.showControl,
+                            onChanged:(value) => datapathState.setControlVisibility(value), 
+                            visualDensity: VisualDensity.compact),
+                          const Text('Show control signals', style: TextStyle(fontSize: 10, color: Colors.black)),
+                        ],
+                      ),
+                    ],
+                  ),
+                  ),
+
+
 
                     // --- Tooltip Flotante ---
                     // Se muestra solo si hay información de hover y se dibuja encima de todo.
@@ -944,6 +955,14 @@ class MyApp extends StatelessWidget {
   }
 }
 
+final miEstiloInst = TextStyle(
+  fontFamily: 'RobotoMono',
+  fontSize: 24,
+  color: Colors.black,
+  fontWeight: FontWeight.bold,
+  fontFeatures: [const FontFeature.disable('liga')],
+);
+
 /// Un widget que muestra un texto en una caja semitransparente, posicionado
 /// de forma absoluta. Sigue al cursor del ratón.
 class FloatingTooltip extends StatelessWidget {
@@ -969,10 +988,24 @@ class FloatingTooltip extends StatelessWidget {
       content = buildDataMemoryTooltip(datapathState);
     } else if (message == _controlHoverId) {
       content = buildControlUnitTooltip(datapathState);
+    } else if (message == _muxPcHoverId) {
+      content = buildMuxPcTooltip(datapathState);
+    } else if (message == _pcAdderHoverId) {
+      content = buildPcAdderTooltip(datapathState);
+    } else if (message == _muxBHoverId) {
+      content = buildMuxBTooltip(datapathState);
+    } else if (message == _muxCHoverId) {
+      content = buildMuxCTooltip(datapathState);
+    } else if (message == _branchHoverId) {
+      content = buildBranchTooltip(datapathState);
+    } else if (message == _aluHoverId) {
+      content = buildAluTooltip(datapathState);
+    } else if (message == _immHoverId) {
+      content = buildImmTooltip(datapathState);
     } else {
       content = Text(
         message,
-        style: miEstiloMono.copyWith(color: Colors.white),
+        style: miEstiloTooltip.copyWith(color: Colors.white),
       );
     }
 

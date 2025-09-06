@@ -74,15 +74,40 @@ class InstructionInfo {
 
   final int controlWord;
 
-  const InstructionInfo({
+  const InstructionInfo() :
+    instr = "nop",
+    pcSrc = 0,
+    brWr = true,
+    aluSrc = 1,
+    aluCtr = 0,
+    memWr = false,
+    resSrc = 0,
+    immSrc = 0,
+    mask = 0x707F,
+    value = 0x13,
+    type = 'I',
+    cycles = 1,
+    controlWord = 0x0018;
+
+  const InstructionInfo._internal({
     required this.instr, required this.pcSrc, required this.brWr, required this.aluSrc,
     required this.aluCtr, required this.memWr, required this.resSrc, required this.immSrc,
     required this.mask, required this.value, required this.type, required this.cycles, required this.controlWord,
   });
+
+  factory InstructionInfo.fromInstruction(int instruction) {
+    for (final info in controlTable) {
+      if ((instruction & info.mask) == info.value) {
+        return info;
+      }
+    }
+    // Return a default 'nop' if no instruction is found.
+    return const InstructionInfo();
+  }
 }
 
 const List<InstructionInfo> controlTable = [
-  InstructionInfo(
+  const InstructionInfo._internal(
     instr: "add",
     pcSrc: 0,
     brWr: true,
@@ -97,7 +122,7 @@ const List<InstructionInfo> controlTable = [
     cycles: 4,
     controlWord: 0x0F18,
   ),
-  InstructionInfo(
+  const InstructionInfo._internal(
     instr: "sub",
     pcSrc: 0,
     brWr: true,
@@ -112,7 +137,7 @@ const List<InstructionInfo> controlTable = [
     cycles: 4,
     controlWord: 0x2F18,
   ),
-  InstructionInfo(
+  const InstructionInfo._internal(
     instr: "and",
     pcSrc: 0,
     brWr: true,
@@ -127,7 +152,7 @@ const List<InstructionInfo> controlTable = [
     cycles: 4,
     controlWord: 0x4F18,
   ),
-  InstructionInfo(
+  const InstructionInfo._internal(
     instr: "or",
     pcSrc: 0,
     brWr: true,
@@ -142,7 +167,7 @@ const List<InstructionInfo> controlTable = [
     cycles: 4,
     controlWord: 0x6F18,
   ),
-  InstructionInfo(
+  const InstructionInfo._internal(
     instr: "addi",
     pcSrc: 0,
     brWr: true,
@@ -157,7 +182,7 @@ const List<InstructionInfo> controlTable = [
     cycles: 4,
     controlWord: 0x0808,
   ),
-  InstructionInfo(
+  const InstructionInfo._internal(
     instr: "lw",
     pcSrc: 0,
     brWr: true,
@@ -172,7 +197,7 @@ const List<InstructionInfo> controlTable = [
     cycles: 5,
     controlWord: 0x0008,
   ),
-  InstructionInfo(
+  const InstructionInfo._internal(
     instr: "sw",
     pcSrc: 0,
     brWr: false,
@@ -187,7 +212,7 @@ const List<InstructionInfo> controlTable = [
     cycles: 4,
     controlWord: 0x1904,
   ),
-  InstructionInfo(
+  const InstructionInfo._internal(
     instr: "beq",
     pcSrc: 1,
     brWr: false,
@@ -202,7 +227,7 @@ const List<InstructionInfo> controlTable = [
     cycles: 3,
     controlWord: 0x3A50,
   ),
-  InstructionInfo(
+  const InstructionInfo._internal(
     instr: "bne",
     pcSrc: 1,
     brWr: false,
@@ -217,7 +242,7 @@ const List<InstructionInfo> controlTable = [
     cycles: 3,
     controlWord: 0x3A50,
   ),
-  InstructionInfo(
+  const InstructionInfo._internal(
     instr: "jal",
     pcSrc: 1,
     brWr: true,
@@ -232,7 +257,7 @@ const List<InstructionInfo> controlTable = [
     cycles: 4,
     controlWord: 0xF358,
   ),
-  InstructionInfo(
+  const InstructionInfo._internal(
     instr: "sll",
     pcSrc: 0,
     brWr: true,
@@ -247,7 +272,7 @@ const List<InstructionInfo> controlTable = [
     cycles: 4,
     controlWord: 0xCF18,
   ),
-  InstructionInfo(
+  const InstructionInfo._internal(
     instr: "ori",
     pcSrc: 0,
     brWr: true,
@@ -262,7 +287,7 @@ const List<InstructionInfo> controlTable = [
     cycles: 4,
     controlWord: 0x6808,
   ),
-  InstructionInfo(
+  const InstructionInfo._internal(
     instr: "lui",
     pcSrc: 0,
     brWr: true,
@@ -277,7 +302,7 @@ const List<InstructionInfo> controlTable = [
     cycles: 4,
     controlWord: 0x0C08,
   ),
-  InstructionInfo(
+  const InstructionInfo._internal(
     instr: "jalr",
     pcSrc: 2,
     brWr: true,

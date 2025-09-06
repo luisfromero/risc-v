@@ -1,3 +1,4 @@
+#include "Config.h"
 #include "Memory.h"
 #include "RegisterFile.h"
 #include "Cache.h"
@@ -31,7 +32,7 @@ struct StateSnapshot {
 
     // Constructor por defecto para que std::vector pueda manejarlo.
     // Inicializamos d_mem con un tamaño por defecto (256, como en el simulador).
-    StateSnapshot() : d_mem(256) {}
+    StateSnapshot() : d_mem(DMEM_SIZE) {}
 };
 
 static const char* const GPR_NAMES[32] = {
@@ -70,7 +71,7 @@ public:
     std::vector<std::pair<uint32_t, std::string>> get_i_mem()  ;
 private:
     uint32_t pc; // Program Counter
-    uint32_t pc_delay=1; 
+    uint32_t pc_delay=DELAY_PC; 
     uint32_t criticalTime=0;
     uint32_t status_reg;
     DatapathState datapath;   // Estado actual del datapath (todas las señales con valor + ready_at)

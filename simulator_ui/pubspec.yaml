@@ -12,12 +12,13 @@ dependencies:
   flutter:
     sdk: flutter
 
+  cupertino_icons: ^1.0.6
+
   window_size: ^0.1.0
 
   window_manager: ^0.5.1
 
   english_words: ^4.0.0
-  google_fonts: ^6.2.1
   provider: ^6.0.0
   characters: ^1.4.0
 
@@ -36,3 +37,11 @@ flutter:
 
   assets:
     - img/
+
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+    - family: RobotoMono
+      fonts:
+        - asset: assets/fonts/RobotoMono-Regular.ttf

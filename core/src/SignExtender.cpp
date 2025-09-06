@@ -69,7 +69,7 @@ uint32_t SignExtender::extender(uint32_t instr, uint8_t sExt)
 
         default: {
             // Caso por defecto. En una implementación correcta, la unidad de control
-            // nunca debería generar un valor de sExt no válido. Puedo poner fabada para -1
+            // nunca debería generar un valor de sExt no válido. Puedo poner deadbeef para -1
             immediate = INDETERMINADO;
             break;
         }

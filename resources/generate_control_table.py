@@ -93,6 +93,17 @@ def generate_cpp_header(instructions, layout, path):
 
 def generate_dart_file(instructions, layout, path):
     """Generates the Dart file with the control table data."""
+    # Create a NOP instruction to use for default values in the empty constructor.
+    # A NOP is equivalent to 'addi x0, x0, 0'.
+    nop_instr_data = {
+        "instr": "nop", "PCsrc": 0, "BRwr": True, "ALUsrc": 1, "ALUctr": 0,
+        "MemWr": False, "ResSrc": 0, "ImmSrc": 0, "mask": 0x707F, "value": 0x13,
+        "type": 'I', "cycles": 1
+    }
+    # We need to calculate its control word just like any other instruction.
+    nop_instr_data['control_word'] = calculate_control_word(nop_instr_data, layout)
+
+
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         f.write("// Generated file. DO NOT EDIT.\n")
@@ -133,14 +144,45 @@ def generate_dart_file(instructions, layout, path):
         f.write("  final String type;\n")
         f.write("  final int cycles;\n\n")
         f.write("  final int controlWord;\n\n")
-        f.write("  const InstructionInfo({\n")
+
+        # Empty constructor with default 'nop' values
+        f.write("  const InstructionInfo() :\n")
+        f.write(f'    instr = "{nop_instr_data["instr"]}",\n')
+        f.write(f'    pcSrc = {nop_instr_data["PCsrc"]},\n')
+        f.write(f'    brWr = {bool_to_dart(nop_instr_data["BRwr"])},\n')
+        f.write(f'    aluSrc = {nop_instr_data["ALUsrc"]},\n')
+        f.write(f'    aluCtr = {nop_instr_data["ALUctr"]},\n')
+        f.write(f'    memWr = {bool_to_dart(nop_instr_data["MemWr"])},\n')
+        f.write(f'    resSrc = {nop_instr_data["ResSrc"]},\n')
+        f.write(f'    immSrc = {nop_instr_data["ImmSrc"]},\n')
+        f.write(f'    mask = 0x{nop_instr_data["mask"]:X},\n')
+        f.write(f'    value = 0x{nop_instr_data["value"]:X},\n')
+        f.write(f'    type = \'{nop_instr_data["type"]}\',\n')
+        f.write(f'    cycles = {nop_instr_data["cycles"]},\n')
+        f.write(f'    controlWord = 0x{nop_instr_data["control_word"]:04X};\n\n')
+
+        # Private constructor for the table
+        f.write("  const InstructionInfo._internal({\n")
         f.write("    required this.instr, required this.pcSrc, required this.brWr, required this.aluSrc,\n")
         f.write("    required this.aluCtr, required this.memWr, required this.resSrc, required this.immSrc,\n")
         f.write("    required this.mask, required this.value, required this.type, required this.cycles, required this.controlWord,\n")
-        f.write("  });\n}\n\n")
+        f.write("  });\n\n")
+
+        # Factory to find an instruction by its 32-bit word
+        f.write("  factory InstructionInfo.fromInstruction(int instruction) {\n")
+        f.write("    for (final info in controlTable) {\n")
+        f.write("      if ((instruction & info.mask) == info.value) {\n")
+        f.write("        return info;\n")
+        f.write("      }\n")
+        f.write("    }\n")
+        f.write("    // Return a default 'nop' if no instruction is found.\n")
+        f.write("    return const InstructionInfo();\n")
+        f.write("  }\n")
+
+        f.write("}\n\n")
         f.write("const List<InstructionInfo> controlTable = [\n")
         for item in instructions:
-            f.write("  InstructionInfo(\n")
+            f.write("  const InstructionInfo._internal(\n")
             f.write(f'    instr: "{item["instr"]}",\n')
             f.write(f'    pcSrc: {item["PCsrc"]},\n')
             f.write(f'    brWr: {bool_to_dart(item["BRwr"])},\n')

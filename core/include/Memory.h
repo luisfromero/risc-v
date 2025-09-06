@@ -1,3 +1,4 @@
+#include "Config.h"
 #include <vector>
 #include <cstddef>
 #include <cstdint>
@@ -31,7 +32,7 @@ public:
     const std::vector<uint8_t>& get_data() const { return mem; }
 
 private:
-    uint32_t delay=50;
+    uint32_t delay=DELAY_MEMORY;
 
 private:
     std::vector<uint8_t> mem;

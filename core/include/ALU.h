@@ -1,5 +1,5 @@
 #pragma once
-
+#include "Config.h"
 #include <cstdint>
 #include "CoreExport.h"
 
@@ -22,7 +22,7 @@ public:
     uint32_t calc(uint32_t a, uint32_t b, uint8_t funct3);
 
 private:
-    uint32_t delay=20;
+    uint32_t delay=DELAY_ALU;
 };
 
 /*

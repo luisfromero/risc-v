@@ -21,7 +21,7 @@ struct InstructionEntry {
         json j = {
             {"PC", {{"value", state.bus_PC.value}, {"ready_at", state.bus_PC.ready_at}, {"is_active", state.bus_PC.is_active}}},
             {"Instr", {{"value", state.bus_Instr.value}, {"ready_at", state.bus_Instr.ready_at}, {"is_active", state.bus_Instr.is_active}}},
-            {"Opcode", {{"value", state.bus_Opcode.value}, {"ready_at", state.bus_Opcode.ready_at}, {"is_active", state.bus_Opcode.is_active}}},
+            {"Opcode", {{"value", state.bus_opcode.value}, {"ready_at", state.bus_opcode.ready_at}, {"is_active", state.bus_opcode.is_active}}},
             {"funct3", {{"value", state.bus_funct3.value}, {"ready_at", state.bus_funct3.ready_at}, {"is_active", state.bus_funct3.is_active}}},
             {"funct7", {{"value", state.bus_funct7.value}, {"ready_at", state.bus_funct7.ready_at}, {"is_active", state.bus_funct7.is_active}}},
             {"DA", {{"value", state.bus_DA.value}, {"ready_at", state.bus_DA.ready_at}, {"is_active", state.bus_DA.is_active}}},
@@ -60,6 +60,12 @@ struct InstructionEntry {
             {"Pipe_EX_instruction_cptr",state.Pipe_EX_instruction_cptr},
             {"Pipe_MEM_instruction_cptr",state.Pipe_MEM_instruction_cptr},
             {"Pipe_WB_instruction_cptr",state.Pipe_WB_instruction_cptr},
+            
+            {"Pipe_IF_instruction",state.Pipe_IF_instruction},
+            {"Pipe_ID_instruction",state.Pipe_ID_instruction},
+            {"Pipe_EX_instruction",state.Pipe_EX_instruction},
+            {"Pipe_MEM_instruction",state.Pipe_MEM_instruction},
+            {"Pipe_WB_instruction",state.Pipe_WB_instruction},
             
             // --- Pipeline Registers ---  Ojo al orden. Debe ser igual en main.py
             {"Pipe_IF_ID_NPC", {{"value", state.Pipe_IF_ID_NPC.value}, {"ready_at", state.Pipe_IF_ID_NPC.ready_at}, {"is_active", state.Pipe_IF_ID_NPC.is_active}}},

@@ -8,7 +8,7 @@ class ControlUnitWidget extends StatelessWidget {
   const ControlUnitWidget({super.key,
   
   this.connectionPoints=const [
-    Offset(0, 0.8),
+    Offset(0.1, 1),
 
     Offset(0.191, 1),
     Offset(0.266, 1),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:namer_app/tooltip_widgets.dart';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'datapath_state.dart';
@@ -30,6 +31,9 @@ class BusesPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     for (final bus in datapathState.buses) {
+      if(!datapathState.showControl && (bus.isControl || bus.isState)) continue;
+
+      // )
       final startPoint = pointsMap[bus.startPointLabel];
       final endPoint = pointsMap[bus.endPointLabel];
       final width = bus.width;
@@ -66,7 +70,7 @@ class BusesPainter extends CustomPainter {
       // Generamos el texto del tooltip una sola vez por bus.
       final value = datapathState.busValues[bus.valueKey];
       final tooltipText = bus.valueKey != null
-          ? '${bus.valueKey} (${bus.size} bits): ${value != null ? '0x${value.toRadixString(16).toUpperCase()}' : 'N/A'}'
+          ? '${bus.valueKey} (${bus.size} bits)\nValue: ${value != null ? '0x${value.toRadixString(16).toUpperCase()}' : 'N/A'}'
           : 'Control/State Bus';
 
       // Iteramos por cada segmento (tramo) del bus.
@@ -174,7 +178,8 @@ class BusesPainter extends CustomPainter {
       fontWeight: FontWeight.bold,
       fontFamily: 'monospace',
     );
-    final textSpan = TextSpan(text: valueText, style: textStyle);
+    final textStyle2=miEstiloTooltip.copyWith(color: Colors.black);
+    final textSpan = TextSpan(text: valueText, style: textStyle2);
     final textPainter = TextPainter(
       text: textSpan,
       textAlign: TextAlign.center,
@@ -198,7 +203,7 @@ class BusesPainter extends CustomPainter {
     final textStyle = TextStyle(
       color: Colors.deepPurple,
       fontSize: 7,
-      backgroundColor: Colors.white.withOpacity(0.6),
+      backgroundColor: Colors.white.withAlpha(20),
       fontWeight: FontWeight.bold,
     );
 

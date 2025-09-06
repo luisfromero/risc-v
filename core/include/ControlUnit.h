@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Config.h"
 #include <cstdint>
 #include <vector>
 #include "CoreTypes.h"
@@ -16,6 +17,6 @@ public:
     uint32_t decode(uint32_t instruction, bool Z);
 
 private:
-    uint32_t delay=5;
+    uint32_t delay=DELAY_CONTROL;
     std::vector<InstructionInfo> control_table;
 };
