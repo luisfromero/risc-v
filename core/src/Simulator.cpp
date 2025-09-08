@@ -144,15 +144,27 @@ Simulator::Simulator(size_t mem_size, PipelineModel model)
 // Carga un programa en la memoria del simulador.
 void Simulator::load_program(const std::vector<uint8_t>& program, PipelineModel model) {
     // La carga depende del modo de pipeline.
+    if (program.empty()) {
+        m_logfile << "\n--- Advertencia: Se cargó un programa vacío. Limpiando memoria. ---" << std::endl;
+        if (model != PipelineModel::General) {
+            i_mem.clear();
+            d_mem.clear();
+        } else {
+            memory.clear(); // Limpiamos la memoria general también
+        }
+        return; // Salimos para evitar errores de acceso.
+    }
+
     if (model == PipelineModel::General) {
         m_logfile << "\n--- Programa cargado en memoria (modo general)" << program[0] << " ---" << std::endl;
         memory.load_program(program, 0);
     } else {
         // En modo didáctico, el programa se carga en la memoria de instrucciones.
         // La memoria de datos permanece vacía inicialmente.
+        i_mem.clear();
+        d_mem.clear();
         i_mem.load_program(program, 0);
         m_logfile << "\n--- Programa cargado en memoria (modo didactico) " << program[0] << " ---" << std::endl;
-
     }
 }
 
@@ -184,10 +196,11 @@ void Simulator::step() {
 }
 
 // Ejecuta un ciclo completo: fetch, decode, execute.
-void Simulator::reset(PipelineModel model) {
+void Simulator::reset(PipelineModel _model, uint32_t _initial_pc) {
     // Actualizamos el modelo del simulador con el que nos pasan.
-    this->model = model;
-    pc = 0;
+    model = _model;
+    initial_pc=IMEM_SIZE*(_initial_pc/IMEM_SIZE); 
+    pc = initial_pc;
     current_cycle = 0;
     status_reg = 0;
     register_file.reset();
@@ -354,9 +367,9 @@ uint32_t Simulator::fetch() {
     if (model == PipelineModel::General) {
         return i_cache.read_word(pc);
     } else {
-        // En modo didáctico, lee directamente de la memoria de instrucciones.
+        // En modo didáctico, lee directamente de la memoria de instrucciones. La memoria sólo tiene 256 bytes, pero puede ser de un segmento distinto de cero
             m_logfile << "Model:" << (int) model << std::endl;
-            uint32_t instruction=i_mem.read_word(pc);
+            uint32_t instruction=i_mem.read_word(pc-initial_pc,true);
             m_logfile << "Instruction:" << (int) instruction << std::endl;
         return instruction;
     }
@@ -567,7 +580,7 @@ void Simulator::simulate_single_cycle(uint32_t instruction) {
 
     if(info->instr=="lw")
     try{
-    mem_read_data = d_mem.read_word(alu_result);
+    mem_read_data = d_mem.read_word(alu_result,true);
     }
     catch(const std::exception& e)
     {
@@ -778,7 +791,7 @@ void Simulator::simulate_multi_cycle(uint32_t instruction) {
     } else if (info->instr == "lw") { // LW (5 ciclos)
         // Ciclo 3: MEM
         datapath.bus_Mem_address = { alu_result, 3, true };
-        mem_read_data = d_mem.read_word(alu_result);
+        mem_read_data = d_mem.read_word(alu_result,true);
         datapath.bus_Mem_read_data = { mem_read_data, 3, true };
         // Ciclo 4: WB
         final_result = mem_read_data;
@@ -1011,7 +1024,7 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
             d_mem.write_word(alu_result, datapath.Pipe_EX_MEM_B_out.value);
             isLWorSW=true;
         } else if (controlSignal(mem_control, "ResSrc") == 0) { // Load instruction (e.g., LW)
-            mem_read_data = d_mem.read_word(alu_result);
+            mem_read_data = d_mem.read_word(alu_result,true);
             isLWorSW=true;
         }
     }

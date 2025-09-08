@@ -269,7 +269,7 @@ bool get isPCsrcActive => _isPCsrcActive;
     try {
       await _simulationService.initialize();
       _updateBuses();
-      final initialState = await _simulationService.reset(mode: _simulationMode);
+      final initialState = await _simulationService.reset(mode: _simulationMode,initialPc: 0);
       // Al inicializar, ponemos el slider al final para mostrar el estado completo.
       _sliderValue = initialState.criticalTime.toDouble();
       _updateState(initialState, clearHover: true);
@@ -377,9 +377,11 @@ bool get isPCsrcActive => _isPCsrcActive;
   }
 
   // Resetea el estado a sus valores iniciales.
-  Future<void> reset() async {
-    final newState = await _simulationService.reset(mode: _simulationMode);
+  Future<void> reset({int initialPc = 0, String? assemblyCode, Uint8List? binCode}) async {
+    final newState = await _simulationService.reset(
+        mode: _simulationMode, initialPc: initialPc, assemblyCode: assemblyCode, binCode: binCode);
     print("Ejecutado reset() con modo: $_simulationMode");
+
     _sliderValue = 0.0;
     _sliderValue=newState.criticalTime.toDouble();
     _updateState(newState, clearHover: true);

@@ -56,7 +56,7 @@ public:
     // Retrocede un ciclo en la simulación.
     void step_back();
 
-    void reset(PipelineModel model = PipelineModel::SingleCycle);
+    void reset(PipelineModel model = PipelineModel::SingleCycle, uint32_t _initial_pc=0);
     
     // Devuelve el estado actual para la API.
     uint32_t get_pc() const;
@@ -70,6 +70,7 @@ public:
     const std::vector<uint8_t>& get_d_mem() const;
     std::vector<std::pair<uint32_t, std::string>> get_i_mem()  ;
 private:
+    uint32_t initial_pc; // Program Counter
     uint32_t pc; // Program Counter
     uint32_t pc_delay=DELAY_PC; 
     uint32_t criticalTime=0;

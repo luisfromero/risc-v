@@ -10,10 +10,14 @@ void Memory::clear() {
 }
 
 // Lee 32 bits (una palabra) de una dirección de memoria.
-uint32_t Memory::read_word(uint32_t address) {
-    if (address + 3 >= mem.size()) {
+
+uint32_t Memory::read_word(uint32_t address, bool cyclic) {
+    if (!cyclic &&(address + 3 >= mem.size())) {
         throw std::out_of_range("Memory read access out of bounds");
     }
+    else 
+        address=address%mem.size();
+
     // Asumimos little-endian, como en RISC-V estándar.
     uint32_t word = 0;
     word |= static_cast<uint32_t>(mem[address + 0]) << 0;
@@ -24,10 +28,13 @@ uint32_t Memory::read_word(uint32_t address) {
 }
 
 // Escribe 32 bits (una palabra) en una dirección de memoria.
-void Memory::write_word(uint32_t address, uint32_t value) {
-    if (address + 3 >= mem.size()) {
+void Memory::write_word(uint32_t address, uint32_t value, bool cyclic) {
+    if (!cyclic && (address + 3 >= mem.size())) {
         throw std::out_of_range("Memory write access out of bounds");
     }
+    else 
+        address=address%mem.size();
+
     mem[address + 0] = (value >> 0) & 0xFF;
     mem[address + 1] = (value >> 8) & 0xFF;
     mem[address + 2] = (value >> 16) & 0xFF;

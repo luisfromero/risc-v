@@ -27,8 +27,8 @@ typedef SimulatorStep = Pointer<Utf8> Function(Pointer<Void>);
 typedef SimulatorStepBackNative = Pointer<Utf8> Function(Pointer<Void>);
 typedef SimulatorStepBack = Pointer<Utf8> Function(Pointer<Void>);
 
-typedef SimulatorResetNative = Pointer<Utf8> Function(Pointer<Void>, Int32);
-typedef SimulatorReset = Pointer<Utf8> Function(Pointer<Void>, int);
+typedef SimulatorResetNative = Pointer<Utf8> Function(Pointer<Void>, Int32, Uint32);
+typedef SimulatorReset = Pointer<Utf8> Function(Pointer<Void>, int, int);
 
 typedef SimulatorGetInstructionStringNative = Pointer<Utf8> Function(Pointer<Void>);
 typedef SimulatorGetInstructionString = Pointer<Utf8> Function(Pointer<Void>);
@@ -191,9 +191,9 @@ class Simulador {
     }
   }
 
-  Map<String, dynamic> reset(int mode) {
+  Map<String, dynamic> reset(int mode, int initialPc) {
     try {
-      final jsonStr = simulatorReset(_sim, mode).toDartString();
+      final jsonStr = simulatorReset(_sim, mode, initialPc).toDartString();
       
       return _getFullState(jsonStr);
     } catch (e) {
@@ -315,9 +315,15 @@ class FfiSimulationService implements SimulationService {
       final programFile = File('../core/program.bin');
       if (await programFile.exists()) {
         final programData = await programFile.readAsBytes();
-        simulador.loadProgram(programData,0);
-        // ignore: avoid_print
-        print('Programa "program.bin" cargado en el simulador.');
+        if (programData.isNotEmpty) {
+          simulador.loadProgram(programData, 0);
+          // ignore: avoid_print
+          print('Programa "program.bin" cargado en el simulador.');
+        } else {
+          // ignore: avoid_print
+          print('Advertencia: "program.bin" está vacío. Cargando programa por defecto.');
+          simulador.loadProgram(Uint8List.fromList(defaultProgramD), 0);
+        }
       } else {
         // ignore: avoid_print
         print(
@@ -401,8 +407,21 @@ class FfiSimulationService implements SimulationService {
 // ffi_simulation_service.dart
 
   @override
-  Future<SimulationState> reset({required SimulationMode mode}) async {
-    final stateMap = simulador.reset(mode.index);
+  Future<SimulationState> reset({required SimulationMode mode, int initialPc = 0, String? assemblyCode, Uint8List? binCode}) async {
+    if (binCode != null && binCode.isNotEmpty) {
+      simulador.loadProgram(binCode, mode.index);
+      // ignore: avoid_print
+      print('Programa binario personalizado cargado en el simulador FFI.');
+    } else if (assemblyCode != null) {
+      // TODO: Implementar ensamblador en Dart o C++
+      // ignore: avoid_print
+      print("La carga de código ensamblador aún no está implementada para FFI. Se carga el programa por defecto.");
+      simulador.loadProgram(Uint8List.fromList(defaultProgramD), mode.index);
+    }
+    // Si no se proporciona código, el simulador mantiene el programa que ya tenía en memoria.
+
+    final stateMap = simulador.reset(mode.index, initialPc);
+
     final initialState = SimulationState.fromJson(stateMap);
     
     // Obtenemos las memorias por separado

@@ -502,74 +502,109 @@ Widget buildBranchTooltip(DatapathState datapathState)
 
 
 
-
-
 Widget buildImmTooltip(DatapathState datapathState)
 {
   final int? entrada = datapathState.busValues['imm_bus'];
   final int? salidaDesdeBackend = datapathState.busValues['immExt_bus'];
   final InstructionInfo info = (datapathState.simulationMode==SimulationMode.pipeline)?datapathState.pipeIdInstructionInfo:datapathState.instructionInfo;
-
+  
   if (entrada == null || salidaDesdeBackend == null) {
     return const Text('Waiting for data...', style: TextStyle(color: Colors.grey));
   }
-
+  
   final spans = <TextSpan>[];
   int calculatedSalida = 0;
-  List<List<int>> instructionBits = [];
-  List<List<int>> resultBits = [];
-  String typeName = '';
 
+  // Define colors for different parts of the immediate
+  final immColor1 = Colors.cyan;
+  final immColor2 = Colors.greenAccent;
+  final immColor3 = Colors.orange;
+  final immColor4 = Colors.purpleAccent;
+
+  Map<int, Color> instructionColorMap = {};
+  Map<int, Color> resultColorMap = {};
+  int resultTotalBits = 0;
+  String typeName = '';
+  
   switch (info.type) {
     case 'I':
       typeName = 'I-Type Immediate';
-      instructionBits = [[20, 31]];
-      resultBits = [[0, 11]];
+      // Instruction: imm[11:0] is at bits 31:20
+      for (int i = 20; i <= 31; i++) { instructionColorMap[i] = immColor1; }
+      // Result: imm[11:0] is at bits 11:0
+      for (int i = 0; i <= 11; i++) { resultColorMap[i] = immColor1; }
+      resultTotalBits = 12;
       calculatedSalida = (entrada >> 20).toSigned(12);
       break;
     case 'S':
       typeName = 'S-Type Immediate';
-      instructionBits = [[7, 11], [25, 31]];
-      resultBits = [[0, 11]];
+      // Instruction: imm[11:5] at 31:25, imm[4:0] at 11:7
+      for (int i = 25; i <= 31; i++) { instructionColorMap[i] = immColor1; } // imm[11:5]
+      for (int i = 7; i <= 11; i++) { instructionColorMap[i] = immColor2; } // imm[4:0]
+      // Result: imm[11:5] at 11:5, imm[4:0] at 4:0
+      for (int i = 5; i <= 11; i++) { resultColorMap[i] = immColor1; }
+      for (int i = 0; i <= 4; i++) { resultColorMap[i] = immColor2; }
+      resultTotalBits = 12;
       calculatedSalida = (((entrada >> 25) & 0x7F) << 5 | ((entrada >> 7) & 0x1F)).toSigned(12);
       break;
     case 'B':
       typeName = 'B-Type Immediate';
-      instructionBits = [[7, 7], [8, 11], [25, 30], [31, 31]];
-      resultBits = [[0, 12]]; // El bit 0 es implícito, pero lo mostramos
+      // Instruction: imm[12] at 31, imm[11] at 7, imm[10:5] at 30:25, imm[4:1] at 11:8
+      instructionColorMap[31] = immColor1; // imm[12]
+      instructionColorMap[7] = immColor2;  // imm[11]
+      for (int i = 25; i <= 30; i++) { instructionColorMap[i] = immColor3; } // imm[10:5]
+      for (int i = 8; i <= 11; i++) { instructionColorMap[i] = immColor4; } // imm[4:1]
+      // Result: imm[12] at 12, imm[11] at 11, imm[10:5] at 10:5, imm[4:1] at 4:1
+      resultColorMap[12] = immColor1;
+      resultColorMap[11] = immColor2;
+      for (int i = 5; i <= 10; i++) { resultColorMap[i] = immColor3; }
+      for (int i = 1; i <= 4; i++) { resultColorMap[i] = immColor4; }
+      resultTotalBits = 13;
       calculatedSalida = (((entrada >> 31) & 1) << 12 | ((entrada >> 7) & 1) << 11 | ((entrada >> 25) & 0x3F) << 5 | ((entrada >> 8) & 0xF) << 1).toSigned(13);
       break;
     case 'J':
       typeName = 'J-Type Immediate';
-      instructionBits = [[12, 19], [20, 20], [21, 30], [31, 31]];
-      resultBits = [[0, 20]]; // El bit 0 es implícito
+      // Instruction: imm[20] at 31, imm[10:1] at 30:21, imm[11] at 20, imm[19:12] at 19:12
+      instructionColorMap[31] = immColor1; // imm[20]
+      for (int i = 21; i <= 30; i++) { instructionColorMap[i] = immColor2; } // imm[10:1]
+      instructionColorMap[20] = immColor3; // imm[11]
+      for (int i = 12; i <= 19; i++) { instructionColorMap[i] = immColor4; } // imm[19:12]
+      // Result: imm[20] at 20, imm[10:1] at 10:1, imm[11] at 11, imm[19:12] at 19:12
+      resultColorMap[20] = immColor1;
+      for (int i = 1; i <= 10; i++) { resultColorMap[i] = immColor2; }
+      resultColorMap[11] = immColor3;
+      for (int i = 12; i <= 19; i++) { resultColorMap[i] = immColor4; }
+      resultTotalBits = 21;
       calculatedSalida = (((entrada >> 31) & 1) << 20 | ((entrada >> 12) & 0xFF) << 12 | ((entrada >> 20) & 1) << 11 | ((entrada >> 21) & 0x3FF) << 1).toSigned(21);
       break;
     case 'U':
       typeName = 'U-Type Immediate';
-      instructionBits = [[12, 31]];
-      resultBits = [[12, 31]];
+      // Instruction: imm[31:12] at 31:12
+      for (int i = 12; i <= 31; i++) { instructionColorMap[i] = immColor1; }
+      // Result: imm[31:12] at 31:12
+      for (int i = 12; i <= 31; i++) { resultColorMap[i] = immColor1; }
+      resultTotalBits = 32;
       calculatedSalida = entrada & 0xFFFFF000;
       break;
     default:
       return Text('Unknown instruction type: ${info.type}', style: miEstiloTooltip);
   }
-
+  
   // Comprobación para detectar bugs entre frontend y backend.
   // Comparamos los valores como si fueran enteros de 32 bits sin signo
   // para manejar correctamente los números negativos, que el backend envía como
   // uint32_t y el frontend calcula como int con signo.
   assert((calculatedSalida & 0xFFFFFFFF) == (salidaDesdeBackend & 0xFFFFFFFF),
       'Immediate calculation mismatch! UI: ${toHex(calculatedSalida)}, Backend: ${toHex(salidaDesdeBackend)} for instruction ${toHex(entrada)}');
-
+  
   spans.add(TextSpan(
     text: '$typeName (${info.instr})\n\n',
     style: miEstiloTooltip.copyWith(fontWeight: FontWeight.bold, color: Colors.yellow),
   ));
-
-  spans.add(_buildBinaryRepresentation('Instruction:', entrada, instructionBits));
-  spans.add(_buildBinaryRepresentation('Result:', salidaDesdeBackend, resultBits));
-
+  
+  spans.add(_buildBinaryRepresentation('Instruction:', entrada, 32, instructionColorMap));
+  spans.add(_buildBinaryRepresentation('Result:', salidaDesdeBackend, resultTotalBits, resultColorMap));
+  
   return RichText(text: TextSpan(style: miEstiloTooltip, children: spans));
 }
 
@@ -632,46 +667,40 @@ Widget buildPcAdderTooltip(DatapathState datapathState)
 
 /// Construye un [TextSpan] que representa un valor binario de 32 bits,
 /// resaltando los rangos de bits especificados.
-TextSpan _buildBinaryRepresentation(String title, int value, List<List<int>> highlightedBitRanges) {
+TextSpan _buildBinaryRepresentation(String title, int value, int totalBits, Map<int, Color> colorMap) {
   final binaryString = (value & 0xFFFFFFFF).toRadixString(2).padLeft(32, '0');
+  final relevantBinaryString = binaryString.substring(32 - totalBits);
   final spans = <TextSpan>[];
 
-  final highlightedIndices = <int>{};
-  for (final range in highlightedBitRanges) {
-    for (int i = range[0]; i <= range[1]; i++) {
-      highlightedIndices.add(i);
-    }
-  }
+  final defaultColor = Colors.grey.withOpacity(0.6);
 
   int lastIndex = 0;
-  bool wasHighlighted = highlightedIndices.contains(31);
+  Color currentColor = colorMap[totalBits - 1] ?? defaultColor;
 
-  for (int i = 0; i < 32; i++) {
-    final bitIndex = 31 - i;
-    bool isHighlighted = highlightedIndices.contains(bitIndex);
-    if (isHighlighted != wasHighlighted) {
+  for (int i = 0; i < totalBits; i++) {
+    final bitIndex = totalBits - 1 - i;
+    final Color nextColor = colorMap[bitIndex] ?? defaultColor;
+    if (nextColor != currentColor) {
       spans.add(TextSpan(
-        text: binaryString.substring(lastIndex, i),
-        style: miEstiloTooltip.copyWith(color: wasHighlighted ? Colors.cyan : Colors.white),
+        text: relevantBinaryString.substring(lastIndex, i),
+        style: miEstiloTooltip.copyWith(color: currentColor),
       ));
       lastIndex = i;
-      wasHighlighted = isHighlighted;
+      currentColor = nextColor;
     }
   }
 
   spans.add(TextSpan(
-    text: binaryString.substring(lastIndex),
-    style: miEstiloTooltip.copyWith(color: wasHighlighted ? Colors.cyan : Colors.white),
+    text: relevantBinaryString.substring(lastIndex),
+    style: miEstiloTooltip.copyWith(color: currentColor),
   ));
 
   return TextSpan(children: [
-    TextSpan(text:'', style: miEstiloTooltip.copyWith(fontWeight: FontWeight.bold)),
+    TextSpan(text: '$title\n', style: miEstiloTooltip.copyWith(fontWeight: FontWeight.bold)),
     ...spans,
     TextSpan(text: '\n\n'),
   ]);
 }
-
-
 
 /// Construye un widget que muestra una instrucción de 32 bits formateada
 /// con colores y etiquetas para cada campo, según su tipo (R, I, S, B, J, U).
@@ -796,4 +825,3 @@ String _padCenter(String text, int width) {
   int right = padding - left;
   return (' ' * left) + text + (' ' * right);
 }
-

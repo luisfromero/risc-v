@@ -1,5 +1,6 @@
 import ctypes
 import pathlib
+import base64
 import json
 import sys
 import threading
@@ -191,7 +192,7 @@ core_lib.Simulator_step_back.restype = ctypes.c_char_p
 core_lib.Simulator_reset.argtypes = [ctypes.c_void_p]
 core_lib.Simulator_reset.restype = ctypes.c_char_p
 
-core_lib.Simulator_reset_with_model.argtypes = [ctypes.c_void_p, ctypes.c_int]
+core_lib.Simulator_reset_with_model.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_uint]
 core_lib.Simulator_reset_with_model.restype = ctypes.c_char_p
 
 core_lib.Simulator_get_pc.argtypes = [ctypes.c_void_p]
@@ -248,9 +249,9 @@ class Simulator:
         print("Llamando al reset de la dll...")
         return core_lib.Simulator_reset(self.obj).decode('utf-8')
 
-    def reset_with_model(self, model: int):
+    def reset_with_model(self, model: int, initial_pc: int = 0):
         print("Llamando al reset de la dll...")
-        return core_lib.Simulator_reset_with_model(self.obj, model).decode('utf-8')
+        return core_lib.Simulator_reset_with_model(self.obj, model, initial_pc).decode('utf-8')
 
 
     def get_pc(self) -> int:
@@ -394,6 +395,12 @@ class SimulatorStateModel(BaseModel):
     Pipe_EX_instruction_cptr: str = Field(..., description="Instrucción en el registro Pipe_EX (código C).")
     Pipe_MEM_instruction_cptr: str = Field(..., description="Instrucción en el registro Pipe_MEM (código C).")
     Pipe_WB_instruction_cptr: str = Field(..., description="Instrucción en el registro Pipe_WB (código C).")
+    Pipe_IF_instruction: int = Field(..., description="Instrucción en el registro Pipe_IF (valor decimal).")
+    Pipe_ID_instruction: int = Field(..., description="Instrucción en el registro Pipe_ID (valor decimal).")
+    Pipe_EX_instruction: int = Field(..., description="Instrucción en el registro Pipe_EX (valor decimal).")
+    Pipe_MEM_instruction: int = Field(..., description="Instrucción en el registro Pipe_MEM (valor decimal).")
+    Pipe_WB_instruction: int = Field(..., description="Instrucción en el registro Pipe_WB (valor decimal).")
+
     control_signals: ControlSignalsModel = Field(..., description="Señales de control generadas.")
     registers: dict[str, int] = Field(..., description="Estado de los 32 registros generales (con nombres ABI).")
     datapath: dict[str, SignalModel] = Field(..., description="Estado de todas las señales del datapath.")
@@ -426,6 +433,12 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
     Pipe_EX_instruction_cptr = datapath_c_struct.Pipe_EX_instruction_cptr.decode('utf-8').strip('\x00')
     Pipe_MEM_instruction_cptr = datapath_c_struct.Pipe_MEM_instruction_cptr.decode('utf-8').strip('\x00')
     Pipe_WB_instruction_cptr = datapath_c_struct.Pipe_WB_instruction_cptr.decode('utf-8').strip('\x00')
+    pipeIfInstructionValue = datapath_c_struct.Pipe_IF_instruction
+    pipeIdInstructionValue = datapath_c_struct.Pipe_ID_instruction
+    pipeExInstructionValue = datapath_c_struct.Pipe_EX_instruction
+    pipeMemInstructionValue = datapath_c_struct.Pipe_MEM_instruction
+    pipeWbInstructionValue = datapath_c_struct.Pipe_WB_instruction
+
     reg_map = {f"x{i} ({ABI_NAMES[i]})": val for i, val in enumerate(registers)}
 
     # --- Conversión de estructuras C a modelos Pydantic ---
@@ -495,6 +508,12 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
         Pipe_EX_instruction_cptr=Pipe_EX_instruction_cptr,
         Pipe_MEM_instruction_cptr=Pipe_MEM_instruction_cptr,        
         Pipe_WB_instruction_cptr=Pipe_WB_instruction_cptr,
+        Pipe_IF_instruction=pipeIfInstructionValue,
+        Pipe_ID_instruction=pipeIdInstructionValue,
+        Pipe_EX_instruction=pipeExInstructionValue,
+        Pipe_MEM_instruction=pipeMemInstructionValue,
+        Pipe_WB_instruction=pipeWbInstructionValue,
+        
         control_signals=control_signals_model,
         registers=reg_map,
 
@@ -540,17 +559,25 @@ def get_state_endpoint(session_id: str = Query(..., description="ID de la sesió
 # Modelo para la petición de reset
 class ResetConfig(BaseModel):
     model: Literal['SingleCycle','PipeLined','MultiCycle','General'] = 'SingleCycle'
+    initial_pc: int = 0
     load_test_program: bool = True
+    bin_code: str | None = None  # Base64 encoded binary
+    assembly_code: str | None = None
+
+
 
 @app.post("/reset", response_model=SimulatorStateModel, summary="Reinicia el simulador para una sesión")
 def reset_simulator(
     session_id: str = Query(..., description="ID de la sesión a reiniciar"),
-    config: ResetConfig = ResetConfig()
+    config: ResetConfig = Body(...)
 ) -> SimulatorStateModel:
     """
-    Reinicia el simulador. Permite cambiar el modelo de pipeline.
+    Reinicia el simulador. Permite cambiar el modelo de pipeline y cargar un programa.
     - **model**: 'SingleCycle' (didáctico), 'MultiCycle', 'PipeLined', 'General'.
-    - **load_test_program**: Si es true, carga el programa de prueba inicial.
+    - **initial_pc**: Dirección de inicio para el contador de programa.
+    - **load_test_program**: Si es true, carga el programa de prueba inicial (ignorado si se provee bin_code o assembly_code).
+    - **bin_code**: Código binario del programa, codificado en Base64.
+    - **assembly_code**: Código ensamblador del programa (aún no implementado).
     """
     with simulators_lock:
         # Obtenemos la instancia existente para asegurarnos de que la sesión es válida
@@ -565,13 +592,27 @@ def reset_simulator(
             "sim": Simulator(model=model_id),
             "model_name": config.model
         }
+        sim = simulators[session_id]["sim"]
         print("Creada nueva instancia del simulador...")
-        if config.load_test_program:
-            simulators[session_id]["sim"].load_program(DEFAULT_PROGRAM_D)
+
+        if config.bin_code:
+            try:
+                program_bytes = base64.b64decode(config.bin_code)
+                sim.load_program(program_bytes)
+                print(f"Cargado programa binario personalizado ({len(program_bytes)} bytes)...")
+            except Exception as e:
+                sim.load_program(DEFAULT_PROGRAM_D)
+                # raise HTTPException(status_code=400, detail=f"Error decodificando o cargando bin_code: {e}")
+        elif config.assembly_code:
+            # TODO: Implementar ensamblador
+            print("Carga de ensamblador no implementada. Cargando programa por defecto.")
+            sim.load_program(DEFAULT_PROGRAM_D)
+        elif config.load_test_program:
+            sim.load_program(DEFAULT_PROGRAM_D)
             print("Cargado programa por defecto...")
             
         # Ejecuta el primer paso para tener un estado inicial y luego lo devuelve completo
-        simulators[session_id]["sim"].reset_with_model(model_id)
+        simulators[session_id]["sim"].reset_with_model(model_id, config.initial_pc)
         print();
         sim_instance = simulators[session_id]
         sim = sim_instance["sim"]

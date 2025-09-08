@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import 'colors.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'reg_widget.dart';
 import 'package:flutter/services.dart'; // Para RawKeyboard
 // Para FontFeature
@@ -193,32 +197,86 @@ class MyApp extends StatelessWidget {
               padding: const EdgeInsets.only(top: 12, left:12),
               child: Row(
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: () => Provider.of<DatapathState>(context, listen: false).reset(),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Reset'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade100, foregroundColor: Colors.black),
+                  // Envolvemos los botones en un SizedBox para fijar el ancho total.
+                  SizedBox(
+                    width: 255, // Ancho total fijo para los tres botones.
+                    child: Row(
+                      children: [
+                        // Cada botón se envuelve en Expanded para que compartan el espacio.
+                        Expanded(
+                          child: 
+                          Tooltip(message: 'Upload program to memory',
+                            child:
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              FilePickerResult? result = await FilePicker.platform.pickFiles(
+                                type: FileType.custom,
+                                allowedExtensions: ['bin', 's'],
+                                withData: true, // <-- NECESARIO para que file.bytes no sea nulo
+                              );
+
+                              if (result != null && result.files.single.bytes != null) {
+                                final file = result.files.single;
+                                if (file.extension == 'bin') {
+                                  final Uint8List binCode = file.bytes!;
+                                  datapathState.reset(binCode: binCode);
+                                } else if (file.extension == 's') {
+                                  final String assemblyCode = utf8.decode(file.bytes!);
+                                  // Aún no se procesa, pero se pasa a la capa de servicio.
+                                  datapathState.reset(assemblyCode: assemblyCode);
+                                }
+                              }
+                            },
+                            icon: const Icon(Icons.file_open, size: 16),
+                            label: const Text('Load'),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade100, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 8)),
+                          ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          flex: 1, // Le damos más espacio a este botón porque su texto es más largo.
+                          child: Tooltip(
+                            message: 'Reset (Long press or Ctrl+Click to reset with random PC)',
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                datapathState.reset();
+                              },
+                              onLongPress: () {
+                                final int pc = 256 * Random().nextInt(256);
+                                datapathState.reset(initialPc: pc);
+                              },
+                              icon: const Icon(Icons.refresh, size: 16),
+                              label: const Text('Reset'),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade100, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 8)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          flex: 1, // Le damos más espacio a este botón porque su texto es más largo.
+                          child: Tooltip(
+                            message: 'Step forward (Long press or Ctrl+Click to step back)',
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                final isControlPressed = HardwareKeyboard.instance.isControlPressed;
+                                if (isControlPressed) {
+                                  datapathState.stepBack();
+                                } else {
+                                  datapathState.step();
+                                }
+                              },
+                              onLongPress: () => datapathState.stepBack(),
+                              icon: const Icon(Icons.timer, size: 16),
+                              label: const Text('Clock'),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade100, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 8)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
                   ),
-                  const SizedBox(width: 10),
-                  Tooltip(
-                    message: 'Step forward (Long press or Ctrl+Click to step back)',
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // Comprueba si la tecla Control (izquierda o derecha) está pulsada
-                        final isControlPressed = HardwareKeyboard.instance.isControlPressed;
-                        if (isControlPressed) {
-                          datapathState.stepBack();
-                        } else {
-                          datapathState.step();
-                        }
-                      },
-                      onLongPress: () => datapathState.stepBack(),
-                      icon: const Icon(Icons.timer),
-                      label: const Text('Clock Tick'),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade100, foregroundColor: Colors.black),
-                    ),
-                  ),
-                  const SizedBox(width: 20), // Espacio antes de la Unidad de Control
+                  const SizedBox(width: 8), // Espacio antes de la Unidad de Control
                   // Widget de la Unidad de Control
                   MouseRegion(
                     onEnter: (_) => datapathState.setHoverInfo(_controlHoverId),
@@ -957,7 +1015,7 @@ class MyApp extends StatelessWidget {
 
 final miEstiloInst = TextStyle(
   fontFamily: 'RobotoMono',
-  fontSize: 24,
+  fontSize: 20,
   color: Colors.black,
   fontWeight: FontWeight.bold,
   fontFeatures: [const FontFeature.disable('liga')],

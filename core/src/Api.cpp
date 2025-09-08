@@ -149,9 +149,9 @@ extern "C" {
     }
 
     // Nueva función para que la UI pueda especificar el modo al resetear.
-    SIMULATOR_API const char* Simulator_reset_with_model(void* sim_ptr, int mode_int) {
+    SIMULATOR_API const char* Simulator_reset_with_model(void* sim_ptr, int mode_int, uint32_t initial_pc) {
         if (!sim_ptr) return "{}";
-        static_cast<Simulator*>(sim_ptr)->reset(static_cast<PipelineModel>(mode_int));
+        static_cast<Simulator*>(sim_ptr)->reset(static_cast<PipelineModel>(mode_int), initial_pc);
         DatapathState state = static_cast<Simulator*>(sim_ptr)->get_datapath_state();
         return jsonFromState(state);
     }

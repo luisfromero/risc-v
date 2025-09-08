@@ -1,6 +1,7 @@
 // simulator_ui/lib/services/api_simulation_service.dart
 
 import 'dart:convert';
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../simulation_mode.dart';
 import '../datapath_state.dart';
@@ -171,7 +172,7 @@ Future<SimulationState> getDataMemory() async {
   }
 
   @override
-  Future<SimulationState> reset({required SimulationMode mode}) async {
+  Future<SimulationState> reset({required SimulationMode mode, int initialPc = 0, String? assemblyCode, Uint8List? binCode}) async {
     _checkSession();
     _currentMode = mode; // Guardamos el modo actual para usarlo en step()
     // Mapea el enum de Dart al string que espera la API de Python.
@@ -187,10 +188,24 @@ Future<SimulationState> getDataMemory() async {
       'session_id': _sessionId!,
     });
 
+
+    final Map<String, dynamic> requestBody = {
+      'model': modelName,
+      'initial_pc': initialPc,
+      'load_test_program': binCode == null && assemblyCode == null,
+    };
+
+    if (binCode != null && binCode.isNotEmpty) {
+      requestBody['bin_code'] = base64Encode(binCode);
+    }
+    if (assemblyCode != null) {
+      requestBody['assembly_code'] = assemblyCode;
+    }
+    
     final response = await http.post(
       uri,
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'model': modelName, 'load_test_program': true}),
+      body: jsonEncode(requestBody),
     );
 
     if (response.statusCode == 200) {
