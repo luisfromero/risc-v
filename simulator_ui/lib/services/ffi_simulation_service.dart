@@ -21,6 +21,9 @@ typedef SimulatorDelete = void Function(Pointer<Void>);
 typedef SimulatorLoadProgramNative = Void Function(Pointer<Void>, Pointer<Uint8>, IntPtr, Int32);
 typedef SimulatorLoadProgram = void Function(Pointer<Void>, Pointer<Uint8>, int,int);
 
+typedef SimulatorLoadProgramFromAssemblyNative = Void Function(Pointer<Void>, Pointer<Utf8>, Int32);
+typedef SimulatorLoadProgramFromAssembly = void Function(Pointer<Void>, Pointer<Utf8>, int);
+
 typedef SimulatorStepNative = Pointer<Utf8> Function(Pointer<Void>);
 typedef SimulatorStep = Pointer<Utf8> Function(Pointer<Void>);
 
@@ -72,6 +75,7 @@ typedef SimulatorGetDMem = int Function(
 late final DynamicLibrary _simulatorLib;
 late final SimulatorNew simulatorNew;
 late final SimulatorDelete simulatorDelete;
+late final SimulatorLoadProgramFromAssembly simulatorLoadProgramFromAssembly;
 late final SimulatorLoadProgram simulatorLoadProgram;
 late final SimulatorReset simulatorReset;
 late final SimulatorStep simulatorStep;
@@ -146,6 +150,15 @@ class Simulador {
     calloc.free(buffer);
   }
 
+  void loadProgramFromAssembly(String assemblyCode, int mode) {
+    final assemblyCodeC = assemblyCode.toNativeUtf8();
+    try {
+      simulatorLoadProgramFromAssembly(_sim, assemblyCodeC, mode);
+    } finally {
+      calloc.free(assemblyCodeC);
+    }
+  }
+
   /// Método auxiliar para enriquecer el JSON base del simulador con datos adicionales.
   Map<String, dynamic> _getFullState(String jsonStr) {
     final json = jsonDecode(jsonStr);
@@ -191,9 +204,9 @@ class Simulador {
     }
   }
 
-  Map<String, dynamic> reset(int mode, int initialPc) {
+  Map<String, dynamic> reset(int mode, int initial_pc) {
     try {
-      final jsonStr = simulatorReset(_sim, mode, initialPc).toDartString();
+      final jsonStr = simulatorReset(_sim, mode, initial_pc).toDartString();
       
       return _getFullState(jsonStr);
     } catch (e) {
@@ -257,6 +270,10 @@ class FfiSimulationService implements SimulationService {
           .asFunction();
       simulatorLoadProgram = _simulatorLib
           .lookup<NativeFunction<SimulatorLoadProgramNative>>('Simulator_load_program')
+          .asFunction();
+      simulatorLoadProgramFromAssembly = _simulatorLib
+          .lookup<NativeFunction<SimulatorLoadProgramFromAssemblyNative>>(
+              'Simulator_load_program_from_assembly')
           .asFunction();
       simulatorReset = _simulatorLib
           // Nota: He cambiado el nombre para no romper la función original.
@@ -407,20 +424,19 @@ class FfiSimulationService implements SimulationService {
 // ffi_simulation_service.dart
 
   @override
-  Future<SimulationState> reset({required SimulationMode mode, int initialPc = 0, String? assemblyCode, Uint8List? binCode}) async {
+  Future<SimulationState> reset({required SimulationMode mode, int initial_pc = 0, String? assemblyCode, Uint8List? binCode}) async {
     if (binCode != null && binCode.isNotEmpty) {
       simulador.loadProgram(binCode, mode.index);
       // ignore: avoid_print
       print('Programa binario personalizado cargado en el simulador FFI.');
     } else if (assemblyCode != null) {
-      // TODO: Implementar ensamblador en Dart o C++
+      simulador.loadProgramFromAssembly(assemblyCode, mode.index);
       // ignore: avoid_print
-      print("La carga de código ensamblador aún no está implementada para FFI. Se carga el programa por defecto.");
-      simulador.loadProgram(Uint8List.fromList(defaultProgramD), mode.index);
+      print('Programa desde ensamblador cargado en el simulador FFI.');
     }
     // Si no se proporciona código, el simulador mantiene el programa que ya tenía en memoria.
 
-    final stateMap = simulador.reset(mode.index, initialPc);
+    final stateMap = simulador.reset(mode.index, initial_pc);
 
     final initialState = SimulationState.fromJson(stateMap);
     

@@ -138,7 +138,19 @@ Simulator::Simulator(size_t mem_size, PipelineModel model)
       // Reservar espacio para el historial para evitar realojamientos frecuentes
       history.reserve(1024);
       m_logfile << "--- Historia reservada ---" << std::endl;
-      
+}
+
+// Ensambla un código ensamblador a código máquina.
+std::vector<uint8_t> Simulator::assemble(const char* assembly_code)  {
+    // Llama al ensamblador de múltiples pasadas para convertir el código
+    // fuente en código máquina.
+    return assembler.assemble_program(assembly_code);
+}
+
+// Carga un programa en la memoria del simulador desde código ensamblador.
+void Simulator::load_program(const char* assembly_code, PipelineModel model) {
+    std::vector<uint8_t> machine_code = assemble(assembly_code);
+    load_program(machine_code, model);
 }
 
 // Carga un programa en la memoria del simulador.

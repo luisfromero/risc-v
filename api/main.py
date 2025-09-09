@@ -182,6 +182,12 @@ core_lib.Simulator_delete.restype = None
 core_lib.Simulator_load_program.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t, ctypes.c_int]
 core_lib.Simulator_load_program.restype = None
 
+core_lib.Simulator_load_program_from_assembly.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+core_lib.Simulator_load_program_from_assembly.restype = None
+
+core_lib.Simulator_assemble.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t]
+core_lib.Simulator_assemble.restype = ctypes.c_size_t
+
 core_lib.Simulator_step.argtypes = [ctypes.c_void_p]
 core_lib.Simulator_step.restype = ctypes.c_char_p
 
@@ -235,6 +241,27 @@ class Simulator:
     def load_program(self, program: bytes):
         prog_array = (ctypes.c_uint8 * len(program))(*program)
         core_lib.Simulator_load_program(self.obj, prog_array, len(program), self.model)
+
+    def load_program_from_assembly(self, assembly: str):
+        assembly_bytes = assembly.encode('utf-8')
+        core_lib.Simulator_load_program_from_assembly(self.obj, assembly_bytes, self.model)
+
+    def assemble(self, assembly: str) -> bytes:
+        """Ensambla código ensamblador y devuelve el código máquina como bytes."""
+        assembly_bytes = assembly.encode('utf-8')
+        
+        # Primera llamada para obtener el tamaño necesario del buffer
+        required_size = core_lib.Simulator_assemble(self.obj, assembly_bytes, None, 0)
+        if required_size == 0:
+            return b''
+
+        # Crear un buffer del tamaño adecuado
+        buffer = (ctypes.c_uint8 * required_size)()
+        
+        # Segunda llamada para llenar el buffer
+        core_lib.Simulator_assemble(self.obj, assembly_bytes, buffer, required_size)
+
+        return bytes(buffer)
 
     def step(self):
         print("Llamando al step de la dll...")
@@ -604,9 +631,11 @@ def reset_simulator(
                 sim.load_program(DEFAULT_PROGRAM_D)
                 # raise HTTPException(status_code=400, detail=f"Error decodificando o cargando bin_code: {e}")
         elif config.assembly_code:
-            # TODO: Implementar ensamblador
-            print("Carga de ensamblador no implementada. Cargando programa por defecto.")
-            sim.load_program(DEFAULT_PROGRAM_D)
+            try:
+                sim.load_program_from_assembly(config.assembly_code)
+                print(f"Cargado programa desde ensamblador...")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Error cargando assembly_code: {e}")
         elif config.load_test_program:
             sim.load_program(DEFAULT_PROGRAM_D)
             print("Cargado programa por defecto...")
@@ -667,3 +696,25 @@ def get_instruction_memory(session_id: str = Query(..., description="ID de la se
         sim_instance = get_simulator_for_session(session_id)
         sim = sim_instance["sim"]
         return sim.get_i_mem()
+
+@app.post("/assemble", summary="Ensambla código RISC-V")
+def assemble_code(
+    session_id: str = Query(..., description="ID de la sesión"),
+    assembly_code: str = Body(..., embed=True, description="Código ensamblador a compilar")
+):
+    """
+    Toma una cadena de código ensamblador, la compila usando el núcleo C++
+    y devuelve el código máquina resultante codificado en Base64.
+    """
+    with simulators_lock:
+        sim_instance = get_simulator_for_session(session_id)
+        sim = sim_instance["sim"]
+        try:
+            machine_code = sim.assemble(assembly_code)
+            machine_code_b64 = base64.b64encode(machine_code).decode('utf-8')
+            return {
+                "machine_code_b64": machine_code_b64,
+                "size_bytes": len(machine_code)
+            }
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Error durante el ensamblado: {e}")

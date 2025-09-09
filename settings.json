@@ -1,5 +1,4 @@
 {
-    // Indica a CMake Tools dónde generar los archivos de compilación.
     "cmake.buildDirectory": "${workspaceFolder}/build",
     "cmake.configureOnOpen": true
 }

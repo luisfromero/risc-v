@@ -15,6 +15,7 @@
 #include "ControlUnit.h"
 #include "CoreTypes.h"
 #include "CoreExport.h"
+#include "Assembler.h"
 
 // Estructura para guardar una "instantánea" del estado del simulador.
 struct StateSnapshot {
@@ -46,9 +47,12 @@ class SIMULATOR_API Simulator {
 public:
     // El constructor ahora acepta un modelo de pipeline.
     Simulator(size_t mem_size, PipelineModel model = PipelineModel::SingleCycle);
+    RISCVAssembler assembler;
 
     // Carga un programa en la memoria.
     void load_program(const std::vector<uint8_t>& program, PipelineModel model = PipelineModel::SingleCycle );
+    void load_program(const char* assembly_code, PipelineModel model = PipelineModel::SingleCycle);
+    std::vector<uint8_t> assemble(const char* assembly_code);
 
     // Ejecuta un solo ciclo de instrucción.
     void step();

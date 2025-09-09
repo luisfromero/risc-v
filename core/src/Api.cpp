@@ -140,6 +140,33 @@ extern "C" {
         static_cast<Simulator*>(sim_ptr)->load_program(program,static_cast<PipelineModel>(mode_int));
     }
 
+    SIMULATOR_API void Simulator_load_program_from_assembly(void* sim_ptr, const char* assembly_code, int mode_int) {
+        if (!sim_ptr || !assembly_code) return;
+        // Llama a la sobrecarga de load_program que acepta código ensamblador.
+        static_cast<Simulator*>(sim_ptr)->load_program(assembly_code, static_cast<PipelineModel>(mode_int));
+    }
+
+    SIMULATOR_API size_t Simulator_assemble(void* sim_ptr, const char* assembly_code, uint8_t* buffer_out, size_t buffer_capacity) {
+        if (!sim_ptr || !assembly_code) {
+            return 0;
+        }
+
+        Simulator* simulator = static_cast<Simulator*>(sim_ptr);
+        std::vector<uint8_t> machine_code = simulator->assemble(assembly_code);
+
+        // Si se proporciona un buffer, se copian los datos.
+        if (buffer_out != nullptr && buffer_capacity > 0) {
+            size_t bytes_to_copy = std::min(machine_code.size(), buffer_capacity);
+            if (bytes_to_copy > 0) {
+                std::memcpy(buffer_out, machine_code.data(), bytes_to_copy);
+            }
+        }
+
+        // Siempre se devuelve el tamaño total del código máquina.
+        // El llamador puede comparar este valor con la capacidad del buffer para detectar truncamiento.
+        return machine_code.size();
+    }
+
     SIMULATOR_API const char* Simulator_reset(void* sim_ptr) {
         if (!sim_ptr) return "{}";
         // Llama a reset sin argumentos, usando el valor por defecto (SingleCycle) que hemos definido en Simulator.h

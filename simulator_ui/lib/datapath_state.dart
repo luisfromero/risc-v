@@ -104,6 +104,7 @@ class DatapathState extends ChangeNotifier {
   int _currentMicroCycle = 0;
   int _totalMicroCycles = 0;
 
+
   Map<String, bool> _activePaths = {};
 
   // --- ESTADO DEL DATAPATH ---
@@ -166,10 +167,13 @@ class DatapathState extends ChangeNotifier {
   // --- ESTADO DEL HOVER DE BUSES ---
   List<BusHoverInfo> _busHoverInfoList = [];
   List<BusHoverInfo> get busHoverInfoList => _busHoverInfoList;
-
+  
   // --- ESTADO DE LOS VALORES ---
 
   int _pcValue = 0x00400000;
+  int _initial_pc = 0;
+  set initial_pc(int value) {_initial_pc = value;}
+
   String _instruction = "c.unimp";
   int _instructionValue = 0;
   int _statusRegister = 0;
@@ -261,6 +265,8 @@ bool get isPCsrcActive => _isPCsrcActive;
   bool get showConnectionLabels => _showConnectionLabels;
   bool get showBusesLabels => _showBusesLabels;
   bool get showControl => _showControl;
+  int get initial_pc => _initial_pc;
+
 
 
 
@@ -269,7 +275,7 @@ bool get isPCsrcActive => _isPCsrcActive;
     try {
       await _simulationService.initialize();
       _updateBuses();
-      final initialState = await _simulationService.reset(mode: _simulationMode,initialPc: 0);
+      final initialState = await _simulationService.reset(mode: _simulationMode,initial_pc: 0);
       // Al inicializar, ponemos el slider al final para mostrar el estado completo.
       _sliderValue = initialState.criticalTime.toDouble();
       _updateState(initialState, clearHover: true);
@@ -377,9 +383,9 @@ bool get isPCsrcActive => _isPCsrcActive;
   }
 
   // Resetea el estado a sus valores iniciales.
-  Future<void> reset({int initialPc = 0, String? assemblyCode, Uint8List? binCode}) async {
+  Future<void> reset({int initial_pc = 0, String? assemblyCode, Uint8List? binCode}) async {
     final newState = await _simulationService.reset(
-        mode: _simulationMode, initialPc: initialPc, assemblyCode: assemblyCode, binCode: binCode);
+        mode: _simulationMode, initial_pc: initial_pc, assemblyCode: assemblyCode, binCode: binCode);
     print("Ejecutado reset() con modo: $_simulationMode");
 
     _sliderValue = 0.0;

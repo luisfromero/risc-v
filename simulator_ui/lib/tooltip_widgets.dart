@@ -223,22 +223,17 @@ Widget buildInstructionMemoryTooltip(DatapathState datapathState) {
 
   List<TextSpan> buildInstructionColumn(int start, int end) {
     List<TextSpan> spans = [];
-    spans.add( TextSpan(
-      text: 'Address   Instr (Hex)   Assembly\n',
-      style: miEstiloTooltip.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
-    ));
-    spans.add( TextSpan(
-      text: '----------------------------------------\n',
-      style: miEstiloTooltip.copyWith(color: Colors.white),
-    ));
+    //spans.add( TextSpan( text: 'Address   Instr (Hex)   Assembly\n',style: miEstiloTooltip.copyWith(color: Colors.white, fontWeight: FontWeight.bold),));
+    //spans.add( TextSpan( text: '----------------------------------------\n',style: miEstiloTooltip.copyWith(color: Colors.white),));
 
     for (int i = start; i < end; i += 4) {
       // Asegurarnos de no leer fuera de los límites
       if ((i ~/ 4) >= instructionMemory.length) continue;
 
       final address = i;
-      final item = instructionMemory[address ~/ 4];
-      final hexAddress = '0x${address.toRadixString(16).padLeft(4, '0').toUpperCase()}';
+      final item = instructionMemory[address ~/ 4] ;
+      final realaddress = i+ datapathState.initial_pc;
+      final hexAddress = '0x${realaddress.toRadixString(16).padLeft(4, '0').toUpperCase()}';
       final hexInstruction = '0x${item.value.toRadixString(16).padLeft(8, '0').toUpperCase()}';
       final assembly = item.instruction.padRight(10);
 
@@ -664,6 +659,99 @@ Widget buildPcAdderTooltip(DatapathState datapathState)
   );
 }
 
+Widget buildInstructionFormatTooltip() {
+  // Reutiliza la clase _Field que ya existe en este fichero.
+  return Container(
+    padding: const EdgeInsets.all(12.0),
+    constraints: const BoxConstraints(maxWidth: 700),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Formatos de Instrucción RISC-V (RV32I)', style: miEstiloTooltip.copyWith(color: Colors.yellow, fontSize: 14)),
+        const SizedBox(height: 12),
+        _buildFormatTable(
+          title: 'Formato R (Register)',
+          fields:  [
+            _Field('funct7', 25, 31, Colors.purple),
+            _Field('rs2', 20, 24, Colors.orange),
+            _Field('rs1', 15, 19, Colors.orange),
+            _Field('funct3', 12, 14, Colors.red),
+            _Field('rd', 7, 11, Colors.yellow),
+            _Field('opcode', 0, 6, Colors.redAccent),
+          ],
+        ),
+        const Divider(height: 16, color: Colors.grey),
+        _buildFormatTable(
+          title: 'Formato I (Immediate)',
+          fields:  [
+            _Field('imm[11:0]', 20, 31, Colors.cyan),
+            _Field('rs1', 15, 19, Colors.orange),
+            _Field('funct3', 12, 14, Colors.red),
+            _Field('rd', 7, 11, Colors.yellow),
+            _Field('opcode', 0, 6, Colors.redAccent),
+          ],
+        ),
+        const Divider(height: 16, color: Colors.grey),
+        _buildFormatTable(
+          title: 'Formato S (Store)',
+          fields:  [
+            _Field('imm[11:5]', 25, 31, Colors.cyan),
+            _Field('rs2', 20, 24, Colors.orange),
+            _Field('rs1', 15, 19, Colors.orange),
+            _Field('funct3', 12, 14, Colors.red),
+            _Field('imm[4:0]', 7, 11, Colors.cyan),
+            _Field('opcode', 0, 6, Colors.redAccent),
+          ],
+        ),
+        const Divider(height: 16, color: Colors.grey),
+        _buildFormatTable(
+          title: 'Formato B (Branch)',
+          fields:  [
+            _Field('imm[12]', 31, 31, Colors.cyan),
+            _Field('imm[10:5]', 25, 30, Colors.cyan),
+            _Field('rs2', 20, 24, Colors.orange),
+            _Field('rs1', 15, 19, Colors.orange),
+            _Field('funct3', 12, 14, Colors.red),
+            _Field('imm[4:1]', 8, 11, Colors.cyan),
+            _Field('imm[11]', 7, 7, Colors.cyan),
+            _Field('opcode', 0, 6, Colors.redAccent),
+          ],
+        ),
+        const Divider(height: 16, color: Colors.grey),
+        _buildFormatTable(
+          title: 'Formato U (Upper Immediate)',
+          fields:  [
+            _Field('imm[31:12]', 12, 31, Colors.cyan),
+            _Field('rd', 7, 11, Colors.yellow),
+            _Field('opcode', 0, 6, Colors.redAccent),
+          ],
+        ),
+        const Divider(height: 16, color: Colors.grey),
+        _buildFormatTable(
+          title: 'Formato J (Jump)',
+          fields:  [
+            _Field('imm[20]', 31, 31, Colors.cyan),
+            _Field('imm[10:1]', 21, 30, Colors.cyan),
+            _Field('imm[11]', 20, 20, Colors.cyan),
+            _Field('imm[19:12]', 12, 19, Colors.cyan),
+            _Field('rd', 7, 11, Colors.yellow),
+            _Field('opcode', 0, 6, Colors.redAccent),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildFormatTable({required String title, required List<_Field> fields}) {
+  final headerStyle = miEstiloTooltip.copyWith(fontSize: 10, color: Colors.grey[400]);
+  final titleStyle = miEstiloTooltip.copyWith(fontWeight: FontWeight.bold);
+  fields.sort((a, b) => b.start.compareTo(a.start));
+  List<Widget> headerWidgets = fields.map((field) => Expanded(flex: field.width, child: Text((field.start == field.end) ? '${field.start}' : '${field.end}:${field.start}', style: headerStyle, textAlign: TextAlign.center))).toList();
+  List<Widget> cellWidgets = fields.map((field) => Expanded(flex: field.width, child: Container(margin: const EdgeInsets.symmetric(horizontal: 1), padding: const EdgeInsets.symmetric(vertical: 2), decoration: BoxDecoration(color: field.color.withOpacity(0.2), border: Border.all(color: field.color), borderRadius: BorderRadius.circular(2)), child: Text(field.name, style: miEstiloTooltip.copyWith(color: field.color, fontSize: 11), textAlign: TextAlign.center)))).toList();
+  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: titleStyle), const SizedBox(height: 4), Row(children: headerWidgets), const SizedBox(height: 2), Row(children: cellWidgets)]);
+}
 
 /// Construye un [TextSpan] que representa un valor binario de 32 bits,
 /// resaltando los rangos de bits especificados.

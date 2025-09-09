@@ -543,7 +543,7 @@ abstract class SimulationService {
   Future<SimulationState> stepBack();
 
   /// Resetea la simulación a su estado inicial.
-  Future<SimulationState> reset({required SimulationMode mode, int initialPc = 0, String? assemblyCode, Uint8List? binCode});
+  Future<SimulationState> reset({required SimulationMode mode, int initial_pc = 0, String? assemblyCode, Uint8List? binCode});
 
     /// Resetea la simulación a su estado inicial.
   Future<SimulationState> getDataMemory();

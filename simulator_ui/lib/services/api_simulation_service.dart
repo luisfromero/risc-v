@@ -172,7 +172,7 @@ Future<SimulationState> getDataMemory() async {
   }
 
   @override
-  Future<SimulationState> reset({required SimulationMode mode, int initialPc = 0, String? assemblyCode, Uint8List? binCode}) async {
+  Future<SimulationState> reset({required SimulationMode mode, int initial_pc = 0, String? assemblyCode, Uint8List? binCode}) async {
     _checkSession();
     _currentMode = mode; // Guardamos el modo actual para usarlo en step()
     // Mapea el enum de Dart al string que espera la API de Python.
@@ -191,7 +191,7 @@ Future<SimulationState> getDataMemory() async {
 
     final Map<String, dynamic> requestBody = {
       'model': modelName,
-      'initial_pc': initialPc,
+      'initial_pc': initial_pc,
       'load_test_program': binCode == null && assemblyCode == null,
     };
 

@@ -34,6 +34,7 @@ const String _immHoverId = '##IMM_HOVER##';
 const String _branchHoverId = '##BRANCH_HOVER##';
 const String _aluHoverId = '##ALU_HOVER##';
 const String _pcAdderHoverId = '##PC_ADDER_HOVER##';
+const String _instructionFormatTableHoverId = '##INSTRUCTION_FORMAT_HOVER##';
 
 
 
@@ -240,11 +241,18 @@ class MyApp extends StatelessWidget {
                             message: 'Reset (Long press or Ctrl+Click to reset with random PC)',
                             child: ElevatedButton.icon(
                               onPressed: () {
-                                datapathState.reset();
+                                final isControlPressed = HardwareKeyboard.instance.isControlPressed;
+                                if(!isControlPressed){
+                                  datapathState.reset();
+                                }
+                                else{
+                                  datapathState.initial_pc = 256 * Random().nextInt(256);
+                                  datapathState.reset(initial_pc: datapathState.initial_pc);
+                                }
                               },
                               onLongPress: () {
-                                final int pc = 256 * Random().nextInt(256);
-                                datapathState.reset(initialPc: pc);
+                                datapathState.initial_pc  = 256 * Random().nextInt(256);
+                                datapathState.reset(initial_pc: datapathState.initial_pc);
                               },
                               icon: const Icon(Icons.refresh, size: 16),
                               label: const Text('Reset'),
@@ -294,15 +302,14 @@ class MyApp extends StatelessWidget {
                   Expanded(
                     child: 
                   Row(
-                    //mainAxisAlignment:MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                  const SizedBox(width: 60),
                   Image.asset(
                         'img/dac.png', // <-- CAMBIA ESTO por el nombre de tu primer logo
                         width: 60,
                         height: 50,
                       ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 20),
                   Image.asset(
                         'img/uma.png', // <-- CAMBIA ESTO por el nombre de tu primer logo
                         width: 70,
@@ -333,6 +340,22 @@ class MyApp extends StatelessWidget {
                       size: Size.infinite,
                     ),
 
+                    Positioned(
+                      top:0,
+                      left: 0,
+                      child:                   
+                  Tooltip(
+                    message: '',
+                    child: MouseRegion(
+                      onEnter: (_) => datapathState.setHoverInfo(_instructionFormatTableHoverId),
+                      onExit: (_) => datapathState.setHoverInfo(''),
+                      child: IconButton(
+                        icon: const Icon(Icons.info_outline),
+                        onPressed: () {}, // No action on click for now
+                      ),
+                    ),
+                  ),
+),
                     // --- Mux2 PC ---
                     Positioned(
                       top: 220,
@@ -1060,6 +1083,8 @@ class FloatingTooltip extends StatelessWidget {
       content = buildAluTooltip(datapathState);
     } else if (message == _immHoverId) {
       content = buildImmTooltip(datapathState);
+    } else if (message == _instructionFormatTableHoverId) {
+      content = buildInstructionFormatTooltip();
     } else {
       content = Text(
         message,
