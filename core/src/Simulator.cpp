@@ -17,6 +17,8 @@ void copy_pipeline_registers_to_out(DatapathState& datapath) {
     datapath.Pipe_ID_EX_A_out=datapath.Pipe_ID_EX_A;
     datapath.Pipe_ID_EX_B_out=datapath.Pipe_ID_EX_B;
     datapath.Pipe_ID_EX_RD_out=datapath.Pipe_ID_EX_RD;
+    datapath.Pipe_ID_EX_RS1_out=datapath.Pipe_ID_EX_RS1;
+    datapath.Pipe_ID_EX_RS2_out=datapath.Pipe_ID_EX_RS2;
     datapath.Pipe_ID_EX_Imm_out=datapath.Pipe_ID_EX_Imm;
     datapath.Pipe_EX_MEM_Control_out=datapath.Pipe_EX_MEM_Control;
     datapath.Pipe_EX_MEM_NPC_out=datapath.Pipe_EX_MEM_NPC;
@@ -115,22 +117,20 @@ std::string Simulator::disassemble(uint32_t instruction, const InstructionInfo* 
 
 // Constructor: Inicializa los componentes del simulador.
 Simulator::Simulator(size_t mem_size, PipelineModel model)
-    : pc(0),
-      current_cycle(0),
-      status_reg(0), // Inicializamos el registro de estado a 0
-      register_file(),
-      model(model),
-      memory(mem_size),
-      i_cache(IMEM_SIZE, 16, memory),//No usado
-      d_cache(DMEM_SIZE, 16, memory),//No usado
-      i_mem(IMEM_SIZE), // Memoria de instrucciones para modo didáctico
-      d_mem(DMEM_SIZE),  // Memoria de datos para modo didáctico
-      history_pointer(0),
-      datapath{}
+    : pc(0), // El PC se inicializa en 0.
+    current_cycle(0),
+    status_reg(0), // Inicializamos el registro de estado a 0
+    register_file(),
+    model(model),
+    memory(mem_size),
+    i_cache(IMEM_SIZE, 16, memory),//No usado
+    d_cache(DMEM_SIZE, 16, memory),//No usado
+    i_mem(IMEM_SIZE), // Memoria de instrucciones para modo didáctico
+    d_mem(DMEM_SIZE),  // Memoria de datos para modo didáctico
+    history_pointer(0),
+    assembler(&m_logfile), // Pasamos el logfile al ensamblador
+    datapath{}
 {
-    // El PC se inicializa en 0.
-      
-      
       // Abrir el fichero de log. Se sobreescribirá en cada nueva ejecución.
       m_logfile.open("simulator.log", std::ios::out | std::ios::trunc);
       m_logfile << "--- Log del Simulador RISC-V ---" << std::endl;
@@ -144,7 +144,11 @@ Simulator::Simulator(size_t mem_size, PipelineModel model)
 std::vector<uint8_t> Simulator::assemble(const char* assembly_code)  {
     // Llama al ensamblador de múltiples pasadas para convertir el código
     // fuente en código máquina.
+    m_logfile << "ENTRANDO A ENSAMBLAR"<< std::endl;
+    m_logfile << assembly_code  << std::endl;
     return assembler.assemble_program(assembly_code);
+    m_logfile << "FIN DE ENSAMBLAR"<< std::endl;
+
 }
 
 // Carga un programa en la memoria del simulador desde código ensamblador.
@@ -247,6 +251,8 @@ void Simulator::reset(PipelineModel _model, uint32_t _initial_pc) {
         datapath.Pipe_ID_EX_B.is_active=false;  
         datapath.Pipe_ID_EX_Imm.is_active=false;
         datapath.Pipe_ID_EX_RD.is_active=false;
+        datapath.Pipe_ID_EX_RS1.is_active=false;
+        datapath.Pipe_ID_EX_RS2.is_active=false;
         datapath.Pipe_ID_EX_NPC.is_active=false;
         datapath.Pipe_ID_EX_PC.is_active=false;
         datapath.Pipe_ID_EX_Control.is_active=false;
@@ -284,6 +290,11 @@ void Simulator::reset(PipelineModel _model, uint32_t _initial_pc) {
         datapath.bus_ResSrc.is_active=false;
         datapath.bus_BRwr.is_active=false;
         datapath.bus_ALUsrc.is_active=false;
+
+        datapath.bus_ControlForwardA={1, 1, false};
+        datapath.bus_ControlForwardB={1, 1, false};
+        datapath.bus_ForwardA.is_active=false;
+        datapath.bus_ForwardB.is_active=false;
 
         
 
@@ -478,7 +489,7 @@ void Simulator::simulate_single_cycle(uint32_t instruction) {
     datapath.bus_DA = {(uint8_t)rs1_addr,tmptime};
     datapath.bus_DB = {(uint8_t)rs2_addr,tmptime};
     datapath.bus_DC = {(uint8_t)rd_addr,tmptime};
-    datapath.bus_opcode={(uint8_t)(instruction & 0x3F),tmptime};
+    datapath.bus_opcode={(uint8_t)(instruction & 0x7F),tmptime};
     datapath.bus_funct3={(uint8_t)((instruction >> 12) & 0x07),tmptime};
     datapath.bus_funct7={(uint8_t)((instruction >> 25) & 0x7F),tmptime};
 
@@ -743,7 +754,7 @@ void Simulator::simulate_multi_cycle(uint32_t instruction) {
     datapath.bus_DA = { (uint8_t)rs1_addr, 1 };
     datapath.bus_DB = { (uint8_t)rs2_addr, 1 };
     datapath.bus_DC = { (uint8_t)rd_addr, 1 };
-    datapath.bus_opcode = { (uint8_t)(instruction & 0x3F), 1 };
+    datapath.bus_opcode = { (uint8_t)(instruction & 0x7F), 1 };
     datapath.bus_funct3 = { (uint8_t)((instruction >> 12) & 0x07), 1 };
     datapath.bus_funct7 = { (uint8_t)((instruction >> 25) & 0x7F), 1 };
     datapath.bus_imm = { instruction, 1 };
@@ -1081,32 +1092,48 @@ catch(const std::exception& e){
     uint32_t forwarded_a = datapath.Pipe_ID_EX_A_out.value;
     uint32_t forwarded_b = datapath.Pipe_ID_EX_B_out.value;
 
-    if(is_valid_instr_EX && FORWARDING){
-        // --- HAZARD DETECTION & FORWARDING UNIT ---
-        // Determines if we need to forward data from later stages to prevent a data hazard.
+    if (is_valid_instr_EX && FORWARDING) {
+        // --- FORWARDING UNIT LOGIC ---
+        // Determina si necesitamos cortocircuitar datos desde las etapas MEM o WB a la etapa EX.
 
-        uint8_t id_ex_rs1 = (datapath.Pipe_ID_EX_Control_out.is_active) ? (datapath.Pipe_ID_EX_Imm_out.value >> 15) & 0x1F : 0; // Just kidding, this is not how you get rs1. Let's get it properly. We need to pass it from ID.
-        // Let's assume for now we have rs1 and rs2 addresses in ID_EX register.
-        // This requires adding `rs1` and `rs2` fields to the `ID_EX_Register` struct in CoreTypes.h
-        // For this example, let's pretend they are passed via Imm field for simplicity.
+        // Registros fuente de la instrucción en la etapa EX (leídos desde el registro ID/EX)
+        uint8_t ex_rs1_addr = datapath.Pipe_ID_EX_RS1_out.value;
+        uint8_t ex_rs2_addr = datapath.Pipe_ID_EX_RS2_out.value;
+
+        // Registros destino de las instrucciones en etapas posteriores
         uint8_t ex_mem_rd = datapath.Pipe_EX_MEM_RD_out.value;
         uint8_t mem_wb_rd = datapath.Pipe_MEM_WB_RD_out.value;
-        uint8_t id_ex_rs1_addr = datapath.Pipe_ID_EX_RD_out.value; // Let's repurpose this field for rs1 for now
-        uint8_t id_ex_rs2_addr = (datapath.Pipe_ID_EX_Imm_out.value >> 20) & 0x1F; // And this for rs2
 
-        // Forwarding from EX/MEM stage
-        if (datapath.Pipe_EX_MEM_Control_out.is_active && controlSignal(datapath.Pipe_EX_MEM_Control_out.value, "BRwr") && ex_mem_rd != 0) {
-            if (ex_mem_rd == id_ex_rs1_addr) forwarded_a = datapath.Pipe_EX_MEM_ALU_result_out.value;
-            if (ex_mem_rd == id_ex_rs2_addr) forwarded_b = datapath.Pipe_EX_MEM_B_out.value; // Store has B value forwarded
-        }
-        // Forwarding from MEM/WB stage
-        if (datapath.Pipe_MEM_WB_Control_out.is_active && controlSignal(datapath.Pipe_MEM_WB_Control_out.value, "BRwr") && mem_wb_rd != 0) {
-            if (mem_wb_rd == id_ex_rs1_addr && !(datapath.Pipe_EX_MEM_Control_out.is_active && ex_mem_rd == id_ex_rs1_addr)) forwarded_a = register_file.readA(mem_wb_rd); // Simplified, should be mux_C result
-            if (mem_wb_rd == id_ex_rs2_addr && !(datapath.Pipe_EX_MEM_Control_out.is_active && ex_mem_rd == id_ex_rs2_addr)) forwarded_b = register_file.readA(mem_wb_rd);
-        }
-        // End of forwarding logic
+        // Señales de control de escritura en registro de etapas posteriores
+        bool ex_mem_reg_write = datapath.Pipe_EX_MEM_Control_out.is_active && controlSignal(datapath.Pipe_EX_MEM_Control_out.value, "BRwr");
+        bool mem_wb_reg_write = datapath.Pipe_MEM_WB_Control_out.is_active && controlSignal(datapath.Pipe_MEM_WB_Control_out.value, "BRwr");
 
-        }//Forwarding
+        // Lógica para Forward A (operando rs1)
+        if (ex_mem_reg_write && ex_mem_rd != 0 && ex_mem_rd == ex_rs1_addr) {
+            datapath.bus_ControlForwardA = {0, 1, true}; // Forward desde MEM (ALU result)
+            forwarded_a = datapath.Pipe_EX_MEM_ALU_result_out.value;
+        } else if (mem_wb_reg_write && mem_wb_rd != 0 && mem_wb_rd == ex_rs1_addr) {
+            datapath.bus_ControlForwardA = {2, 1, true}; // Forward desde WB (resultado final)
+            forwarded_a = datapath.bus_C.value; // bus_C contiene el resultado final de la etapa WB
+        } else {
+            datapath.bus_ControlForwardA = {1, 1, false}; // Sin forwarding
+        }
+
+        // Lógica para Forward B (operando rs2)
+        if (ex_mem_reg_write && ex_mem_rd != 0 && ex_mem_rd == ex_rs2_addr) {
+            datapath.bus_ControlForwardB = {0, 1, true}; // Forward desde MEM
+            forwarded_b = datapath.Pipe_EX_MEM_ALU_result_out.value;
+        } else if (mem_wb_reg_write && mem_wb_rd != 0 && mem_wb_rd == ex_rs2_addr) {
+            datapath.bus_ControlForwardB = {2, 1, true}; // Forward desde WB
+            forwarded_b = datapath.bus_C.value;
+        } else {
+            datapath.bus_ControlForwardB = {1, 1, false}; // Sin forwarding
+        }
+
+        // Actualizamos los buses de datos que salen de los Mux de Forwarding
+        datapath.bus_ForwardA = {forwarded_a, 1, datapath.bus_ControlForwardA.is_active};
+        datapath.bus_ForwardB = {forwarded_b, 1, datapath.bus_ControlForwardB.is_active};
+    }
     uint32_t alu_op_b=INDETERMINADO;
     try{
     if (datapath.Pipe_ID_EX_Control_out.is_active) {
@@ -1236,6 +1263,10 @@ catch(const std::exception& e){
         }
     }
 
+    // Asignamos el estado de los buses de riesgo después de haberlos calculado.
+    datapath.bus_stall = { stall, 1, stall };
+    datapath.bus_flush = { flush, 1, flush };
+
     if (flush) {
         // Squash the instruction in the ID stage by passing a NOP to the EX stage.
         id_control_word = 0;
@@ -1295,6 +1326,9 @@ catch(const std::exception& e){
             datapath.Pipe_ID_EX_RD = {rd_addr,1,is_valid_instr_ID};
         }
 
+        datapath.Pipe_ID_EX_RS1 = {rs1_addr, 1, is_valid_instr_ID};
+        datapath.Pipe_ID_EX_RS2 = {rs2_addr, 1, is_valid_instr_ID};
+
         datapath.Pipe_ID_EX_Imm = {sign_extender.extender(instruction_in_id, ImmSrc),1,is_valid_instr_ID};
 
         datapath.Pipe_ID_EX_Control= {id_control_word,1,is_valid_instr_ID}; //No necesitaríamos todo. Parte ya se ha consumido en ID.
@@ -1305,10 +1339,13 @@ catch(const std::exception& e){
         datapath.bus_DA = { rs1_addr, 1, is_valid_instr_ID }; // DA is the address of the first source register
         datapath.bus_DB = { rs2_addr, 1, is_valid_instr_ID }; // DB is the address of the second source register
         datapath.bus_DC = { rd_addr, 1, is_valid_instr_ID }; // DC is the address of the destination register
-        datapath.bus_opcode = { (uint8_t)(instruction_in_id & 0x3F), 1, is_valid_instr_ID }; // Opcode is the last 6 bits
+        datapath.bus_opcode = { (uint8_t)(instruction_in_id & 0x7F), 1, is_valid_instr_ID }; // Opcode is the last 7 bits
         datapath.bus_funct3 = { (uint8_t)((instruction_in_id >> 12) & 0x07), 1, is_valid_instr_ID }; // Funct3 is bits 12-14
         datapath.bus_funct7 = { (uint8_t)((instruction_in_id >> 25) & 0x7F), 1, is_valid_instr_ID }; // Funct7 is bits 25-31
         //datapath.bus_Instr = { instruction_in_id, 1, is_valid_instr_ID }; // The instruction itself
+        //datapath.bus_stall = { stall, 1, stall };
+        //datapath.bus_flush = { flush, 1, flush };
+
         datapath.bus_A = { datapath.Pipe_ID_EX_A.value, 1, is_valid_instr_ID }; // Value of the first source register
         datapath.bus_B = { datapath.Pipe_ID_EX_B.value, 1, is_valid_instr_ID }; // Value of the second source register
         datapath.bus_imm = { instruction_in_id, 1, is_valid_instr_ID }; // Immediate value (not yet extended)

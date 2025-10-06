@@ -16,12 +16,15 @@ import 'memory_unit_widget.dart';
 import 'ib_widget.dart';
 import 'mux_widget.dart';
 import 'mux2_widget.dart';
+import 'mux3_widget.dart';
 import 'extender_widget.dart';
 import 'control_unit_widget.dart';
 import 'services/get_service.dart'; // Importación condicional del servicio
 import 'simulation_mode.dart';
 import 'tooltip_widgets.dart';
 import 'platform_init.dart'; // Importación condicional para la configuración de la ventana
+import 'hazard_unit_widget.dart'; // Importamos el nuevo widget
+import 'execution_history_view.dart'; // Importamos la nueva vista
 
 const String _registerFileHoverId = '##REGISTER_FILE_HOVER##';
 const String _instructionMemoryHoverId = '##INSTRUCTION_MEMORY_HOVER##';
@@ -34,6 +37,7 @@ const String _immHoverId = '##IMM_HOVER##';
 const String _branchHoverId = '##BRANCH_HOVER##';
 const String _aluHoverId = '##ALU_HOVER##';
 const String _pcAdderHoverId = '##PC_ADDER_HOVER##';
+const String _controlTableHoverId = '##CONTROL_TABLE_HOVER##';
 const String _instructionFormatTableHoverId = '##INSTRUCTION_FORMAT_HOVER##';
 
 
@@ -79,14 +83,23 @@ class HoverRegisterData {
 
 /// Formatea una única línea de tooltip para un registro.
 String _formatRegisterLine(String name, int? valIn, int? valOut, [int digits = 8]) {
-  final inStr = (valIn == null) ? 'not set' : '0x${valIn.toRadixString(16).padLeft(digits, '0').toUpperCase()}';
-  final outStr = (valOut == null) ? 'not set' : '0x${valOut.toRadixString(16).padLeft(digits, '0').toUpperCase()}';
+  // El radix por defecto es 16 (hex). Si los dígitos son 5, asumimos binario.
+  final sufijo2= (valIn == null)?'':'($valIn)';
+  final radix = (digits <= 5) ? 2 : 16;
+  final prefix = (radix == 2) ? '' : '0x';
+  final suffix = (radix == 2) ? sufijo2 : '';
+
+  final inStr = (valIn == null) 
+      ? 'not set' 
+      : '$prefix${valIn.toRadixString(radix).padLeft(digits, '0').toUpperCase()}$suffix';
+  final outStr = (valOut == null) 
+      ? 'not set' 
+      : '$prefix${valOut.toRadixString(radix).padLeft(digits, '0').toUpperCase()}$suffix';
   
   final namePart = name.isNotEmpty ? '$name\n' : '\n';
   return "${namePart}in : $inStr \nout: $outStr";
 }
 
-/// Genera un tooltip para un único registro sin nombre explícito.
 String formatSingleRegisterHover(int? valIn, int? valOut, {int digits = 8}) {
   return _formatRegisterLine('', valIn, valOut, digits);
 }
@@ -98,13 +111,73 @@ String formatMultiRegisterHover(List<HoverRegisterData> registers) {
       .join('\n\n');
 }
 
-Color pipelineColorForPC(int? pc) {
-  // Ejemplo: elige entre 4 colores cíclicamente según el valor del PC
-  if(pc==null||pc==0)return Color.fromARGB(30, 0, 0, 0); // Si el PC es nulo, devolvemos un color transparente
-  const colors = [color1, color2, color3, color4, color5];
 
-  return colors[((pc) ~/ 4) % colors.length];
+/// Genera el texto del tooltip para la unidad de riesgo/cortocircuito que esté activa.
+/// Esta función centraliza la lógica para decidir qué mensaje mostrar.
+String _getHazardTooltipText(DatapathState datapathState) {
+  // La prioridad es importante: un stall tiene preferencia sobre un flush o un forward.
+  if (datapathState.isLoadHazard) {
+    // Hacemos el tooltip más específico para el riesgo de carga.
+    final loadInstruction = datapathState.pipeExInstruction;
+    final dependentInstruction = datapathState.pipeIfInstruction;
+    
+    // Obtenemos la información decodificada de las instrucciones en las etapas EX e ID.
+    final loadReg = datapathState.busValues['Pipe_ID_EX_RD_out'];
+    final instruccion = datapathState.pipeIfInstruction;
+    final contiene=instruccion.contains('x$loadReg');
+
+
+    // Determinamos qué registro causa la dependencia.
+    final conflictingRegister = contiene ? 'x${loadReg}' : 'un registro';
+
+    return "La unidad de Riesgo de LOAD se ha activado\nporque la instrucción\n'${instruccion}' (en ID) intenta leer el registro $conflictingRegister,\nque está siendo cargado desde memoria por '${loadInstruction.trim()}' (en EX)."+
+    "\n\nSe ha insertado un ciclo de espera (stall) para resolver el riesgo,\nanulando la carga de PC (mantiene la instrucción dependiente)\n y colocando una NOP en la segunda etapa.";
+  } else if (datapathState.isBranchHazard) {
+    // Hacemos el tooltip más específico para el riesgo de salto.
+    final instruction = datapathState.pipeExInstruction;
+    final instructionName = instruction.split(' ').first;
+    final flagZ = datapathState.busValues['flagZ'];
+
+    String reason = "la instrucción '$instructionName' en EX ha tomado\nel salto";
+    if (instructionName == 'beq' && flagZ == 1) {
+      reason += " (Z=1).";
+    } else if (instructionName == 'bne' && flagZ == 0) {
+      reason += " (Z=0).";
+    } else {
+      reason += " incondicionalmente.";
+    }
+    return 'La unidad de Riesgo de Salto se ha activado\nporque $reason'+'\n\nNota: El campo RD del registro de segmentación,\nen branch, se usa para propagar funct3 (tipo de branch).';
+  } else if (datapathState.busValues['bus_ControlForwardA'] != 1 || datapathState.busValues['bus_ControlForwardB'] != 1) {
+    // Hacemos el tooltip más específico para los cortocircuitos.
+    final forwardA = datapathState.busValues['bus_ControlForwardA'];
+    final forwardB = datapathState.busValues['bus_ControlForwardB'];
+    
+    List<String> descriptions = [];
+
+    // Describe el cortocircuito para el operando A (rs1)
+    if (forwardA == 0) { // MEM -> EX
+      descriptions.add("- MEM -> EX (operando 1): La instrucción '${datapathState.pipeExInstruction.trim()}' (en EX)\n  recibe el resultado de '${datapathState.pipeMemInstruction.trim()}' (en MEM).");
+    } else if (forwardA == 2) { // WB -> EX
+      descriptions.add("- WB -> EX (operando 1): La instrucción '${datapathState.pipeExInstruction.trim()}' (en EX)\n  recibe el resultado de '${datapathState.pipeWbInstruction.trim()}' (en WB).");
+    }
+
+    // Describe el cortocircuito para el operando B (rs2)
+    if (forwardB == 0) { // MEM -> EX
+      descriptions.add("- MEM -> EX (operando 2): La instrucción '${datapathState.pipeExInstruction.trim()}' (en EX)\n  recibe el resultado de '${datapathState.pipeMemInstruction.trim()}' (en MEM).");
+    } else if (forwardB == 2) { // WB -> EX
+      descriptions.add("- WB -> EX (operando 2): La instrucción '${datapathState.pipeExInstruction.trim()}' (en EX)\n  recibe el resultado de '${datapathState.pipeWbInstruction.trim()}' (en WB).");
+    }
+
+    final title = descriptions.length > 1 
+        ? 'Se han activado dos cortocircuitos:' 
+        : 'Se ha activado un cortocircuito:';
+
+    return 'La unidad de Cortocircuitos se ha activado.\n$title\n\n${descriptions.join('\n\n')}';
+  }
+  // Si ninguna está activa, no devolvemos texto.
+  return '';
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -343,19 +416,39 @@ class MyApp extends StatelessWidget {
                     Positioned(
                       top:0,
                       left: 0,
-                      child:                   
-                  Tooltip(
-                    message: '',
-                    child: MouseRegion(
-                      onEnter: (_) => datapathState.setHoverInfo(_instructionFormatTableHoverId),
-                      onExit: (_) => datapathState.setHoverInfo(''),
-                      child: IconButton(
-                        icon: const Icon(Icons.info_outline),
-                        onPressed: () {}, // No action on click for now
+                      child: Row(
+                        children: [
+                          Tooltip(
+                            message: 'Instruction Formats',
+                            child: MouseRegion(
+                              onEnter: (_) => datapathState.setHoverInfo(_instructionFormatTableHoverId),
+                              onExit: (_) => datapathState.setHoverInfo(''),
+                              child: IconButton(
+                                padding: EdgeInsets.zero,
+                                icon: const Icon(Icons.info_outline),
+                                constraints: const BoxConstraints(),
+                                onPressed: () {}, // No action on click
+                              ),
+                            ),
+                          ),
+                          Tooltip(
+                            message: 'Control Unit Logic Table',
+                            child: MouseRegion(
+                              onEnter: (_) => datapathState.setHoverInfo(_controlTableHoverId),
+                              onExit: (_) => datapathState.setHoverInfo(''),
+                              child: IconButton(
+                                padding: EdgeInsets.zero,
+                                icon: const Icon(Icons.bolt), // Icono de rayo
+                                constraints: const BoxConstraints(),
+                                onPressed: () {}, // No action on click
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-),
+                  
+
                     // --- Mux2 PC ---
                     Positioned(
                       top: 220,
@@ -367,7 +460,7 @@ class MyApp extends StatelessWidget {
                           key: datapathState.mux2Key,
                           value: datapathState.busValues['control_PCsrc'] ?? 0,
                           isActive: isPipelineMode? true: datapathState.isMux2Active,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC((datapathState.busValues['Pipe_MEM_WB_NPC_out']??0)-4)),
                         ),
                       ),
                     ),
@@ -382,7 +475,7 @@ class MyApp extends StatelessWidget {
                         child: PcWidget(
                           key: datapathState.pcKey,
                           isActive: datapathState.isPCActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC(datapathState.pcValue)),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC((datapathState.busValues['npc_bus']??0)-4)),
                         ),
                       ),
                     ),
@@ -406,7 +499,7 @@ class MyApp extends StatelessWidget {
                             Offset(1,0.5),
                             Offset(2,0.5),
                           ],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC(datapathState.pcValue)),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC((datapathState.busValues['npc_bus']??0)-4)),
 
 
                         ),
@@ -415,7 +508,7 @@ class MyApp extends StatelessWidget {
                     // --- Memoria de Instrucciones ---
                     Positioned(
                       top: 200,
-                      left: 400,
+                      left: 380,
                       child: MouseRegion(
                         onEnter: (_) => datapathState.setHoverInfo(_instructionMemoryHoverId),
                         onExit: (_) => datapathState.setHoverInfo(''),
@@ -425,7 +518,7 @@ class MyApp extends StatelessWidget {
                           width: 80,
                           height: 120,
                           isActive: !isSingleCycleMode?true: datapathState.isIMemActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC(datapathState.pcValue)),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC((datapathState.busValues['npc_bus']??0)-4)),
                           // 2 Puntos para I-Mem
                           connectionPoints: const [
                             Offset(0,0.5),
@@ -455,7 +548,7 @@ class MyApp extends StatelessWidget {
                         child: IBWidget(
                           key: datapathState.ibKey,
                           isActive: !isSingleCycleMode? datapathState.isPathActive('Pipe_IF_ID_Instr_out'): datapathState.isIBActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC((datapathState.busValues['Pipe_IF_ID_NPC_out']??0)-4)),
                     
                         ),
                       ),
@@ -473,9 +566,9 @@ class MyApp extends StatelessWidget {
                           label: 'FD0',
                           height: 42,
                           isActive: datapathState.isPathActive("Pipe_IF_ID_Instr_out"),
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC((datapathState.busValues['Pipe_IF_ID_NPC_out']??0)-4)),
                           visibility: isPipelineMode,
-                          connectionPoints: const [Offset(0, 0.715),Offset(1, 0.715),],
+                          connectionPoints: const [Offset(0, 0.715),Offset(1, 0.715),Offset(0.5, 0)],
                         ),
                       ),
                     ),
@@ -483,7 +576,7 @@ class MyApp extends StatelessWidget {
                       top: 420,
                       left: 520,
                       child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('IF_ID_PC ${formatSingleRegisterHover(datapathState.busValues['Pipe_IF_ID_PC'],datapathState.busValues['Pipe_IF_ID_PC_out'])}'),
+                        onEnter: (_) => datapathState.setHoverInfo('IF_ID_PC ${formatSingleRegisterHover(datapathState.busValues['Pipe_IF_ID_PC'],datapathState.busValues['Pipe_IF_ID_PC_out']??0-4)}'),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: RegWidget(
                           key: datapathState.pipereg_fd1_Key,
@@ -491,7 +584,7 @@ class MyApp extends StatelessWidget {
                           height: 40,
                           isActive: datapathState.isPathActive("Pipe_IF_ID_Instr_out"),
                           visibility: isPipelineMode,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC((datapathState.busValues['Pipe_IF_ID_NPC_out']??0)-4)),
                         ),
                       ),
                     ),
@@ -519,7 +612,7 @@ class MyApp extends StatelessWidget {
                             Offset(1,0.65),
                             Offset(15/8.0,0.65),
                             ],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC((datapathState.busValues['Pipe_IF_ID_NPC_out']??0)-4)),
                         ),
                       ),
                     ),
@@ -534,7 +627,7 @@ class MyApp extends StatelessWidget {
                           key: datapathState.extenderKey,
                           label: 'Imm. ext.',
                           isActive: isPipelineMode?datapathState.isPathActive("Pipe_IF_ID_Instr_out"): datapathState.isExtenderActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC(datapathState.busValues['Pipe_IF_ID_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC((datapathState.busValues['Pipe_IF_ID_NPC_out']??0)-4)),
 
                           width: 100,
                           height: 30,
@@ -543,7 +636,7 @@ class MyApp extends StatelessWidget {
                     ),
 
                     // --- Pipeline Registers ---
-                    if(datapathState.showControl)
+                    if(datapathState.showControl||datapathState.showForwarding||datapathState.showLHU||datapathState.showBHU)
                     Positioned(
                       top: 80,
                       left: 740,
@@ -557,7 +650,7 @@ class MyApp extends StatelessWidget {
                           isActive: datapathState.isPathActive("Pipe_ID_EX_Control_out"),
                           visibility: isPipelineMode,
                           connectionPoints: const [Offset(0, 0.5),Offset(1, 0.33),Offset(1, 0.666),], //Llega en 100, salen en 90 y 100
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
 
                         ),
                       ),
@@ -576,7 +669,7 @@ class MyApp extends StatelessWidget {
                           isActive: datapathState.isPathActive("Pipe_ID_EX_NPC_out"),
                           visibility: isPipelineMode,
                           connectionPoints: const [Offset(0, 0.715),Offset(1, 0.715),],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
 
                         ),
                       ),
@@ -596,7 +689,9 @@ class MyApp extends StatelessWidget {
                           formatMultiRegisterHover([
                             HoverRegisterData("ID/EX (A)", datapathState.busValues['Pipe_ID_EX_A'], datapathState.busValues['Pipe_ID_EX_A_out']),
                             HoverRegisterData("ID/EX (B)", datapathState.busValues['Pipe_ID_EX_B'], datapathState.busValues['Pipe_ID_EX_B_out']),
-                            HoverRegisterData("ID/EX (RD)", datapathState.busValues['Pipe_ID_EX_RD'], datapathState.busValues['Pipe_ID_EX_RD_out']),
+                            HoverRegisterData("ID/EX (RD)", datapathState.busValues['Pipe_ID_EX_RD'], datapathState.busValues['Pipe_ID_EX_RD_out'],digits:5),
+                            HoverRegisterData("ID/EX (RS1)", datapathState.busValues['Pipe_ID_EX_RS1'], datapathState.busValues['Pipe_ID_EX_RS1_out'], digits: 5),
+                            HoverRegisterData("ID/EX (RS2)", datapathState.busValues['Pipe_ID_EX_RS2'], datapathState.busValues['Pipe_ID_EX_RS2_out'], digits: 5),
                             HoverRegisterData("ID/EX (Imm)", datapathState.busValues['Pipe_ID_EX_Imm'], datapathState.busValues['Pipe_ID_EX_Imm_out']),
                           ])
                         ),
@@ -607,8 +702,8 @@ class MyApp extends StatelessWidget {
                           key: datapathState.pipereg_de1_Key,
                           isActive: datapathState.isPathActive("Pipe_ID_EX_NPC_out"),
                           visibility: !isSingleCycleMode,
-                          connectionPoints: const [Offset(0, 0.269),Offset(0, 0.453),Offset(0, 0.7115),Offset(0, 0.838),Offset(1, 0.269),Offset(1, 0.453),Offset(1, 0.7115),Offset(1, 0.838)],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
+                          connectionPoints: const [Offset(0, 0.269),Offset(0, 0.453),Offset(0, 0.7115),Offset(0, 0.838),Offset(1, 0.269),Offset(1, 0.453),Offset(1, 0.7115),Offset(1, 0.838),Offset(1, 0.1)],
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
                         ),
                       ),
                     ),
@@ -624,15 +719,16 @@ class MyApp extends StatelessWidget {
                           height: 40,
                           isActive: datapathState.isPathActive("Pipe_ID_EX_PC_out"),
                           visibility: isPipelineMode,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
                         ),
                       ),
                     ),
 
+
                     // --- MuxB ---
                     Positioned(
                       top: 265,
-                      left: 860,
+                      left: 810,
                       child: MouseRegion(
                         onEnter: (_) => datapathState.setHoverInfo(_muxBHoverId),
                         onExit: (_) => datapathState.setHoverInfo(''),
@@ -641,11 +737,49 @@ class MyApp extends StatelessWidget {
                           value: datapathState.busValues['control_ALUsrc'] ?? 0,
                           isActive: isPipelineMode?datapathState.isPathActive("Pipe_ID_EX_B_out"): datapathState.isMux3Active,
                           labels: ['0', '1', '2', ' '],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
 
                         ),
                       ),
                     ),
+
+                    // --- Forwarding muxes ---
+                    if(isPipelineMode)
+                    Positioned(
+                      top: 210,
+                      left: 880,
+                      child: Opacity(
+                        opacity: datapathState.showForwarding||(datapathState.busValues['bus_ControlForwardA'] !=1)? 1.0 : 0.0,
+                        child: MouseRegion(
+                          onEnter: (_) { if (datapathState.showForwarding) datapathState.setHoverInfo(_muxBHoverId); },
+                          onExit: (_) => datapathState.setHoverInfo(''),
+                          child: Mux3Widget(
+                            key: datapathState.muxFWAKey,
+                            value: 1,
+                            isActive: true,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if(isPipelineMode)
+                    Positioned(
+                      top: 270,
+                      left: 880,
+                      child: Opacity(
+                        opacity: datapathState.showForwarding||(datapathState.busValues['bus_ControlForwardB'] !=1)? 1.0 : 0.0,
+                        child: MouseRegion(
+                          onEnter: (_) { if (datapathState.showForwarding) datapathState.setHoverInfo(_muxBHoverId); },
+                          onExit: (_) => datapathState.setHoverInfo(''),
+                          child: Mux3Widget(
+                            key: datapathState.muxFWBKey,
+                            value: 1,
+                            isActive: true,
+                          ),
+                        ),
+                      ),
+                    ),
+
+
                     // --- ALU ---
                     Positioned(
                       top: 200,
@@ -657,7 +791,7 @@ class MyApp extends StatelessWidget {
                           key: datapathState.aluKey,
                           label: 'ALU',
                           isActive: isPipelineMode?datapathState.isPathActive("Pipe_ID_EX_A_out"): datapathState.isAluActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
                           // 5 Puntos para la ALU
                           connectionPoints: const [
                             Offset(0,0.25),
@@ -674,7 +808,7 @@ class MyApp extends StatelessWidget {
                     // --- Sumador de Saltos (Branch) ---
                     Positioned(
                       top: 350,
-                      left: 900,
+                      left: 810,
                       child: MouseRegion(
                         onEnter: (_) => datapathState.setHoverInfo(_branchHoverId),
                         onExit: (_) => datapathState.setHoverInfo(''),
@@ -682,13 +816,13 @@ class MyApp extends StatelessWidget {
                           key: datapathState.branchAdderKey,
                           label: '  BR\ntarget',
                           isActive: !isSingleCycleMode?datapathState.isPathActive("branch_target_bus"): datapathState.isBranchAdderActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_ID_EX_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
                         ),
                       ),
                     ),
                     
                     // --- Pipeline Registers ---
-                    if(datapathState.showControl)
+                    if(datapathState.showControl||datapathState.showForwarding||datapathState.showLHU||datapathState.showBHU)
                     Positioned(
                       top: 80,
                       left: 1020,
@@ -701,8 +835,8 @@ class MyApp extends StatelessWidget {
                           height: 20,
                           isActive: datapathState.isPathActive("Pipe_EX_MEM_Control_out"),
                           visibility: isPipelineMode,
-                          connectionPoints: const [Offset(0, 0.5),Offset(1, 0.25),Offset(1, 0.75),], // Le llega en 90. Uno sale en 85 y el otro en 95
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC_out'])),
+                          connectionPoints: const [Offset(0, 0.5),Offset(1, 0.25),Offset(1, 0.75),Offset(0.5, 0),], // Le llega en 90. Uno sale en 85 y el otro en 95
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_EX_MEM_NPC_out']??0)-4)),
 
                         ),
                       ),
@@ -722,7 +856,7 @@ class MyApp extends StatelessWidget {
                           isActive: datapathState.isPathActive( "Pipe_EX_MEM_NPC_out"),
                           visibility: isPipelineMode,
                           connectionPoints: const [Offset(0, 0.715),Offset(1, 0.715),],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC((datapathState.busValues['Pipe_EX_MEM_NPC_out']??0)-4)),
                         ),
                       ),
                     ),
@@ -740,7 +874,7 @@ class MyApp extends StatelessWidget {
                           formatMultiRegisterHover([
                             HoverRegisterData("EX/ME (ALU_result)", datapathState.busValues['Pipe_EX_MEM_ALU_result'], datapathState.busValues['Pipe_EX_MEM_ALU_result_out']),
                             HoverRegisterData("EX/ME (B)", datapathState.busValues['Pipe_EX_MEM_ALU_B'], datapathState.busValues['Pipe_EX_MEM_ALU_B_out']),
-                            HoverRegisterData("EX/ME (RD)", datapathState.busValues['Pipe_EX_MEM_RD'], datapathState.busValues['Pipe_EX_MEM_RD_out']),
+                            HoverRegisterData("EX/ME (RD)", datapathState.busValues['Pipe_EX_MEM_RD'], datapathState.busValues['Pipe_EX_MEM_RD_out'], digits: 5),
                           ])
                           ),
                         onExit: (_) => datapathState.setHoverInfo(''),
@@ -751,7 +885,7 @@ class MyApp extends StatelessWidget {
                           isActive: datapathState.isPathActive("Pipe_EX_MEM_ALU_result_out"),
                           visibility: !isSingleCycleMode,
                           connectionPoints: const [Offset(0, 0.315),Offset(0, 0.384),Offset(0, 0.654),Offset(0, 0.7115),Offset(1, 0.315),Offset(1, 0.384),Offset(1, 0.654),Offset(1, 0.7115)],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC((datapathState.busValues['Pipe_EX_MEM_NPC_out']??0)-4)),
                         ),
                       ),
                     ),
@@ -793,13 +927,13 @@ class MyApp extends StatelessWidget {
                             Offset(0.5,0),
                             Offset(1,0.566),
                           ],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC(datapathState.busValues['Pipe_EX_MEM_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC((datapathState.busValues['Pipe_EX_MEM_NPC_out']??0)-4)),
                         ),
                       ),
                     ),
 
                     // --- Pipeline Registers ---
-                    if(datapathState.showControl)
+                    if(datapathState.showControl||datapathState.showForwarding)
                     Positioned(
                       top: 80,
                       left: 1220,
@@ -812,8 +946,8 @@ class MyApp extends StatelessWidget {
                           height: 10,
                           isActive: datapathState.isPathActive("Pipe_MEM_WB_Control_out"),
                           visibility: isPipelineMode,
-                          connectionPoints: const [Offset(0, 0.5),Offset(1, 0.5),],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC_out'])),
+                          connectionPoints: const [Offset(0, 0.5),Offset(1, 0.5),Offset(0.5, 0),],
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_MEM_WB_NPC_out']??0)-4)),
 
                         ),
                       ),
@@ -833,7 +967,7 @@ class MyApp extends StatelessWidget {
                           isActive: datapathState.isPathActive("Pipe_MEM_WB_NPC_out"),
                           visibility: isPipelineMode,
                           connectionPoints: const [Offset(0, 0.715),Offset(1, 0.715),],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC((datapathState.busValues['Pipe_MEM_WB_NPC_out']??0)-4)),
                         ),
                       ),
                     ),
@@ -851,7 +985,7 @@ class MyApp extends StatelessWidget {
                           formatMultiRegisterHover([
                             HoverRegisterData("ME/WB (ALU_result)", datapathState.busValues['Pipe_MEM_WB_ALU_result'], datapathState.busValues['Pipe_MEM_WB_ALU_result_out']),
                             HoverRegisterData("ME/WB (RM)", datapathState.busValues['Pipe_MEM_WB_RM'], datapathState.busValues['Pipe_MEM_WB_RM_out']),
-                            HoverRegisterData("ME/WB (RD)", datapathState.busValues['Pipe_MEM_WB_RD'], datapathState.busValues['Pipe_MEM_WB_RD_out']),
+                            HoverRegisterData("ME/WB (RD)", datapathState.busValues['Pipe_MEM_WB_RD'], datapathState.busValues['Pipe_MEM_WB_RD_out'], digits: 5),
                           ])
                         ),
                         onExit: (_) => datapathState.setHoverInfo(''),
@@ -861,27 +995,111 @@ class MyApp extends StatelessWidget {
                           key: datapathState.pipereg_mw1_Key,
                           isActive: datapathState.isPathActive("Pipe_MEM_WB_NPC_out"),
                           visibility: !isSingleCycleMode,
-                          connectionPoints: const [Offset(0, 0.0577),Offset(0, 0.412),Offset(0, 0.7115),Offset(1, 0.0577),Offset(1, 0.412),Offset(1, 0.7115)],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC_out'])),
+                          connectionPoints: const [
+                            Offset(0, 0.0577),
+                            Offset(0, 0.412),
+                            Offset(0, 0.7115),
+                            Offset(1, 0.0577),
+                            Offset(1, 0.412),
+                            Offset(1, 0.7115),
+                            Offset(1.5, 0.412),
+                            ],
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC((datapathState.busValues['Pipe_MEM_WB_NPC_out']??0)-4)),
 
                         ),
                       ),
                     ),
 
+                    // --- Unidades de Riesgo y Cortocircuito ---
+                    if (isPipelineMode)
+                      Positioned(
+                        top: 10,
+                        left: 900,
+                        child: HazardUnitWidget(
+                          key: datapathState.loadHazardUnitKey,
+                          label: 'Load Hazard\nUnit',
+                          isActive: datapathState.showLHU || datapathState.isLoadHazard,
+                          connectionPoints: const [
+                            Offset(0, 0.5), // Salida para congelar PC
+                            Offset(0.2, 1), // Entrada desde RD
+                            Offset(0.5, 1), // Entrada desde Control en ex
+                            Offset(0.5, 1.5), // Entrada desde Control en ex
+                            Offset(0, 0.25), // Entrada desde UC, con instruccion decodificada
+                          ],
+                        ),
+                      ),
+
+                    if (isPipelineMode)
+                      Positioned(
+                        top: 10,
+                        left: 900,
+                        child: HazardUnitWidget(
+                          key: datapathState.branchHazardUnitKey,
+                          label: 'Branch Hazard\nUnit',
+                          isActive: datapathState.showBHU ||datapathState.isBranchHazard,
+                          activeColor: const Color.fromARGB(255, 166, 189, 240),
+                          connectionPoints: const [
+                            Offset(1, 0.5), // Entrada desde ALU.Zero
+                            Offset(1.45, 0.5), // Entrada desde ALU.Zero
+                            Offset(0.5, 1), // Entrada desde Control
+                            Offset(0.5, 1.5), // Entrada desde Control
+                            Offset(0, 0.66), // Salida hacia la izquierda (a IF/ID)
+                            Offset(0, 0.33), // Salida hacia la izquierda (a PC)
+                          ],
+                        ),
+                      ),
+
+                    if (isPipelineMode)
+                      Positioned(
+                        top: 10,
+                        left: 900,
+                        child: HazardUnitWidget(
+                          key: datapathState.forwardingUnitKey,
+                          label: 'Forwarding Unit',
+                          isActive: datapathState.showForwarding || datapathState.busValues['bus_ControlForwardA'] != 1 || datapathState.busValues['bus_ControlForwardB'] != 1,
+                          activeColor: Colors.purpleAccent,
+                          connectionPoints: const [
+                            Offset(0.2, 1), // Entrada rd1 rd2
+                            Offset(0.5, 1), // Entrada desde Control ex
+                            Offset(0.5, 1.5), // Entrada desde Control ex
+                            Offset(1, 0.2), // Entrada desde Control me
+                            Offset(1, 0.5), // Entrada desde Control wb
+                            Offset(0, 0.5), // Salida hacia los muxes
+                          ],
+                        ),
+                      ),
+
+                    if (isPipelineMode)
+                      Positioned(
+                        top: 10,
+                        left: 900,
+                        child: MouseRegion(
+                          onEnter: (_) => datapathState.setHoverInfo(_getHazardTooltipText(datapathState)),
+                          onExit: (_) => datapathState.setHoverInfo(''),
+                          child:                         
+                          HazardUnitWidget(
+                          label: '',
+                          isActive: false,
+                          activeColor: Colors.transparent,
+                          ),
+                          ),
+                      ),
+                      
+
 
                     // --- MuxC result ---
                     Positioned(
                       top: 220,
-                      left: 1300,
+                      left: 1280,
                       child: MouseRegion(
                         onEnter: (_) => datapathState.setHoverInfo(_muxCHoverId),
                         onExit: (_) => datapathState.setHoverInfo(''),
                         child: MuxWidget(
                           key: datapathState.muxCKey,
-                          value: datapathState.busValues['control_ResSrc'] ?? 0,
+                          value: (isPipelineMode?datapathState.busValues['control_ResSrc']:datapathState.busValues['control_ResSrc'] )?? 0,
                           isActive: isPipelineMode?datapathState.isPathActive("Pipe_MEM_WB_NPC_out"):datapathState.isMuxCActive,
                           labels: ['2', '1', '0', ' '],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC(datapathState.busValues['Pipe_MEM_WB_NPC_out'])),
+                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC((datapathState.busValues['Pipe_MEM_WB_NPC_out']??0)-4)),
 
                         ),
                       ),
@@ -918,7 +1136,7 @@ class MyApp extends StatelessWidget {
                       if (isPipelineMode)
                       Positioned(
                         top: 540,
-                        left: 300,
+                        left: 240,
                         child: Text(
                           datapathState.pipeIfInstruction,
                               style: miEstiloInst,
@@ -927,7 +1145,7 @@ class MyApp extends StatelessWidget {
                       if (isPipelineMode)
                       Positioned(
                         top: 540,
-                        left: 550,
+                        left: 500,
                         child: Text(
                           datapathState.pipeIdInstruction,
                               style: miEstiloInst,
@@ -936,7 +1154,7 @@ class MyApp extends StatelessWidget {
                       if (isPipelineMode)
                       Positioned(
                         top: 540,
-                        left: 800,
+                        left: 750,
                         child: Text(
                           datapathState.pipeExInstruction,
                               style: miEstiloInst,
@@ -945,7 +1163,7 @@ class MyApp extends StatelessWidget {
                       if (isPipelineMode)
                       Positioned(
                         top: 540,
-                        left: 1050,
+                        left: 1010,
                         child: Text(
                           datapathState.pipeMemInstruction,
                               style: miEstiloInst,
@@ -954,7 +1172,7 @@ class MyApp extends StatelessWidget {
                       if (isPipelineMode)
                       Positioned(
                         top: 540,
-                        left: 1300,
+                        left: 1230,
                         child: Text(
                           datapathState.pipeWbInstruction,
                               style: miEstiloInst,
@@ -962,7 +1180,7 @@ class MyApp extends StatelessWidget {
                       ),                    
                       
                       
-                  Positioned(top:100,left:1430,child:
+                  Positioned(top:0,left:1400,child:
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -974,7 +1192,7 @@ class MyApp extends StatelessWidget {
                             onChanged: (value) => datapathState.setShowConnectionLabels(value),
                             visualDensity: VisualDensity.compact,
                           ),
-                          const Text('Show connectors', style: TextStyle(fontSize: 10)),
+                          const Text('Show connectors', style: TextStyle(fontSize: 9)),
                         ],
                       ),
                       Row(
@@ -983,7 +1201,7 @@ class MyApp extends StatelessWidget {
                             value: datapathState.showBusesLabels,
                             onChanged:(value) => datapathState.setShowBusesLabels(value), 
                             visualDensity: VisualDensity.compact),
-                          const Text('Show buses values', style: TextStyle(fontSize: 10, color: Colors.black)),
+                          const Text('Show buses values', style: TextStyle(fontSize: 9, color: Colors.black)),
                         ],
                       ),
                       Row(
@@ -992,8 +1210,52 @@ class MyApp extends StatelessWidget {
                             value: datapathState.showControl,
                             onChanged:(value) => datapathState.setControlVisibility(value), 
                             visualDensity: VisualDensity.compact),
-                          const Text('Show control signals', style: TextStyle(fontSize: 10, color: Colors.black)),
+                          const Text('Show control signals', style: TextStyle(fontSize: 9, color: Colors.black)),
                         ],
+                        
+                      ),
+                    if (isPipelineMode)
+                      Row(
+                          children: [
+                            Checkbox(
+                              value: datapathState.showForwarding,
+                              onChanged:(value) => datapathState.setForwardingVisibility(value), 
+                              visualDensity: VisualDensity.compact),
+                            const Text('Show forwarding', style: TextStyle(fontSize: 9, color: Colors.black)),
+                          ],
+                          
+                        ),
+                    if (isPipelineMode)
+                      Row(
+                          children: [
+                            Checkbox(
+                              value: datapathState.showLHU,
+                              onChanged:(value) => datapathState.setShowLHU(value), 
+                              visualDensity: VisualDensity.compact),
+                            const Text('Show LHU', style: TextStyle(fontSize: 9, color: Colors.black)),
+                          ],
+                        ),
+                    if (isPipelineMode)
+                      Row(
+                          children: [
+                            Checkbox(
+                              value: datapathState.showBHU,
+                              onChanged:(value) => datapathState.setShowBHU(value), 
+                              visualDensity: VisualDensity.compact),
+                            const Text('Show BHU', style: TextStyle(fontSize: 9, color: Colors.black)),
+                          ],
+                        ),
+                      const SizedBox(height: 16),
+                      // --- Contenedor para el Historial de Ejecución ---
+                      // Le damos un tamaño fijo y un borde para que se vea bien.
+                      Container(
+                        height: 470, // Altura fija para el historial
+                        width: 180,  // Ancho fijo
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade400),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const ExecutionHistoryView(),
                       ),
                     ],
                   ),
@@ -1038,7 +1300,7 @@ class MyApp extends StatelessWidget {
 
 final miEstiloInst = TextStyle(
   fontFamily: 'RobotoMono',
-  fontSize: 20,
+  fontSize: 18,
   color: Colors.black,
   fontWeight: FontWeight.bold,
   fontFeatures: [const FontFeature.disable('liga')],
@@ -1083,6 +1345,11 @@ class FloatingTooltip extends StatelessWidget {
       content = buildAluTooltip(datapathState);
     } else if (message == _immHoverId) {
       content = buildImmTooltip(datapathState);
+    } else if (message.startsWith('##CONTROL_BUS:')) {
+      final signalKey = message.substring('##CONTROL_BUS:'.length);
+      content = buildControlBusTooltip(datapathState, signalKey);
+    } else if (message == _controlTableHoverId) {
+      content = buildControlTableTooltip();
     } else if (message == _instructionFormatTableHoverId) {
       content = buildInstructionFormatTooltip();
     } else {

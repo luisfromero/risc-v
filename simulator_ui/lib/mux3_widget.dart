@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'colors.dart';
 
-class MuxWidget extends StatelessWidget {
+class Mux3Widget extends StatelessWidget {
   final int value;
   final bool isActive; // Para recibir si debe estar "activo" (color verde)
   final List<Offset> connectionPoints;
@@ -9,39 +9,33 @@ class MuxWidget extends StatelessWidget {
   final color; // Color por defecto
 
 
-  const MuxWidget({
+  const Mux3Widget({
     super.key,
     required this.value,
     this.isActive = false, // Por defecto no está activo
-    this.labels = const ['0', '1', '2', '3'],
+    this.labels = const ['1', '0', '2'],
     // Por defecto, 3 puntos: dos entradas a la izquierda/abajo y una salida a la derecha.
     this.connectionPoints = const [
-      Offset(0,0.1),
-      Offset(0,0.35),
-      Offset(0,0.6),
-      Offset(0,0.85),
-      Offset(0.35,0),
+      Offset(0,0.25),
+      Offset(0,0.50),
+      Offset(0,0.75),
       Offset(1,0.5),
-      Offset(1.4,0.5),],
-    this.color = defaultColor, // Color por defecto
+      Offset(0.3,0),
+    ],
+    this.color = const Color.fromARGB(255, 212, 59, 250), // Color por defecto
   });
 
-  // Verificación para asegurar que la lista de etiquetas tenga 4 elementos.
-  bool get _hasValidLabels => labels.length == 4;
-
+  //final TextStyle estilo=  TextStyle(fontSize: 16);
   @override
   Widget build(BuildContext context) {
     // El color dependerá de si el widget está activo o no.
-    final Color backgroundColor = isActive ? color : color.withAlpha(30);
+    final Color backgroundColor = isActive ?color : color.withAlpha(30);
     final Color textColor = isActive ? Colors.black : Colors.black.withAlpha(30);
-  final TextStyle estilo= TextStyle(fontSize: 13,color:textColor);
+  final TextStyle estilo=  TextStyle(fontSize: 9, color:textColor);
 
     return SizedBox(
-      width: 50,
-      height: 80,
-      
-      // Stack nos permite apilar widgets. Dibujaremos la forma
-      // y pondremos el texto '+' encima.
+      width: 20,
+      height: 40,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -51,20 +45,22 @@ class MuxWidget extends StatelessWidget {
             painter: _MuxPainter(color: backgroundColor, borderColor: textColor),
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 20),
-            child: !_hasValidLabels
-                ? const Icon(Icons.error, color: Colors.red)
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: labels.map((label) => Text(label, style: estilo)).toList(),
-                  ),
+            padding: const EdgeInsets.only(right: 15),
+            child: 
+            Column(
+              children: [
+                Text(" 0",style:estilo),
+                Text(" 1",style:estilo),
+                Text(" 2",style:estilo),
+              ],
+            ),
           ),
 
           Padding(
-            padding: const EdgeInsets.only(left:15),
+            padding: const EdgeInsets.only(left:8.0),
             child: Text(
               value.toString(),
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.normal,color: Colors.blue),
+              style: const TextStyle(fontSize: 8, fontWeight: FontWeight.normal,color: Colors.blue),
             ),
           ),
         ],

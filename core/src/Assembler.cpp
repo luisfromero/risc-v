@@ -19,7 +19,7 @@ namespace {
     }
 }
 
-RISCVAssembler::RISCVAssembler() {
+RISCVAssembler::RISCVAssembler(std::ostream* log_stream) : m_log(log_stream) {
     // Inicializa el mapa de registros (ABI a nombres de arquitectura)
     reg_map = {
         {"zero", "x0"}, {"x0", "x0"}, {"ra", "x1"}, {"x1", "x1"}, {"sp", "x2"}, {"x2", "x2"},
@@ -111,17 +111,27 @@ RISCVAssembler::RISCVAssembler() {
 }
 
 std::vector<uint8_t> RISCVAssembler::assemble_program(const std::string& source_code) {
+    if (m_log) *m_log << "--- Iniciando ensamblaje ---" << std::endl;
+
     // Fase 1: Limpieza y separación de etiquetas
+    if (m_log) *m_log << "[Fase 1] Preprocesando código..." << std::endl;
     std::vector<std::string> clean_lines = preprocess(source_code);
+    if (m_log) *m_log << "[Fase 1] Preprocesamiento completado. " << clean_lines.size() << " líneas lógicas generadas." << std::endl;
 
     // Fase 2: Primera pasada para construir la tabla de símbolos
+    if (m_log) *m_log << "[Fase 2] Primera pasada (tabla de símbolos)..." << std::endl;
     std::vector<std::string> instructions_only = first_pass(clean_lines);
+    if (m_log) *m_log << "[Fase 2] Primera pasada completada. " << symbol_table.size() << " símbolos encontrados." << std::endl;
 
     // Fase 3: Segunda pasada para reemplazar etiquetas por offsets
+    if (m_log) *m_log << "[Fase 3] Segunda pasada (reemplazo de etiquetas)..." << std::endl;
     std::vector<std::string> final_code = second_pass(instructions_only);
+    if (m_log) *m_log << "[Fase 3] Segunda pasada completada." << std::endl;
 
     // Fase 4: Tercera pasada para ensamblar a código máquina
+    if (m_log) *m_log << "[Fase 4] Tercera pasada (ensamblado a código máquina)..." << std::endl;
     std::vector<uint32_t> machine_words = third_pass(final_code);
+    if (m_log) *m_log << "[Fase 4] Tercera pasada completada. " << machine_words.size() << " palabras generadas." << std::endl;
 
     // Convertir palabras de 32 bits a un vector de bytes (little-endian)
     std::vector<uint8_t> machine_code_bytes;
@@ -133,6 +143,7 @@ std::vector<uint8_t> RISCVAssembler::assemble_program(const std::string& source_
         machine_code_bytes.push_back(static_cast<uint8_t>((word >> 24) & 0xFF));
     }
 
+    if (m_log) *m_log << "--- Ensamblaje finalizado ---" << std::endl;
     return machine_code_bytes;
 }
 
@@ -146,6 +157,8 @@ std::vector<std::string> RISCVAssembler::preprocess(const std::string& source_co
     std::string line;
 
     while (std::getline(ss, line)) {
+        if (m_log) *m_log << "  Procesando línea: '" << line << "'" << std::endl;
+
         // 1. Eliminar comentarios
         size_t comment_pos = line.find('#');
         if (comment_pos != std::string::npos) {
@@ -160,16 +173,22 @@ std::vector<std::string> RISCVAssembler::preprocess(const std::string& source_co
             continue;
         }
 
+        // Expansión de pseudo-instrucciones
+        if (line == "nop") {
+            line = "addi x0, x0, 0";
+            if (m_log) *m_log << "    -> Pseudo-instrucción 'nop' expandida a '" << line << "'" << std::endl;
+        }
+
         // 3. Reemplazar comas y paréntesis por espacios para facilitar el split
         std::replace(line.begin(), line.end(), ',', ' ');
-        std::replace(line.begin(), line.end(), '(', ' ');
-        std::replace(line.begin(), line.end(), ')', ' ');
 
         // 4. Normalizar espacios múltiples a uno solo
         std::string normalized_line;
         std::unique_copy(line.begin(), line.end(), std::back_inserter(normalized_line),
                          [](char a, char b) { return std::isspace(a) && std::isspace(b); });
         trim(normalized_line);
+
+        if (m_log) *m_log << "    -> Normalizada: '" << normalized_line << "'" << std::endl;
 
         // 5. Separar etiquetas de instrucciones
         size_t colon_pos = normalized_line.find(':');
@@ -197,11 +216,13 @@ std::vector<std::string> RISCVAssembler::first_pass(const std::vector<std::strin
     for (const auto& line : clean_lines) {
         if (line.back() == ':') {
             std::string label = line.substr(0, line.length() - 1);
+            if (m_log) *m_log << "  Etiqueta encontrada: '" << label << "' en dirección 0x" << std::hex << current_address << std::dec << std::endl;
             if (symbol_table.count(label)) {
                 throw std::runtime_error("Error: Etiqueta duplicada '" + label + "'");
             }
             symbol_table[label] = current_address;
         } else {
+            if (m_log) *m_log << "  Instrucción encontrada: '" << line << "'" << std::endl;
             instructions_only.push_back(line);
             current_address += 4;
         }
@@ -223,9 +244,11 @@ std::vector<std::string> RISCVAssembler::second_pass(const std::vector<std::stri
         if (instr_data.type == "SB" || instr_data.type == "UJ") {
             std::string& label_operand = (instr_data.type == "SB") ? op3 : op2;
             if (symbol_table.count(label_operand)) {
+                std::string original_label = label_operand; // Guardar la etiqueta original
                 uint32_t target_address = symbol_table.at(label_operand);
                 int32_t offset = static_cast<int32_t>(target_address) - static_cast<int32_t>(current_pc);
                 label_operand = std::to_string(offset);
+                if (m_log) *m_log << "  Reemplazando etiqueta '" << mnemonic << " ... " << original_label << "' por offset " << offset << std::endl;
             }
         }
         
@@ -255,7 +278,9 @@ const InstructionData& RISCVAssembler::getInstructionData(const std::string& mne
             return data;
         }
     }
-    throw std::runtime_error("Instruccion desconocida: " + mnemonic);
+    std::string error_msg = "Instruccion desconocida: " + mnemonic;
+    if (m_log) *m_log << "      *** ERROR: " << error_msg << " ***" << std::endl;
+    throw std::runtime_error(error_msg);
 }
 
 int RISCVAssembler::get_register_num(const std::string& reg) {
@@ -267,7 +292,9 @@ int RISCVAssembler::get_register_num(const std::string& reg) {
         const std::string& arch_reg = reg_map.at(clean_reg);
         return std::stoi(arch_reg.substr(1)); // Elimina la 'x' inicial
     }
-    throw std::runtime_error("Registro invalido: " + reg);
+    std::string error_msg = "Registro invalido: " + reg;
+    if (m_log) *m_log << "      *** ERROR: " << error_msg << " ***" << std::endl;
+    throw std::runtime_error(error_msg);
 }
 
 uint32_t RISCVAssembler::ensamblarR(const std::vector<std::string>& partes, const InstructionData& instr_data) {
@@ -311,12 +338,16 @@ uint32_t RISCVAssembler::ensamblarI(const std::vector<std::string>& partes, cons
         size_t open_paren = partes[2].find('(');
         size_t close_paren = partes[2].find(')');
         if (open_paren == std::string::npos || close_paren == std::string::npos) {
-            throw std::runtime_error("Formato I invalido para carga/salto: " + partes[2]);
+            std::string error_msg = "Formato I invalido para carga/salto: " + partes[2];
+            if (m_log) *m_log << "      *** ERROR: " << error_msg << " ***" << std::endl;
+            throw std::runtime_error(error_msg);
         }
         imm = std::stoi(partes[2].substr(0, open_paren));
         rs1 = get_register_num(partes[2].substr(open_paren + 1, close_paren - (open_paren + 1)));
     } else {
-        throw std::runtime_error("Numero de operandos incorrecto para formato I.");
+        std::string error_msg = "Numero de operandos incorrecto para formato I.";
+        if (m_log) *m_log << "      *** ERROR: " << error_msg << " ***" << std::endl;
+        throw std::runtime_error(error_msg);
     }
     uint32_t opcode = std::stoul(instr_data.opcode, nullptr, 2);
     uint32_t funct3 = instr_data.funct3.empty() ? 0 : std::stoul(instr_data.funct3, nullptr, 2);
@@ -328,7 +359,9 @@ uint32_t RISCVAssembler::ensamblarS(const std::vector<std::string>& partes, cons
     size_t open_paren = partes[2].find('(');
     size_t close_paren = partes[2].find(')');
     if (open_paren == std::string::npos || close_paren == std::string::npos) {
-        throw std::runtime_error("Formato S invalido para almacenamiento: " + partes[2]);
+        std::string error_msg = "Formato S invalido para almacenamiento: " + partes[2];
+        if (m_log) *m_log << "      *** ERROR: " << error_msg << " ***" << std::endl;
+        throw std::runtime_error(error_msg);
     }
     int imm = std::stoi(partes[2].substr(0, open_paren));
     int rs1 = get_register_num(partes[2].substr(open_paren + 1, close_paren - (open_paren + 1)));
@@ -373,6 +406,8 @@ uint32_t RISCVAssembler::ensamblarU(const std::vector<std::string>& partes, cons
 }
 
 uint32_t RISCVAssembler::assemble_line(const std::string& instruction_str) {
+    if (m_log) *m_log << "    Ensamblando línea: '" << instruction_str << "'" << std::endl;
+
     std::stringstream ss(instruction_str);
     std::string token;
     std::vector<std::string> partes;
@@ -385,26 +420,27 @@ uint32_t RISCVAssembler::assemble_line(const std::string& instruction_str) {
     }
 
     std::string mnemonic = partes[0];
-    // Manejar pseudo-instrucción 'nop'
-    if (mnemonic == "nop") {
-        return 0x00000013; // Equivale a addi x0, x0, 0
-    }
+    try {
+        const InstructionData& instr_data = getInstructionData(mnemonic);
+        if (m_log) *m_log << "      -> Instrucción '" << mnemonic << "' reconocida. Tipo: " << instr_data.type << std::endl;
 
-    const InstructionData& instr_data = getInstructionData(mnemonic);
-
-    if (instr_data.type == "R") {
-        return ensamblarR(partes, instr_data);
-    } else if (instr_data.type == "I") {
-        return ensamblarI(partes, instr_data);
-    } else if (instr_data.type == "S") {
-        return ensamblarS(partes, instr_data);
-    } else if (instr_data.type == "SB") {
-        return ensamblarSB(partes, instr_data);
-    } else if (instr_data.type == "UJ") {
-        return ensamblarUJ(partes, instr_data);
-    } else if (instr_data.type == "U") {
-        return ensamblarU(partes, instr_data);
-    } else {
-        throw std::runtime_error("Tipo de instruccion no soportado: " + instr_data.type);
+        if (instr_data.type == "R") {
+            return ensamblarR(partes, instr_data);
+        } else if (instr_data.type == "I") {
+            return ensamblarI(partes, instr_data);
+        } else if (instr_data.type == "S") {
+            return ensamblarS(partes, instr_data);
+        } else if (instr_data.type == "SB") {
+            return ensamblarSB(partes, instr_data);
+        } else if (instr_data.type == "UJ") {
+            return ensamblarUJ(partes, instr_data);
+        } else if (instr_data.type == "U") {
+            return ensamblarU(partes, instr_data);
+        } else {
+            throw std::runtime_error("Tipo de instruccion no soportado: " + instr_data.type);
+        }
+    } catch (const std::runtime_error& e) {
+        if (m_log) *m_log << "      *** ERROR al ensamblar línea '" << instruction_str << "': " << e.what() << " ***" << std::endl;
+        throw; // Volver a lanzar la excepción para que el programa falle como antes
     }
 }

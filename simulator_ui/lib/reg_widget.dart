@@ -33,7 +33,7 @@ class RegWidget extends StatelessWidget {
     final datapathState = Provider.of<DatapathState>(context);
     //final bool exist=datapathState.simulationMode == SimulationMode.singleCycle;
 
-    final Color backgroundColor = isActive ? color :color.withAlpha(30);
+    final Color backgroundColor = isActive ? color : const Color(0xFFF5F5F5); // Un gris claro opaco
     final Color borderColor = !visibility ? Colors.black.withAlpha(0): isActive ? Colors.black : Colors.black.withAlpha(15);
 
     final double widgetWidth = !visibility ? 0 : 15;

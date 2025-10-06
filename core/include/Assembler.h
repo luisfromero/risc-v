@@ -4,6 +4,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <cstdint>
+#include <ostream>
 #include <algorithm>
 #include <unordered_map>
 #include <map>
@@ -29,7 +30,8 @@ struct InstructionData {
  */
 class SIMULATOR_API RISCVAssembler {
 public:
-    RISCVAssembler();
+    RISCVAssembler(std::ostream* log_stream = nullptr);
+
 
     /**
      * @brief Ensambla un programa completo de código ensamblador.
@@ -47,6 +49,8 @@ public:
     const std::map<std::string, uint32_t>& get_symbol_table() const;
 
 private:
+    std::ostream* m_log;
+
     // Base de datos de instrucciones y mapa de registros.
     std::vector<InstructionData> instruction_db;
     std::unordered_map<std::string, std::string> reg_map;

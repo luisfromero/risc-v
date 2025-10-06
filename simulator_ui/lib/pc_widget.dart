@@ -13,6 +13,7 @@ class PcWidget extends StatelessWidget {
       Offset(0,0.5),
       Offset(1,0.5),
       Offset(2,0.5),
+      Offset(0.5,0),
     ],
     this.color = defaultColor, // Color por defecto
   });

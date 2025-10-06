@@ -31,7 +31,16 @@ class BusesPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     for (final bus in datapathState.buses) {
-      if(!datapathState.showControl && (bus.isControl || bus.isState)) continue;
+      // Si el bus está oculto, lo ignoramos por completo.
+      if (bus.isHidden(datapathState)) continue;
+
+      // Si "Show Control" está desactivado, ocultamos los buses de control/estado,
+      // A MENOS QUE sea un bus de forwarding y "Show Forwarding" esté activado.
+      final bool shouldHideControl = !datapathState.showControl && (bus.isControl || bus.isState);
+        final bool isForwardingException = bus.isForwardingBus && datapathState.showForwarding;
+        final bool isLHUException = bus.isLoadHazardBus && datapathState.showLHU;
+        final bool isBHUException = bus.isBranchHazardBus && datapathState.showBHU;
+      if (shouldHideControl && !(isForwardingException ||isLHUException||isBHUException) ) continue;
 
       // )
       final startPoint = pointsMap[bus.startPointLabel];
@@ -49,30 +58,52 @@ class BusesPainter extends CustomPainter {
       final isControl = bus.isControl;
       final isState = bus.isState;
 
-      // Cambiamos el color y el grosor del bus si está activo.
-      paint.color = isActive ? const Color.fromARGB(255, 255, 0, 0) : const Color.fromARGB(100, 255, 0, 0);
-      paint.strokeWidth = isActive ? 3.5 : 2.0;
-      paint.strokeWidth = width.toDouble();
-      if (isControl) {
+      // --- Lógica de color actualizada ---
+      if (bus.color != null) {
+        // Si el bus tiene un color personalizado, lo usamos.
+        paint.color = isActive ? bus.color! : bus.color!.withAlpha(80);
+        paint.strokeWidth = width.toDouble();
+      } else if (isControl) {
         paint.strokeWidth = 1.5;
         paint.color = isActive ? const Color.fromARGB(255, 0, 0, 255) : const Color.fromARGB(100, 0, 0, 255);
-      }
-      if (isState) {
+      } else if (isState) {
         paint.strokeWidth = 1.5;
         paint.color = isActive ? const Color.fromARGB(255, 73, 240, 79) : const Color.fromARGB(255, 176, 241, 188);
+      } else {
+        // Lógica por defecto para buses de datos.
+        paint.strokeWidth = width.toDouble();
+        paint.color = isActive ? const Color.fromARGB(255, 255, 0, 0) : const Color.fromARGB(100, 255, 0, 0);
       }
 
       // --- LÓGICA MODIFICADA: DIBUJAR Y GUARDAR POR TRAMOS ---
 
+      // Obtenemos los waypoints. Si hay un builder, lo ejecutamos AHORA.
+      final dynamicWaypoints = bus.waypointsBuilder?.call(datapathState) ?? [];
+
       // Construimos la lista completa de puntos del bus.
-      final allBusPoints = [startPoint.position, ...bus.waypoints, endPoint.position];
+      // Combinamos los waypoints fijos y los dinámicos.
+      final allBusPoints = [startPoint.position, ...bus.waypoints, ...dynamicWaypoints, endPoint.position];
 
       // Generamos el texto del tooltip una sola vez por bus.
+      String tooltipText;
       final value = datapathState.busValues[bus.valueKey];
-      final tooltipText = bus.valueKey != null
-          ? '${bus.valueKey} (${bus.size} bits)\nValue: ${value != null ? '0x${value.toRadixString(16).toUpperCase()}' : 'N/A'}'
-          : 'Control/State Bus';
-
+      if (bus.isControl && bus.valueKey != null) {
+        // Lógica para tooltips de buses de control
+        // Generamos un identificador especial para que el widget del tooltip sepa cómo dibujarlo.
+        tooltipText = '##CONTROL_BUS:${bus.valueKey}';
+      } else if (bus.isState) {
+        // Lógica para tooltips de buses de estado
+        tooltipText = '${bus.valueKey} (${bus.size} bits)\nValue: ${value != null ? value.toRadixString(2).padLeft(bus.size, '0') : 'N/A'}';
+      }
+      else if (bus.valueKey != null) {
+        // Lógica para buses de datos
+        tooltipText = '${bus.valueKey} (${bus.size} bits)\nValue: ${value != null ? '0x${value.toRadixString(16).toUpperCase()}' : 'N/A'}';
+      }
+      else {
+        // Fallback
+        tooltipText = 'Control/State Bus';
+      }
+      
       // Iteramos por cada segmento (tramo) del bus.
       for (int i = 0; i < allBusPoints.length - 1; i++) {
         final p1 = allBusPoints[i];
@@ -168,7 +199,21 @@ class BusesPainter extends CustomPainter {
     }
 
     // 2. Formatear el texto del valor.
-    final valueText = '0x${value.toRadixString(16).toUpperCase()}';
+    String valueText;
+    if (bus.isControl || bus.isState) {
+      // Para buses de control y estado, mostrar el valor binario con padding.
+      valueText = value.toRadixString(2).padLeft(bus.size, '0');
+      if(valueText.length > 5) {
+        // Si es muy largo, lo cortamos y añadimos "..."
+        valueText = '';
+      } 
+
+    } else {
+      valueText = '0x${value.toRadixString(16).toUpperCase()}';
+      if(valueText=='0xDEADBEEF'){
+        valueText='??'; // Evitamos mostrar valores basura.
+      }
+    }
 
     // 3. Configurar el TextPainter para dibujar el texto.
     final textStyle = TextStyle(
@@ -193,8 +238,8 @@ class BusesPainter extends CustomPainter {
     // Dibujamos un fondo redondeado para que el texto sea más legible.
     final backgroundRect = RRect.fromLTRBAndCorners(textOffset.dx - 3, textOffset.dy - 2, textOffset.dx + textPainter.width + 3, textOffset.dy + textPainter.height + 2, topLeft: const Radius.circular(4), topRight: const Radius.circular(4), bottomLeft: const Radius.circular(4), bottomRight: const Radius.circular(4));
     final backgroundPaint = Paint()..color = textStyle.backgroundColor!;
-    canvas.drawRRect(backgroundRect, backgroundPaint);
-    textPainter.paint(canvas, textOffset);
+    if(valueText!='')canvas.drawRRect(backgroundRect, backgroundPaint);
+    if(valueText!='')textPainter.paint(canvas, textOffset);
   }
 
   /// Dibuja las etiquetas de una lista de `ConnectionPoint` en el canvas.

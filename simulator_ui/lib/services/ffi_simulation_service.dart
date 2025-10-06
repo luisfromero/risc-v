@@ -204,9 +204,9 @@ class Simulador {
     }
   }
 
-  Map<String, dynamic> reset(int mode, int initial_pc) {
+  Map<String, dynamic> reset(int mode, int initialPc) {
     try {
-      final jsonStr = simulatorReset(_sim, mode, initial_pc).toDartString();
+      final jsonStr = simulatorReset(_sim, mode, initialPc).toDartString();
       
       return _getFullState(jsonStr);
     } catch (e) {
@@ -256,8 +256,10 @@ class FfiSimulationService implements SimulationService {
 
   @override
   Future<void> initialize() async {
-    // --- LÓGICA REAL DE FFI ---
+    // Con la integración de CMake, el enlazador se encarga de colocar la DLL
+    // donde el sistema la puede encontrar automáticamente.
     final libPath = Platform.isWindows ? 'simulator.dll' : 'libsimulator.so';
+
     try {
       _simulatorLib = DynamicLibrary.open(libPath);
 
@@ -315,11 +317,11 @@ class FfiSimulationService implements SimulationService {
       if (e is ArgumentError) {
         // ignore: avoid_print
         print(
-            'Error: No se pudo encontrar una función en la librería "$libPath". Asegúrate de que todas las funciones (Simulator_new, Simulator_step, etc.) están exportadas correctamente.');
+            'Error: No se pudo encontrar una función en la librería. Asegúrate de que todas las funciones (Simulator_new, etc.) están exportadas con `extern "C"`.');
       } else {
         // ignore: avoid_print
         print(
-            'Error: No se pudo cargar la librería desde "$libPath". La ruta es relativa al directorio de trabajo (${Directory.current.path}).');
+            'Error al cargar la librería desde "$libPath".\nAsegúrate de que `simulator.dll` se ha copiado a la carpeta del ejecutable (ej: build/windows/runner/Debug/).\nError original: $e');
       }
       rethrow;
     }

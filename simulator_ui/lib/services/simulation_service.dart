@@ -50,6 +50,9 @@ class SimulationState {
   final List<InstructionMemoryItem>? instructionMemory;
   final Uint8List? dataMemory;
 
+  final bool isLoadHazard;
+  final bool isBranchHazard;
+
   SimulationState({
     this.instruction = '',
     this.instructionValue = 0,
@@ -79,6 +82,8 @@ class SimulationState {
     this.pipeExInstructionInfo,
     this.pipeMemInstructionInfo,
     this.pipeWbInstructionInfo,
+    this.isLoadHazard = false,
+    this.isBranchHazard = false,
   });
 
   SimulationState copyWith({
@@ -114,25 +119,31 @@ class SimulationState {
       pipeExInstructionInfo: pipeExInstructionInfo,
       pipeMemInstructionInfo: pipeMemInstructionInfo,
       pipeWbInstructionInfo: pipeWbInstructionInfo,
+      isLoadHazard: isLoadHazard,
+      isBranchHazard: isBranchHazard,
+
     );
   }
 
   /// Crea un SimulationState a partir de un mapa JSON.
+  /// Esta función actúa como un "traductor", tomando los datos "crudos" del simulador C++
+  /// y transformándolos en un estado que la UI de Flutter puede entender y utilizar fácilmente.
   factory SimulationState.fromJson(Map<String, dynamic> json) {
-    // Determina dónde buscar los datos del datapath. La API los anida bajo "datapath",
-    // mientras que FFI los deja en la raíz. Este código maneja ambos casos.
-    final Map<String, dynamic> datapathJson;
-    if (json.containsKey('datapath') && json['datapath'] is Map<String, dynamic>) {
-      datapathJson = json['datapath'] as Map<String, dynamic>;
+    // 1. Normalización del JSON: La API anida los datos en 'datapath', FFI no.
+    final Map<String, dynamic> datapathJson; // Usaremos este mapa para todas las lecturas.
+    if (json.containsKey('datapath') && json['datapath'] is Map<String, dynamic>) {      
+      // Caso API: El JSON está anidado.
+      // Creamos una copia del mapa 'datapath' y le añadimos los campos del nivel superior.
+      datapathJson = Map<String, dynamic>.from(json['datapath'] as Map<String, dynamic>);
+      json.forEach((key, value) { if (key != 'datapath') datapathJson[key] = value; });
     } else {
+      // Caso FFI: El JSON es plano.
       datapathJson = json;
     }
 
     // --- Helpers ---
-    // Es crucial definir los helpers ANTES de usarlos.
-
-    // Extrae de forma segura el 'value' de una señal del JSON.
     int getValue(String key) {
+      /// Extrae de forma segura el 'value' de una señal del JSON.
       final signal = datapathJson[key];
       if (signal is Map<String, dynamic>) {
         final value = signal['value'];
@@ -144,8 +155,8 @@ class SimulationState {
       return 0;
     }
 
-    // Extrae de forma segura el 'ready_at' de una señal del JSON.
     int getReadyAt(String key) {
+      /// Extrae de forma segura el 'ready_at' de una señal del JSON.
       final signal = datapathJson[key];
       if (signal is Map<String, dynamic>) {
         return signal['ready_at'] as int? ?? 0;
@@ -153,17 +164,22 @@ class SimulationState {
       return 0;
     }
 
-    // Extrae de forma segura el 'is_active' de una señal del JSON.
     bool getIsActive(String key) {
+      /// Extrae de forma segura el 'is_active' de una señal del JSON.
       final signal = datapathJson[key];
       if (signal is Map<String, dynamic>) {
-        return signal['is_active'] as bool? ?? false;
+        final isActiveValue = signal['is_active'];
+        if (isActiveValue is bool) {
+          return isActiveValue;
+        } else if (isActiveValue is int) {
+          return isActiveValue == 1;
+        }
+        return false;
       }
       return false;
     }
-
-    // Decodifica una señal específica a partir de una palabra de control completa.
     int decodeSignal(String signalName, int controlWord) {
+      /// Decodifica una señal específica a partir de una palabra de control completa.
       final field = controlWordLayout[signalName];
       if (field == null) return 0;
       final position = field.position;
@@ -172,19 +188,20 @@ class SimulationState {
       return (controlWord >> position) & mask;
     }
 
-    // --- Decodificación de la palabra de control principal (Etapa ID) ---
-    // Se decodifican las señales de control para la etapa ID y se añaden al mapa
-    // para que la UI pueda mostrarlas.
+    // 2. Creación de Señales Virtuales
+    // Aquí tomamos datos del backend y creamos nuevas señales que no existen
+    // explícitamente en la DLL, pero que son útiles para la UI.
+
+    // 2.1. Decodificación de palabras de control:
+    // Descomponemos las palabras de control de 16 bits en señales individuales.
     final int controlWordID = getValue('Control');
     final int control=controlWordID;
 
+    // Esto hace lo mismo que lo de abajo, pero prefiero dejarlo explícito
     controlWordLayout.forEach((name, field) {
       datapathJson['control_$name'] = decodeSignal(name, controlWordID);
     });
 
-    // --- Decodificación de las palabras de control del Pipeline ---
-    // Se decodifican las señales de control que viajan por el pipeline desde
-    // la palabra de control del registro de pipeline correspondiente.
     final int controlWordEX = getValue('Pipe_ID_EX_Control_out');
     final int controlWordWB = getValue('Pipe_MEM_WB_Control_out');
 
@@ -205,7 +222,20 @@ class SimulationState {
     datapathJson['control_ResSrc']  = decodeSignal('ResSrc', control);
 
 
-    // Mapea los nombres de las señales del backend a los nombres de los buses del frontend.
+    // 2.2. Combinación de señales para buses de estado:
+    // Creamos una señal de 10 bits para visualizar RS1 y RS2 juntos.
+    final rs1 = getValue('Pipe_ID_EX_RS1_out');
+    final rs2 = getValue('Pipe_ID_EX_RS2_out');
+    datapathJson['Pipe_ID_EX_RS1_RS2_out'] = {'value':  (rs1 << 5) | rs2 , 'ready_at': getReadyAt('Pipe_ID_EX_RS1_out'), 'is_active': rs1 != 0 || rs2 != 0};
+
+
+    // 3. Mapeo de Datos para la UI
+    // Creamos mapas que la UI usará para determinar la actividad, temporización
+    // y valores de los componentes y buses.
+
+    // 3.1. Mapa de temporización (`readyAt`):
+    // Indica en qué momento (ps en monociclo, microciclo en multiciclo)
+    // cada componente tiene su valor estable.
     final Map<String, int> readyAtMap = {
       'pc_bus': getReadyAt('PC'),
       'npc_bus': getReadyAt('PC_plus4'),
@@ -247,6 +277,7 @@ class SimulationState {
       'Pipe_ID_EX_B_out': getReadyAt('Pipe_ID_EX_B_out'),
       'Pipe_ID_EX_RD': getReadyAt('Pipe_ID_EX_RD'),
       'Pipe_ID_EX_RD_out': getReadyAt('Pipe_ID_EX_RD_out'),
+
       'Pipe_ID_EX_Imm': getReadyAt('Pipe_ID_EX_Imm'),
       'Pipe_ID_EX_Imm_out': getReadyAt('Pipe_ID_EX_Imm_out'),
       'Pipe_ID_EX_PC': getReadyAt('Pipe_ID_EX_PC'),
@@ -280,10 +311,19 @@ class SimulationState {
       'Pipe_MEM_WB_RM_out': getReadyAt('Pipe_MEM_WB_RM_out'),
       'Pipe_MEM_WB_RD': getReadyAt('Pipe_MEM_WB_RD'),
       'Pipe_MEM_WB_RD_out': getReadyAt('Pipe_MEM_WB_RD_out'),
+
+      "bus_stall": getReadyAt('bus_stall'),
+      "bus_flush": getReadyAt('bus_flush'),
+      "bus_ForwardA": getReadyAt('bus_ForwardA'),
+      "bus_ForwardB": getReadyAt('bus_ForwardB'),
+      "bus_ControlForwardA": getReadyAt('bus_ControlForwardA'),
+      "bus_ControlForwardB": getReadyAt('bus_ControlForwardB'),
   
     };
 
-    // Mapea las señales del backend para saber si están lógicamente activas.
+    // 3.2. Mapa de rutas activas (`activePaths`):
+    // Indica si una ruta de datos está lógicamente en uso para la instrucción actual.
+    // Por ejemplo, en un 'addi', la ruta de 'rd2_bus' estaría inactiva.
     final Map<String, bool> activePathsMap = {
       'pc_bus': getIsActive('PC'),
       'npc_bus': getIsActive('PC_plus4'),
@@ -361,6 +401,9 @@ class SimulationState {
   
     };
 
+    // 3.3. Mapa de valores de buses (`busValues`):
+    // Un mapa centralizado que contiene el valor numérico de cada bus y señal
+    // para que la UI pueda mostrarlo en etiquetas y tooltips.
     final Map<String, int> busValuesMap = {
       'pc_bus': getValue('PC'),
       'npc_bus': getValue('PC_plus4'),
@@ -439,6 +482,12 @@ class SimulationState {
       'Pipe_ID_EX_B_out': getValue('Pipe_ID_EX_B_out'),
       'Pipe_ID_EX_RD': getValue('Pipe_ID_EX_RD'),
       'Pipe_ID_EX_RD_out': getValue('Pipe_ID_EX_RD_out'),
+      'Pipe_ID_EX_RS1': getValue('Pipe_ID_EX_RS1'),
+      'Pipe_ID_EX_RS1_out': getValue('Pipe_ID_EX_RS1_out'),
+      'Pipe_ID_EX_RS2': getValue('Pipe_ID_EX_RS2'),
+      'Pipe_ID_EX_RS2_out': getValue('Pipe_ID_EX_RS2_out'),
+      'Pipe_ID_EX_RS1_RS2': getValue('Pipe_ID_EX_RS1_RS2'),
+      'Pipe_ID_EX_RS1_RS2_out': getValue('Pipe_ID_EX_RS1_RS2_out'),
       'Pipe_ID_EX_Imm': getValue('Pipe_ID_EX_Imm'),
       'Pipe_ID_EX_Imm_out': getValue('Pipe_ID_EX_Imm_out'),
       'Pipe_ID_EX_PC': getValue('Pipe_ID_EX_PC'),
@@ -472,12 +521,23 @@ class SimulationState {
       'Pipe_MEM_WB_RD': getValue('Pipe_MEM_WB_RD'),
       'Pipe_MEM_WB_RD_out': getValue('Pipe_MEM_WB_RD_out'),
 
-      
-      
+      // --- Señales de Riesgo ---
+      'bus_stall': getValue('bus_stall'),
+      'bus_flush': getValue('bus_flush'),
 
+      // --- Señales de Cortocircuito ---
+      'bus_ForwardA': getValue('bus_ForwardA'),
+      'bus_ForwardB': getValue('bus_ForwardB'),
+      'bus_ControlForwardA': getValue('bus_ControlForwardA'),
+      'bus_ControlForwardB': getValue('bus_ControlForwardB'),
+
+      // Añadimos la nueva señal virtual al mapa de valores.
+      'Pipe_ID_EX_RS1_RS2': datapathJson['Pipe_ID_EX_RS1_RS2'] as int? ?? 0,
     };
 
-    // --- Campos para Multiciclo (opcionales) ---
+    // 4. Construcción del Objeto de Estado Final
+    // Se recogen todos los datos (primitivos y mapeados) y se crea la
+    // instancia inmutable de SimulationState.
     final int totalMicroCycles = json['totalMicroCycles'] as int? ?? 0;
 
 
@@ -503,6 +563,8 @@ class SimulationState {
       pipeExInstructionValue: json['Pipe_EX_instruction'] as int? ?? 0,
       pipeMemInstructionValue: json['Pipe_MEM_instruction'] as int? ?? 0,
       pipeWbInstructionValue: json['Pipe_WB_instruction'] as int? ?? 0,
+      isLoadHazard: (getValue('bus_stall') == 1),
+      isBranchHazard: (getValue('bus_flush') == 1),
     );
   }
 

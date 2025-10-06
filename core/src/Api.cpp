@@ -21,7 +21,7 @@ struct InstructionEntry {
         json j = {
             {"PC", {{"value", state.bus_PC.value}, {"ready_at", state.bus_PC.ready_at}, {"is_active", state.bus_PC.is_active}}},
             {"Instr", {{"value", state.bus_Instr.value}, {"ready_at", state.bus_Instr.ready_at}, {"is_active", state.bus_Instr.is_active}}},
-            {"Opcode", {{"value", state.bus_opcode.value}, {"ready_at", state.bus_opcode.ready_at}, {"is_active", state.bus_opcode.is_active}}},
+            {"opcode", {{"value", state.bus_opcode.value}, {"ready_at", state.bus_opcode.ready_at}, {"is_active", state.bus_opcode.is_active}}},
             {"funct3", {{"value", state.bus_funct3.value}, {"ready_at", state.bus_funct3.ready_at}, {"is_active", state.bus_funct3.is_active}}},
             {"funct7", {{"value", state.bus_funct7.value}, {"ready_at", state.bus_funct7.ready_at}, {"is_active", state.bus_funct7.is_active}}},
             {"DA", {{"value", state.bus_DA.value}, {"ready_at", state.bus_DA.ready_at}, {"is_active", state.bus_DA.is_active}}},
@@ -85,6 +85,10 @@ struct InstructionEntry {
             {"Pipe_ID_EX_B_out", {{"value", state.Pipe_ID_EX_B_out.value}, {"ready_at", state.Pipe_ID_EX_B_out.ready_at}, {"is_active", state.Pipe_ID_EX_B_out.is_active}}},
             {"Pipe_ID_EX_RD", {{"value", state.Pipe_ID_EX_RD.value}, {"ready_at", state.Pipe_ID_EX_RD.ready_at}, {"is_active", state.Pipe_ID_EX_RD.is_active}}},
             {"Pipe_ID_EX_RD_out", {{"value", state.Pipe_ID_EX_RD_out.value}, {"ready_at", state.Pipe_ID_EX_RD_out.ready_at}, {"is_active", state.Pipe_ID_EX_RD_out.is_active}}},
+            {"Pipe_ID_EX_RS1", {{"value", state.Pipe_ID_EX_RS1.value}, {"ready_at", state.Pipe_ID_EX_RS1.ready_at}, {"is_active", state.Pipe_ID_EX_RS1.is_active}}},
+            {"Pipe_ID_EX_RS1_out", {{"value", state.Pipe_ID_EX_RS1_out.value}, {"ready_at", state.Pipe_ID_EX_RS1_out.ready_at}, {"is_active", state.Pipe_ID_EX_RS1_out.is_active}}},
+            {"Pipe_ID_EX_RS2", {{"value", state.Pipe_ID_EX_RS2.value}, {"ready_at", state.Pipe_ID_EX_RS2.ready_at}, {"is_active", state.Pipe_ID_EX_RS2.is_active}}},
+            {"Pipe_ID_EX_RS2_out", {{"value", state.Pipe_ID_EX_RS2_out.value}, {"ready_at", state.Pipe_ID_EX_RS2_out.ready_at}, {"is_active", state.Pipe_ID_EX_RS2_out.is_active}}},
             {"Pipe_ID_EX_Imm", {{"value", state.Pipe_ID_EX_Imm.value}, {"ready_at", state.Pipe_ID_EX_Imm.ready_at}, {"is_active", state.Pipe_ID_EX_Imm.is_active}}},
             {"Pipe_ID_EX_Imm_out", {{"value", state.Pipe_ID_EX_Imm_out.value}, {"ready_at", state.Pipe_ID_EX_Imm_out.ready_at}, {"is_active", state.Pipe_ID_EX_Imm_out.is_active}}},
             {"Pipe_ID_EX_PC", {{"value", state.Pipe_ID_EX_PC.value}, {"ready_at", state.Pipe_ID_EX_PC.ready_at}, {"is_active", state.Pipe_ID_EX_PC.is_active}}},
@@ -111,6 +115,16 @@ struct InstructionEntry {
             {"Pipe_MEM_WB_RM_out", {{"value", state.Pipe_MEM_WB_RM_out.value}, {"ready_at", state.Pipe_MEM_WB_RM_out.ready_at}, {"is_active", state.Pipe_MEM_WB_RM_out.is_active}}},
             {"Pipe_MEM_WB_RD", {{"value", state.Pipe_MEM_WB_RD.value}, {"ready_at", state.Pipe_MEM_WB_RD.ready_at}, {"is_active", state.Pipe_MEM_WB_RD.is_active}}},
             {"Pipe_MEM_WB_RD_out", {{"value", state.Pipe_MEM_WB_RD_out.value}, {"ready_at", state.Pipe_MEM_WB_RD_out.ready_at}, {"is_active", state.Pipe_MEM_WB_RD_out.is_active}}},
+
+            // --- Señales de Riesgo ---
+            {"bus_stall", {{"value", state.bus_stall.value}, {"ready_at", state.bus_stall.ready_at}, {"is_active", state.bus_stall.is_active}}},
+            {"bus_flush", {{"value", state.bus_flush.value}, {"ready_at", state.bus_flush.ready_at}, {"is_active", state.bus_flush.is_active}}},
+
+            // --- Señales para Cortocircuitos (Forwarding) ---
+            {"bus_ControlForwardA", {{"value", state.bus_ControlForwardA.value}, {"ready_at", state.bus_ControlForwardA.ready_at}, {"is_active", state.bus_ControlForwardA.is_active}}},
+            {"bus_ControlForwardB", {{"value", state.bus_ControlForwardB.value}, {"ready_at", state.bus_ControlForwardB.ready_at}, {"is_active", state.bus_ControlForwardB.is_active}}},
+            {"bus_ForwardA", {{"value", state.bus_ForwardA.value}, {"ready_at", state.bus_ForwardA.ready_at}, {"is_active", state.bus_ForwardA.is_active}}},
+            {"bus_ForwardB", {{"value", state.bus_ForwardB.value}, {"ready_at", state.bus_ForwardB.ready_at}, {"is_active", state.bus_ForwardB.is_active}}},
 
 
         };

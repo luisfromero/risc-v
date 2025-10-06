@@ -14,14 +14,14 @@ class ControlUnitWidget extends StatelessWidget {
     Offset(0.266, 1),
     Offset(0.317, 1),
     Offset(0.36, 1),
-    Offset(0.556, 1),
+    Offset(0.509, 1),
     Offset(0.631, 1),
     Offset(0.7243, 1),
     Offset(0.8084, 1),
-    Offset(0.9735, 1),
+    Offset(0.954, 1),
 
     
-    Offset(1, 0.85)
+    Offset(1, 1)
   ],
       this.isActive = false, // Por defecto no está activo
 

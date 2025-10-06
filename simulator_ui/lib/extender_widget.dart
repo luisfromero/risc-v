@@ -21,7 +21,7 @@ class ExtenderWidget extends StatelessWidget {
       Offset(0, 0.5),
       Offset(0.5, 1),
       Offset(1, 0.5),
-      Offset(2, 0.5),
+      Offset(1.70, 0.5),
     ],
     this.color = defaultColor, // Color por defecto
   });

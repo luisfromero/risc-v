@@ -13,6 +13,7 @@ services:
       - ./api:/app/api
       - ./resources:/app/resources
       - ./programs:/app/programs
+    restart: unless-stopped
 
   riscv-ui:
     image: nginx:alpine
@@ -23,3 +24,4 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - riscv-api
+    restart: unless-stopped

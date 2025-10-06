@@ -14,6 +14,21 @@ final miEstiloTooltip = TextStyle(
   fontFeatures: [const FontFeature.disable('liga')],
 );
 
+/// Mapa que contiene las descripciones para los valores de las señales de control.
+const Map<String, List<String>> controlSignalOptions = {
+  'PCsrc': ['PC+4', 'Branch/JAL Target', 'JALR Target'],
+  'ALUsrc': ['Imm extended', 'Rd2 register'],
+  'ResSrc': ['Memory read', 'ALU result', 'PC+4'],
+  'ImmSrc': ['I-Type', 'S-Type', 'B-Type', 'J-Type', 'U-Type'],
+  'MemWr': ['Read', 'Write'],
+  'BRwr': ['Disabled', 'Enabled'],
+  'ALUctr': [
+    'ADD', 'SUB', 'AND', 'OR', 
+    'SLT', 'SRL', 'SLL', 'SRA'
+  ],
+};
+
+
 Map getSignalValues(DatapathState d) {
   return {'ALUctr':d.busValues['control_ALUctr'],
   'ALUsrc':d.busValues['control_ALUsrc'],
@@ -659,6 +674,72 @@ Widget buildPcAdderTooltip(DatapathState datapathState)
   );
 }
 
+Widget buildControlBusTooltip(DatapathState datapathState, String signalKey) {
+  try {
+    // Normalizamos el nombre de la señal para que coincida con las claves de `controlSignalOptions`
+    final signalName = signalKey.replaceFirst('control_', '').replaceFirst('Pipe_', '');
+    final options = controlSignalOptions[signalName]; // Usamos el mapa correcto
+    var currentValue = datapathState.busValues[signalKey];
+    if(signalKey=="Pipe_ID_EX_Control")
+     {
+      currentValue=datapathState.busValues["Pipe_ID_EX_Control"];
+      return Text(
+        '$signalKey: $currentValue',
+        style: miEstiloTooltip,
+      );
+    }
+    if (options == null || currentValue != null) {
+      return Text(
+        '$signalKey: $currentValue',
+        style: miEstiloTooltip,
+      );
+    }
+
+    if (options == null || currentValue == null) {
+      return Text(
+        '$signalKey: N/A (options: ${options == null}, value: ${currentValue == null})',
+        style: miEstiloTooltip,
+      );
+    }
+
+    final spans = <TextSpan>[];
+    spans.add(TextSpan(
+      text: '$signalKey\n',
+      style: miEstiloTooltip.copyWith(fontWeight: FontWeight.bold, color: Colors.yellow),
+    ));
+
+    for (int i = 0; i < options.length; i++) {
+      final optionText = options[i];
+      final isSelected = (i == currentValue);
+      // El ancho del valor binario debe depender del número de opciones
+      final bitWidth = (options.length - 1).toRadixString(2).length;
+      final valueStr = i.toRadixString(2).padLeft(bitWidth, '0');
+
+      final selectedStyle = miEstiloTooltip.copyWith(color: Colors.cyan, fontWeight: FontWeight.bold);
+      final defaultStyle = miEstiloTooltip.copyWith(color: Colors.white.withAlpha(200));
+
+      spans.add(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: isSelected ? '* ' : '  ',
+              style: isSelected ? selectedStyle : defaultStyle,
+            ),
+            TextSpan(
+              text: '$valueStr  $optionText\n',
+              style: isSelected ? selectedStyle : defaultStyle,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RichText(text: TextSpan(children: spans));
+  } catch (e) {
+    return Text('Error building tooltip for $signalKey:\n$e', style: miEstiloTooltip.copyWith(color: Colors.redAccent));
+  }
+}
+
 Widget buildInstructionFormatTooltip() {
   // Reutiliza la clase _Field que ya existe en este fichero.
   return Container(
@@ -708,13 +789,13 @@ Widget buildInstructionFormatTooltip() {
         _buildFormatTable(
           title: 'Formato B (Branch)',
           fields:  [
-            _Field('imm[12]', 31, 31, Colors.cyan),
+            _Field('12', 31, 31, Colors.cyan),
             _Field('imm[10:5]', 25, 30, Colors.cyan),
             _Field('rs2', 20, 24, Colors.orange),
             _Field('rs1', 15, 19, Colors.orange),
             _Field('funct3', 12, 14, Colors.red),
             _Field('imm[4:1]', 8, 11, Colors.cyan),
-            _Field('imm[11]', 7, 7, Colors.cyan),
+            _Field('11', 7, 7, Colors.cyan),
             _Field('opcode', 0, 6, Colors.redAccent),
           ],
         ),
@@ -731,9 +812,9 @@ Widget buildInstructionFormatTooltip() {
         _buildFormatTable(
           title: 'Formato J (Jump)',
           fields:  [
-            _Field('imm[20]', 31, 31, Colors.cyan),
+            _Field('20', 31, 31, Colors.cyan),
             _Field('imm[10:1]', 21, 30, Colors.cyan),
-            _Field('imm[11]', 20, 20, Colors.cyan),
+            _Field('11', 20, 20, Colors.cyan),
             _Field('imm[19:12]', 12, 19, Colors.cyan),
             _Field('rd', 7, 11, Colors.yellow),
             _Field('opcode', 0, 6, Colors.redAccent),
@@ -749,7 +830,7 @@ Widget _buildFormatTable({required String title, required List<_Field> fields}) 
   final titleStyle = miEstiloTooltip.copyWith(fontWeight: FontWeight.bold);
   fields.sort((a, b) => b.start.compareTo(a.start));
   List<Widget> headerWidgets = fields.map((field) => Expanded(flex: field.width, child: Text((field.start == field.end) ? '${field.start}' : '${field.end}:${field.start}', style: headerStyle, textAlign: TextAlign.center))).toList();
-  List<Widget> cellWidgets = fields.map((field) => Expanded(flex: field.width, child: Container(margin: const EdgeInsets.symmetric(horizontal: 1), padding: const EdgeInsets.symmetric(vertical: 2), decoration: BoxDecoration(color: field.color.withOpacity(0.2), border: Border.all(color: field.color), borderRadius: BorderRadius.circular(2)), child: Text(field.name, style: miEstiloTooltip.copyWith(color: field.color, fontSize: 11), textAlign: TextAlign.center)))).toList();
+  List<Widget> cellWidgets = fields.map((field) => Expanded(flex: field.width, child: Container(margin: const EdgeInsets.symmetric(horizontal: 1), padding: const EdgeInsets.symmetric(vertical: 2), decoration: BoxDecoration(color: field.color.withAlpha(50), border: Border.all(color: field.color), borderRadius: BorderRadius.circular(2)), child: Text(field.name, style: miEstiloTooltip.copyWith(color: field.color, fontSize: 11), textAlign: TextAlign.center)))).toList();
   return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: titleStyle), const SizedBox(height: 4), Row(children: headerWidgets), const SizedBox(height: 2), Row(children: cellWidgets)]);
 }
 
@@ -760,7 +841,7 @@ TextSpan _buildBinaryRepresentation(String title, int value, int totalBits, Map<
   final relevantBinaryString = binaryString.substring(32 - totalBits);
   final spans = <TextSpan>[];
 
-  final defaultColor = Colors.grey.withOpacity(0.6);
+  final defaultColor = Colors.grey.withAlpha(130);
 
   int lastIndex = 0;
   Color currentColor = colorMap[totalBits - 1] ?? defaultColor;
@@ -789,6 +870,155 @@ TextSpan _buildBinaryRepresentation(String title, int value, int totalBits, Map<
     TextSpan(text: '\n\n'),
   ]);
 }
+
+
+Widget buildControlTableTooltip() {
+  final headerStyle = miEstiloTooltip.copyWith(color: Colors.yellow, fontWeight: FontWeight.bold);
+  final instrStyle = miEstiloTooltip.copyWith(color: Colors.cyan);
+  final valueStyle = miEstiloTooltip;
+
+  // Extraer el layout de la palabra de control y ordenarlo por posición de bit.
+  final controlFields = controlWordLayout.entries.toList()
+    ..sort((a, b) => b.value.position.compareTo(a.value.position));
+
+  // Crear las cabeceras de la tabla
+  List<TableCell> headers = [
+    TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text('Instruction', style: headerStyle))),
+    TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text('Opcode', style: headerStyle))),
+    TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text('Funct3', style: headerStyle))),
+    TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text('Funct7', style: headerStyle))),
+  ];
+
+  // Añadir cabeceras para cada señal de control
+  int currentBit = 15; // Asumimos una palabra de control de 16 bits, empezamos por el MSB
+  for (var field in controlFields) {
+    final signalInfo = field.value;
+    final signalEndBit = signalInfo.position + signalInfo.width - 1;
+
+    // Comprobar si hay un hueco entre el bit actual y el final de esta señal
+    if (currentBit > signalEndBit) {
+      int gapWidth = currentBit - signalEndBit;
+      headers.add(TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text('Unused', style: headerStyle.copyWith(color: Colors.grey)))));
+    }
+
+    // Añadir la cabecera de la señal de control
+    headers.add(TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text(field.key, style: headerStyle))));
+
+    // Actualizar el bit actual a la posición justo debajo de la señal actual
+    currentBit = signalInfo.position - 1;
+  }
+  // Comprobar si queda algún hueco al final (LSB)
+  if (currentBit >= 0) {
+    headers.add(TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text('Unused', style: headerStyle.copyWith(color: Colors.grey)))));
+  }
+
+  headers.add(TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text('Control Word', style: headerStyle))));
+
+  // Crear las filas de la tabla
+  List<TableRow> rows = [TableRow(children: headers)];
+
+  for (var instrInfo in controlTable) {
+    List<TableCell> cells = [];
+
+    // Función para extraer campos de la instrucción
+    String getField(String fieldName, int fullMask, int shift) {
+      // Usamos la máscara completa de la instrucción para ver si el campo es relevante.
+      // Si el campo no está en la máscara, no se aplica.
+      if ((instrInfo.mask & fullMask) == 0) return '-';
+      return '0x${((instrInfo.value & fullMask) >> shift).toRadixString(16)}';
+    }
+
+    // Mnemónico
+    cells.add(TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text(instrInfo.instr, style: instrStyle))));
+    
+    // Opcode, Funct3, Funct7
+    cells.add(TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text(getField('opcode', 0x7F, 0), style: valueStyle, textAlign: TextAlign.center))));
+    cells.add(TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text(getField('funct3', 0x7000, 12), style: valueStyle, textAlign: TextAlign.center))));
+    cells.add(TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text(getField('funct7', 0xFE000000, 25), style: valueStyle, textAlign: TextAlign.center))));
+
+    // Añadir valores para las señales de control y los huecos
+    currentBit = 15;
+    for (var field in controlFields) {
+      final signalInfo = field.value;
+      final signalEndBit = signalInfo.position + signalInfo.width - 1;
+
+      // Rellenar el hueco con ceros si existe
+      if (currentBit > signalEndBit) {
+        int gapWidth = currentBit - signalEndBit;
+        cells.add(TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text('0' * gapWidth, style: valueStyle.copyWith(color: Colors.grey), textAlign: TextAlign.center))));
+      }
+
+      // Obtener y añadir el valor de la señal de control
+      final signalName = field.key;
+      final signalWidth = signalInfo.width;
+      int rawValue;
+      switch (signalName) {
+        case 'PCsrc': rawValue = instrInfo.pcSrc; break;
+        case 'BRwr': rawValue = instrInfo.brWr ? 1 : 0; break;
+        case 'ALUsrc': rawValue = instrInfo.aluSrc; break;
+        case 'ALUctr': rawValue = instrInfo.aluCtr; break;
+        case 'MemWr': rawValue = instrInfo.memWr ? 1 : 0; break;
+        case 'ResSrc': rawValue = instrInfo.resSrc; break;
+        case 'ImmSrc': rawValue = instrInfo.immSrc; break;
+        default: rawValue = -2;
+      }
+
+      String valueStr;
+      if (rawValue == -1) {
+        valueStr = 'x' * signalWidth;
+      } else {
+        valueStr = rawValue.toRadixString(2).padLeft(signalWidth, '0');
+      }
+      cells.add(TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text(valueStr, style: valueStyle, textAlign: TextAlign.center))));
+
+      currentBit = signalInfo.position - 1;
+    }
+    // Rellenar el hueco final si existe
+    if (currentBit >= 0) {
+      cells.add(TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text('0' * (currentBit + 1), style: valueStyle.copyWith(color: Colors.grey), textAlign: TextAlign.center))));
+    }
+
+    // Palabra de control completa
+    final controlWord = instrInfo.controlWord;
+    final hexControlWord = '0x${controlWord.toRadixString(16).padLeft(4, '0').toUpperCase()}';
+
+    // --- MODIFICACIÓN: Añadir borde separador ---
+    // Envolvemos el contenido de la celda Funct7 en un Container para añadirle un borde derecho.
+    final funct7CellChild = cells[3].child;
+    cells[3] = TableCell(
+      verticalAlignment: TableCellVerticalAlignment.middle,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(right: BorderSide(color: Colors.grey.shade500, width: 2.0)),
+        ),
+        child: funct7CellChild,
+      ),
+    );
+    cells.add(TableCell(child: Padding(padding: const EdgeInsets.all(4.0), child: Text(hexControlWord, style: valueStyle))));
+
+    rows.add(TableRow(children: cells));
+  }
+
+  return Container(
+    padding: const EdgeInsets.all(8.0),
+    child: Table(
+      border: TableBorder.all(color: Colors.grey.shade700, width: 1),
+      columnWidths: {
+        0: const IntrinsicColumnWidth(), // Instruction
+        1: const FixedColumnWidth(60),  // Opcode
+        2: const FixedColumnWidth(60),  // Funct3
+        3: const FixedColumnWidth(60),  // Funct7
+        // El resto de columnas se ajustan a su contenido
+        for (int i = 4; i < headers.length; i++)
+          i: const IntrinsicColumnWidth(),
+      },
+
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      children: rows,
+    ),
+  );
+}
+
 
 /// Construye un widget que muestra una instrucción de 32 bits formateada
 /// con colores y etiquetas para cada campo, según su tipo (R, I, S, B, J, U).

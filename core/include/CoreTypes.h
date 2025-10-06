@@ -15,7 +15,7 @@ template<typename T>
 struct Signal {
     T value;
     uint32_t ready_at=1; // En ciclos de reloj
-    bool is_active=true;
+    uint8_t is_active=1; // Usamos uint8_t para garantizar un tamaño de 1 byte
 };
 
 
@@ -170,6 +170,10 @@ struct DatapathState {
     Signal<uint32_t> Pipe_ID_EX_B_out;
     Signal<uint8_t>  Pipe_ID_EX_RD; // Nombre registro destino
     Signal<uint8_t>  Pipe_ID_EX_RD_out;
+    Signal<uint8_t>  Pipe_ID_EX_RS1; // Nombre registro origen1 (para forwarding)
+    Signal<uint8_t>  Pipe_ID_EX_RS1_out;
+    Signal<uint8_t>  Pipe_ID_EX_RS2; // Nombre registro origen2 (para forwarding)
+    Signal<uint8_t>  Pipe_ID_EX_RS2_out;
     Signal<uint32_t> Pipe_ID_EX_Imm; // Inmediato extendido
     Signal<uint32_t> Pipe_ID_EX_Imm_out;
     Signal<uint32_t> Pipe_ID_EX_PC;
@@ -199,6 +203,13 @@ struct DatapathState {
     Signal<uint8_t> Pipe_MEM_WB_RD; // Nombre registro destino
     Signal<uint8_t> Pipe_MEM_WB_RD_out;
 
+    Signal<bool> bus_stall; // Indica si se debe detener el pipeline
+    Signal<bool> bus_flush; // Indica si se debe limpiar el pipeline
 
+    // --- Señales para Cortocircuitos (Forwarding) ---
+    Signal<uint8_t> bus_ControlForwardA; // Control para el Mux de Forwarding A (01: normal, 00: EX/MEM, 10: MEM/WB)
+    Signal<uint8_t> bus_ControlForwardB; // Control para el Mux de Forwarding B
+    Signal<uint32_t> bus_ForwardA; // Salida de forward a, si existe (entrada alu a)
+    Signal<uint32_t> bus_ForwardB; // Salida de forward b, si existe (entrada alu b)
 
 };

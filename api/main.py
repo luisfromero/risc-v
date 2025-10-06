@@ -51,16 +51,16 @@ except FileNotFoundError as e:
 
 # Replicas de las estructuras Signal<T> y DatapathState de C++
 class Signal_u32(ctypes.Structure):
-    _fields_ = [("value", ctypes.c_uint32), ("ready_at", ctypes.c_uint32), ("is_active", ctypes.c_bool)]
+    _fields_ = [("value", ctypes.c_uint32), ("ready_at", ctypes.c_uint32), ("is_active", ctypes.c_ubyte)]
 
 class Signal_u16(ctypes.Structure):
-    _fields_ = [("value", ctypes.c_uint16), ("ready_at", ctypes.c_uint32), ("is_active", ctypes.c_bool)]
+    _fields_ = [("value", ctypes.c_uint16), ("ready_at", ctypes.c_uint32), ("is_active", ctypes.c_ubyte)]
 
 class Signal_u8(ctypes.Structure):
-    _fields_ = [("value", ctypes.c_ubyte), ("ready_at", ctypes.c_uint32), ("is_active", ctypes.c_bool)]
+    _fields_ = [("value", ctypes.c_ubyte), ("ready_at", ctypes.c_uint32), ("is_active", ctypes.c_ubyte)]
 
 class Signal_bool(ctypes.Structure):
-    _fields_ = [("value", ctypes.c_bool), ("ready_at", ctypes.c_uint32), ("is_active", ctypes.c_bool)]
+    _fields_ = [("value", ctypes.c_ubyte), ("ready_at", ctypes.c_uint32), ("is_active", ctypes.c_ubyte)]
 
 
 # El orden debe coincidir exactamente con el orden de los campos en la estructura C++
@@ -68,7 +68,7 @@ class DatapathState(ctypes.Structure):
     _fields_ = [
         ("PC", Signal_u32),
         ("Instr", Signal_u32),
-        ("Opcode", Signal_u8),
+        ("opcode", Signal_u8),
         ("funct3", Signal_u8),
         ("funct7", Signal_u8),
         ("DA", Signal_u8),
@@ -90,19 +90,16 @@ class DatapathState(ctypes.Structure):
         ("ImmSrc", Signal_u8),
         ("BRwr", Signal_u8),
         ("MemWr", Signal_u8),
-        # --- Campos que faltaban ---
         ("Mem_address", Signal_u32),
         ("Mem_write_data", Signal_u32),
         ("Mem_read_data", Signal_u32),
-
         ("C", Signal_u32),
         ("PC_plus4", Signal_u32),
         ("PC_dest", Signal_u32),
         ("PC_next", Signal_u32),
         ("branch_taken", Signal_bool),
         ("criticalTime", ctypes.c_uint32),
-        ("total_micro_cycles", ctypes.c_uint32),
-
+        ("totalMicroCycles", ctypes.c_uint32),
         # ("instruction", ctypes.c_wchar_p),
         ("instruction_cptr", ctypes.c_char * 256), # Usar un buffer de tamaño fijo para evitar punteros colgantes
         ("Pipe_IF_instruction_cptr", ctypes.c_char * 256),
@@ -110,23 +107,18 @@ class DatapathState(ctypes.Structure):
         ("Pipe_EX_instruction_cptr", ctypes.c_char * 256),
         ("Pipe_MEM_instruction_cptr", ctypes.c_char * 256),
         ("Pipe_WB_instruction_cptr", ctypes.c_char * 256),
-        
         ("Pipe_IF_instruction", ctypes.c_uint32),
         ("Pipe_ID_instruction", ctypes.c_uint32),
         ("Pipe_EX_instruction", ctypes.c_uint32),
         ("Pipe_MEM_instruction", ctypes.c_uint32),
         ("Pipe_WB_instruction", ctypes.c_uint32),
-
-
-        # --- Buses de Salida de los Registros de Segmentación ---
+        # --- Pipeline Registers (EL ORDEN DEBE SER IDÉNTICO A Api.cpp) ---
         ("Pipe_IF_ID_NPC", Signal_u32),
         ("Pipe_IF_ID_NPC_out", Signal_u32),
         ("Pipe_IF_ID_Instr", Signal_u32),
         ("Pipe_IF_ID_Instr_out", Signal_u32),
         ("Pipe_IF_ID_PC", Signal_u32),
         ("Pipe_IF_ID_PC_out", Signal_u32),
-
-        
 
         ("Pipe_ID_EX_Control", Signal_u16),
         ("Pipe_ID_EX_Control_out", Signal_u16),
@@ -138,12 +130,14 @@ class DatapathState(ctypes.Structure):
         ("Pipe_ID_EX_B_out", Signal_u32),
         ("Pipe_ID_EX_RD", Signal_u8),
         ("Pipe_ID_EX_RD_out", Signal_u8),
+        ("Pipe_ID_EX_RS1", Signal_u8),
+        ("Pipe_ID_EX_RS1_out", Signal_u8),
+        ("Pipe_ID_EX_RS2", Signal_u8),
+        ("Pipe_ID_EX_RS2_out", Signal_u8),
         ("Pipe_ID_EX_Imm", Signal_u32),
         ("Pipe_ID_EX_Imm_out", Signal_u32),
         ("Pipe_ID_EX_PC", Signal_u32),
         ("Pipe_ID_EX_PC_out", Signal_u32),
-
-
 
         ("Pipe_EX_MEM_Control", Signal_u16),
         ("Pipe_EX_MEM_Control_out", Signal_u16),
@@ -155,8 +149,8 @@ class DatapathState(ctypes.Structure):
         ("Pipe_EX_MEM_B_out", Signal_u32),
         ("Pipe_EX_MEM_RD", Signal_u8),
         ("Pipe_EX_MEM_RD_out", Signal_u8),
-        
 
+        
         ("Pipe_MEM_WB_Control", Signal_u16),
         ("Pipe_MEM_WB_Control_out", Signal_u16),
         ("Pipe_MEM_WB_NPC", Signal_u32),
@@ -166,9 +160,16 @@ class DatapathState(ctypes.Structure):
         ("Pipe_MEM_WB_RM", Signal_u32),
         ("Pipe_MEM_WB_RM_out", Signal_u32),
         ("Pipe_MEM_WB_RD", Signal_u8),
-        ("Pipe_MEM_WB_RD_out", Signal_u8)
-        
+        ("Pipe_MEM_WB_RD_out", Signal_u8),
 
+        # --- Señales de Riesgo ---
+        ("bus_stall", Signal_bool),
+        ("bus_flush", Signal_bool),
+        # --- Señales para Cortocircuitos (Forwarding) --- (EL ORDEN IMPORTA)
+        ("bus_ControlForwardA", Signal_u8),
+        ("bus_ControlForwardB", Signal_u8),
+        ("bus_ForwardA", Signal_u32),
+        ("bus_ForwardB", Signal_u32),
     ]
 
 # --- Paso 3: Definir los prototipos de las funciones C ---
@@ -411,26 +412,29 @@ class ControlSignalsModel(BaseModel):
     is_active: bool
 
 class SimulatorStateModel(BaseModel):
-    model: str = Field(..., description="Modelo de pipeline actual (ej. 'SingleCycle').")
+    # model: str = Field(..., description="Modelo de pipeline actual (ej. 'SingleCycle').")
     pc: int = Field(..., description="Contador de programa actual (en hexadecimal).")
     instruction: str = Field(..., description="Instrucción actual desensamblada.")
     status_register: int = Field(..., description="Registro de estado (ej. 'mstatus').")
-    criticalTime: int = Field(..., description="Ruta crítica en nanosegundos para el ciclo actual.")
-    totalMicroCycles: int = Field(..., description="Número de ciclos totales de microarquitectura.")
-    Pipe_IF_instruction_cptr: str = Field(..., description="Instrucción en el registro Pipe_IF (código C).")
-    Pipe_ID_instruction_cptr: str = Field(..., description="Instrucción en el registro Pipe_ID (código C).")
-    Pipe_EX_instruction_cptr: str = Field(..., description="Instrucción en el registro Pipe_EX (código C).")
-    Pipe_MEM_instruction_cptr: str = Field(..., description="Instrucción en el registro Pipe_MEM (código C).")
-    Pipe_WB_instruction_cptr: str = Field(..., description="Instrucción en el registro Pipe_WB (código C).")
-    Pipe_IF_instruction: int = Field(..., description="Instrucción en el registro Pipe_IF (valor decimal).")
-    Pipe_ID_instruction: int = Field(..., description="Instrucción en el registro Pipe_ID (valor decimal).")
-    Pipe_EX_instruction: int = Field(..., description="Instrucción en el registro Pipe_EX (valor decimal).")
-    Pipe_MEM_instruction: int = Field(..., description="Instrucción en el registro Pipe_MEM (valor decimal).")
-    Pipe_WB_instruction: int = Field(..., description="Instrucción en el registro Pipe_WB (valor decimal).")
-
-    control_signals: ControlSignalsModel = Field(..., description="Señales de control generadas.")
     registers: dict[str, int] = Field(..., description="Estado de los 32 registros generales (con nombres ABI).")
     datapath: dict[str, SignalModel] = Field(..., description="Estado de todas las señales del datapath.")
+
+    # --- Campos adicionales en la raíz del JSON ---
+    # Pydantic usará estos campos para validar y construir el objeto final.
+    # El `default=None` permite que no estén siempre presentes.
+    criticalTime: Union[int, None] = Field(default=None)
+    totalMicroCycles: Union[int, None] = Field(default=None)
+    instruction_cptr: Union[str, None] = Field(default=None)
+    Pipe_IF_instruction_cptr: Union[str, None] = Field(default=None)
+    Pipe_ID_instruction_cptr: Union[str, None] = Field(default=None)
+    Pipe_EX_instruction_cptr: Union[str, None] = Field(default=None)
+    Pipe_MEM_instruction_cptr: Union[str, None] = Field(default=None)
+    Pipe_WB_instruction_cptr: Union[str, None] = Field(default=None)
+    Pipe_IF_instruction: Union[int, None] = Field(default=None)
+    Pipe_ID_instruction: Union[int, None] = Field(default=None)
+    Pipe_EX_instruction: Union[int, None] = Field(default=None)
+    Pipe_MEM_instruction: Union[int, None] = Field(default=None)
+    Pipe_WB_instruction: Union[int, None] = Field(default=None)
 
 class InstructionMemoryItem(BaseModel):
     value: int
@@ -452,19 +456,6 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
     status = sim.get_status_register()
     registers = sim.get_registers()
     datapath_c_struct = sim.get_datapath_state()
-    instruction_string = datapath_c_struct.instruction_cptr.decode('utf-8').strip('\x00')
-    criticalTime = datapath_c_struct.criticalTime
-    total_micro_cycles=datapath_c_struct.total_micro_cycles
-    Pipe_IF_instruction_cptr = datapath_c_struct.Pipe_IF_instruction_cptr.decode('utf-8').strip('\x00')
-    Pipe_ID_instruction_cptr = datapath_c_struct.Pipe_ID_instruction_cptr.decode('utf-8').strip('\x00')
-    Pipe_EX_instruction_cptr = datapath_c_struct.Pipe_EX_instruction_cptr.decode('utf-8').strip('\x00')
-    Pipe_MEM_instruction_cptr = datapath_c_struct.Pipe_MEM_instruction_cptr.decode('utf-8').strip('\x00')
-    Pipe_WB_instruction_cptr = datapath_c_struct.Pipe_WB_instruction_cptr.decode('utf-8').strip('\x00')
-    pipeIfInstructionValue = datapath_c_struct.Pipe_IF_instruction
-    pipeIdInstructionValue = datapath_c_struct.Pipe_ID_instruction
-    pipeExInstructionValue = datapath_c_struct.Pipe_EX_instruction
-    pipeMemInstructionValue = datapath_c_struct.Pipe_MEM_instruction
-    pipeWbInstructionValue = datapath_c_struct.Pipe_WB_instruction
 
     reg_map = {f"x{i} ({ABI_NAMES[i]})": val for i, val in enumerate(registers)}
 
@@ -473,8 +464,8 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
     # NOTA: El orden y tamaño de los bits es una suposición.
     # Se debe ajustar para que coincida con la implementación C++.
 
-    control_signal = datapath_c_struct.Control
-    control_value = control_signal.value
+    # control_signal = datapath_c_struct.Control
+    # control_value = control_signal.value if control_signal else 0
 
     # control_signals_model = ControlSignalsModel(
     #     ALUctr=(control_value >> 13) & 0x7,
@@ -487,64 +478,59 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
     #     ready_at=control_signal.ready_at,
     #     is_active=control_signal.is_active
     # )
-    control_signals_model = ControlSignalsModel(
-        ALUctr=_get_signal_value(control_value, "ALUctr"),
-        ResSrc=_get_signal_value(control_value, "ResSrc"),
-        ImmSrc=_get_signal_value(control_value, "ImmSrc"),
-        PCsrc=_get_signal_value(control_value, "PCsrc"),
-        ALUsrc=_get_signal_value(control_value, "ALUsrc"),
-        BRwr=bool(_get_signal_value(control_value, "BRwr")),
-        MemWr=bool(_get_signal_value(control_value, "MemWr")),
-        ready_at=control_signal.ready_at,
-        is_active=control_signal.is_active
-    )
+    # control_signals_model = ControlSignalsModel(
+    #     ALUctr=_get_signal_value(control_value, "ALUctr"),
+    #     ResSrc=_get_signal_value(control_value, "ResSrc"),
+    #     ImmSrc=_get_signal_value(control_value, "ImmSrc"),
+    #     PCsrc=_get_signal_value(control_value, "PCsrc"),
+    #     ALUsrc=_get_signal_value(control_value, "ALUsrc"),
+    #     BRwr=bool(_get_signal_value(control_value, "BRwr")),
+    #     MemWr=bool(_get_signal_value(control_value, "MemWr")),
+    #     ready_at=control_signal.ready_at,
+    #     is_active=control_signal.is_active
+    # )
 
     datapath_model = {}
-    signal_types = (Signal_u32, Signal_u16, Signal_u8, Signal_bool)
+    extra_fields_model = {}
+    signal_types = (Signal_u32, Signal_u16, Signal_u8, Signal_bool)    
 
+    # Iteramos sobre TODOS los campos definidos en la estructura ctypes
     for field_name, field_type in datapath_c_struct._fields_:
-        if not issubclass(field_type, signal_types):
-            continue
+        # Obtenemos el valor del campo desde la instancia de la estructura C
+        value = getattr(datapath_c_struct, field_name)
 
-        signal = getattr(datapath_c_struct, field_name)
-        #   value = signal.value
+        # Caso 1: El campo es una de nuestras estructuras 'Signal_*'
+        if isinstance(value, signal_types):
+            datapath_model[field_name] = {
+                "value": value.value,
+                "ready_at": value.ready_at,
+                "is_active": bool(value.is_active)
+            }
+        # Caso 2: El campo es un array de bytes (proviene de char[] en C)
+        elif isinstance(value, bytes):
+            # Lo decodificamos a una cadena de Python, eliminando caracteres nulos
+            extra_fields_model[field_name] = value.decode('utf-8', errors='ignore').strip('\x00')
+        # Caso 3: Es un tipo primitivo (int, etc.) que no es una señal
+        else:
+            # Para los tipos primitivos, simplemente los añadimos al diccionario principal.
+            # El frontend los buscará en el nivel superior del JSON.
+            extra_fields_model[field_name] = value
 
-        # if isinstance(value, int) and not isinstance(value, bool):
-        #     formatted_value = f"0x{value:08x}"
-        # else:
-        #     formatted_value = value
-
-        datapath_model[field_name] = SignalModel(
-            # value=formatted_value,
-            value=signal.value,
-            ready_at=signal.ready_at,
-            is_active=signal.is_active
-        )
 # Esto es al final lo importante
+
     return SimulatorStateModel(
-        model=model_name,
+        # model=model_name,
         # pc=f"0x{pc:08x}",
         pc = pc,
-        instruction=instruction_string,
+        instruction=extra_fields_model.get("instruction_cptr", ""),
         # status_register=f"0x{status:08x}",
         status_register = status,
-        criticalTime=criticalTime,
-        totalMicroCycles=total_micro_cycles,
-        Pipe_IF_instruction_cptr=Pipe_IF_instruction_cptr,
-        Pipe_ID_instruction_cptr=Pipe_ID_instruction_cptr,
-        Pipe_EX_instruction_cptr=Pipe_EX_instruction_cptr,
-        Pipe_MEM_instruction_cptr=Pipe_MEM_instruction_cptr,        
-        Pipe_WB_instruction_cptr=Pipe_WB_instruction_cptr,
-        Pipe_IF_instruction=pipeIfInstructionValue,
-        Pipe_ID_instruction=pipeIdInstructionValue,
-        Pipe_EX_instruction=pipeExInstructionValue,
-        Pipe_MEM_instruction=pipeMemInstructionValue,
-        Pipe_WB_instruction=pipeWbInstructionValue,
-        
-        control_signals=control_signals_model,
+        # Creo que lo de abajo no se usa
+        # control_signals=control_signals_model,
         registers=reg_map,
 
-        datapath=datapath_model
+        datapath=datapath_model,
+        **extra_fields_model
     )
 
 # --- Gestión de Sesiones y Estado ---
