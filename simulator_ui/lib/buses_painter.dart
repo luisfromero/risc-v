@@ -205,7 +205,7 @@ class BusesPainter extends CustomPainter {
       valueText = value.toRadixString(2).padLeft(bus.size, '0');
       if(valueText.length > 5) {
         // Si es muy largo, lo cortamos y añadimos "..."
-        valueText = '';
+        valueText = '0x'+value.toRadixString(16).padLeft(4, '0');
       } 
 
     } else {

@@ -151,7 +151,7 @@ class ExecutionHistoryManager {
         }
         break;
       case CAUSAS.STEPBACK:
-        if (_stepCounter >= 6 && _historyLog.isNotEmpty) {
+        if ( _historyLog.isNotEmpty) {
           _historyLog.removeLast();
         }
         if (_stepCounter > 0) {

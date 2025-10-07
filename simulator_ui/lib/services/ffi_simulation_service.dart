@@ -341,7 +341,7 @@ class FfiSimulationService implements SimulationService {
         } else {
           // ignore: avoid_print
           print('Advertencia: "program.bin" está vacío. Cargando programa por defecto.');
-          simulador.loadProgram(Uint8List.fromList(defaultProgramD), 0);
+          simulador.loadProgram(Uint8List.fromList(default_program), 0);
         }
       } else {
         // ignore: avoid_print
@@ -390,7 +390,7 @@ class FfiSimulationService implements SimulationService {
           0x13, 0x04, 0xC0, 0x12, // 0x12C00413
           0x6F, 0xF0, 0x5F, 0xFD, // 0xFD5FF06F
         ]);
-        defaultProgram = Uint8List.fromList(defaultProgramD);
+        defaultProgram = Uint8List.fromList(default_program);
         
           
         simulador.loadProgram(defaultProgram,0);

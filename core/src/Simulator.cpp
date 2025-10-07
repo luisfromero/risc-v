@@ -207,6 +207,7 @@ void Simulator::step() {
     decode_and_execute(instruction);
     if (m_logfile.is_open()) {
         m_logfile << "Instruccion ejecutada: 0x" << std::hex << instruction << std::dec << std::endl;
+        m_logfile << "Control: 0x" << std::hex << datapath.bus_Control.value << std::dec << std::endl;
 
     }
 }
@@ -334,6 +335,7 @@ uint32_t Simulator::get_status_register() const {
 }
 
 DatapathState Simulator::get_datapath_state() const {
+    
     return this->datapath;
 }
 
@@ -766,7 +768,7 @@ void Simulator::simulate_multi_cycle(uint32_t instruction) {
     datapath.bus_A = { rs1_val, 1 };
     datapath.bus_B = { rs2_val, 1 };
     datapath.bus_immExt = { imm_ext, 1 };
-    datapath.bus_Control = { controlWord(info), 1 };
+    datapath.bus_Control = { controlWord(info), 1, true };
 
     // Las señales de control individuales también están listas en este ciclo.
 
@@ -1491,14 +1493,21 @@ if(!BRANCH_FLUSH)flush=false;
     // The IF stage always fetches the next instruction, which is correct
     // because the PC was updated based on the branch outcome.
 
-    strcpy(datapath.instruction_cptr,instructionString.c_str());
+    // Usamos strncpy para evitar desbordamientos de búfer.
+    strncpy(datapath.instruction_cptr, instructionString.c_str(), sizeof(datapath.instruction_cptr) - 1);
+    datapath.instruction_cptr[sizeof(datapath.instruction_cptr) - 1] = '\0'; // Aseguramos la terminación nula.
 
     // Now, generate the disassembled strings from the final instruction values
-    strcpy(datapath.Pipe_IF_instruction_cptr, disassemble(datapath.Pipe_IF_instruction, control_unit.decode(datapath.Pipe_IF_instruction)).c_str());
-    strcpy(datapath.Pipe_ID_instruction_cptr, disassemble(datapath.Pipe_ID_instruction, control_unit.decode(datapath.Pipe_ID_instruction)).c_str());
-    strcpy(datapath.Pipe_EX_instruction_cptr, disassemble(datapath.Pipe_EX_instruction, control_unit.decode(datapath.Pipe_EX_instruction)).c_str());
-    strcpy(datapath.Pipe_MEM_instruction_cptr, disassemble(datapath.Pipe_MEM_instruction, control_unit.decode(datapath.Pipe_MEM_instruction)).c_str());
-    strcpy(datapath.Pipe_WB_instruction_cptr, disassemble(datapath.Pipe_WB_instruction, control_unit.decode(datapath.Pipe_WB_instruction)).c_str());
+    auto copy_safe = [this](char* dest, const std::string& src) {
+        strncpy(dest, src.c_str(), sizeof(datapath.instruction_cptr) - 1);
+        dest[sizeof(datapath.instruction_cptr) - 1] = '\0';
+    };
+
+    copy_safe(datapath.Pipe_IF_instruction_cptr, disassemble(datapath.Pipe_IF_instruction, control_unit.decode(datapath.Pipe_IF_instruction)));
+    copy_safe(datapath.Pipe_ID_instruction_cptr, disassemble(datapath.Pipe_ID_instruction, control_unit.decode(datapath.Pipe_ID_instruction)));
+    copy_safe(datapath.Pipe_EX_instruction_cptr, disassemble(datapath.Pipe_EX_instruction, control_unit.decode(datapath.Pipe_EX_instruction)));
+    copy_safe(datapath.Pipe_MEM_instruction_cptr, disassemble(datapath.Pipe_MEM_instruction, control_unit.decode(datapath.Pipe_MEM_instruction)));
+    copy_safe(datapath.Pipe_WB_instruction_cptr, disassemble(datapath.Pipe_WB_instruction, control_unit.decode(datapath.Pipe_WB_instruction)));
     if(m_logfile.is_open() && DEBUG_INFO) {
         m_logfile << "Pipeline Stage 1 (IF): " << datapath.Pipe_IF_instruction_cptr << std::endl;
         m_logfile << "Pipeline Stage 2 (ID): " << datapath.Pipe_ID_instruction_cptr << std::endl;

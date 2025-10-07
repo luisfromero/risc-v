@@ -362,7 +362,7 @@ app.add_middleware(
 # Importar la definición del layout de la palabra de control
 try:
     from control_table_data import CONTROL_WORD_LAYOUT
-    from program_data import DEFAULT_PROGRAM_A, DEFAULT_PROGRAM_B, DEFAULT_PROGRAM_C, DEFAULT_PROGRAM_D
+    from program_data import DEFAULT_PROGRAM_A, DEFAULT_PROGRAM_B, DEFAULT_PROGRAM_C, DEFAULT_PROGRAM_D, DEFAULT_PROGRAM
 except ImportError:
     print("ERROR: No se pudo encontrar 'control_table_data.py' o 'program_data.py'.", file=sys.stderr)
     print("Asegúrate de haber ejecutado los scripts de generación en 'resources/' primero.", file=sys.stderr)
@@ -380,6 +380,7 @@ except ImportError:
     DEFAULT_PROGRAM_B = b''
     DEFAULT_PROGRAM_C = b''
     DEFAULT_PROGRAM_D = b''
+    DEFAULT_PROGRAM   = b''
 
 # --- Funciones de ayuda para la API ---
 
@@ -614,7 +615,7 @@ def reset_simulator(
                 sim.load_program(program_bytes)
                 print(f"Cargado programa binario personalizado ({len(program_bytes)} bytes)...")
             except Exception as e:
-                sim.load_program(DEFAULT_PROGRAM_D)
+                sim.load_program(DEFAULT_PROGRAM)
                 # raise HTTPException(status_code=400, detail=f"Error decodificando o cargando bin_code: {e}")
         elif config.assembly_code:
             try:
@@ -623,8 +624,9 @@ def reset_simulator(
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Error cargando assembly_code: {e}")
         elif config.load_test_program:
-            sim.load_program(DEFAULT_PROGRAM_D)
-            print("Cargado programa por defecto...")
+            sim.load_program(DEFAULT_PROGRAM)
+            print("Cargado programa por defecto:")
+            print(DEFAULT_PROGRAM)
             
         # Ejecuta el primer paso para tener un estado inicial y luego lo devuelve completo
         simulators[session_id]["sim"].reset_with_model(model_id, config.initial_pc)

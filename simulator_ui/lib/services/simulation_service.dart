@@ -178,6 +178,7 @@ class SimulationState {
       }
       return false;
     }
+    
     int decodeSignal(String signalName, int controlWord) {
       /// Decodifica una señal específica a partir de una palabra de control completa.
       final field = controlWordLayout[signalName];
@@ -205,13 +206,14 @@ class SimulationState {
     final int controlWordEX = getValue('Pipe_ID_EX_Control_out');
     final int controlWordWB = getValue('Pipe_MEM_WB_Control_out');
 
-    datapathJson['Pipe_PCsrc']   = decodeSignal('PCsrc', controlWordEX);
-    datapathJson['Pipe_BRwr']    = decodeSignal('BRwr', controlWordWB);
-    datapathJson['Pipe_ALUsrc']  = decodeSignal('ALUsrc', controlWordEX);
-    datapathJson['Pipe_ImmSrc']  = decodeSignal('ImmSrc', controlWordID);
-    datapathJson['Pipe_ALUctr']  = decodeSignal('ALUctr', controlWordEX);
-    datapathJson['Pipe_MemWr']   = decodeSignal('MemWr', getValue('Pipe_EX_MEM_Control_out'));
-    datapathJson['Pipe_ResSrc']  = decodeSignal('ResSrc', getValue('Pipe_MEM_WB_Control_out'));
+    datapathJson['Pipe_PCsrc']      = decodeSignal('PCsrc', controlWordEX);
+    datapathJson['Pipe_BRwr']       = decodeSignal('BRwr', controlWordWB);
+    datapathJson['Pipe_ALUsrc']     = decodeSignal('ALUsrc', controlWordEX);
+    datapathJson['Pipe_ImmSrc']     = decodeSignal('ImmSrc', controlWordID);
+    datapathJson['Pipe_ALUctr']     = decodeSignal('ALUctr', controlWordEX);
+    datapathJson['Pipe_MemWr']      = decodeSignal('MemWr', getValue('Pipe_EX_MEM_Control_out'));
+    datapathJson['Pipe_MEM_ResSrc'] = decodeSignal('ResSrc', getValue('Pipe_EX_MEM_Control_out')); // Para saber si es LW en MEM
+    datapathJson['Pipe_ResSrc']     = decodeSignal('ResSrc', getValue('Pipe_MEM_WB_Control_out'));
 
     datapathJson['control_PCsrc']   = decodeSignal('PCsrc', control);
     datapathJson['control_BRwr']    = decodeSignal('BRwr', control);
@@ -459,6 +461,7 @@ class SimulationState {
       'Pipe_ALUsrc': datapathJson['Pipe_ALUsrc'] as int? ?? 0,
       'Pipe_MemWr': datapathJson['Pipe_MemWr'] as int? ?? 0,
       'Pipe_ALUctr': datapathJson['Pipe_ALUctr'] as int? ?? 0,
+      'Pipe_Mem_ResSrc': datapathJson['Pipe_Mem_ResSrc'] as int? ?? 0,
 
 
       

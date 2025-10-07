@@ -45,6 +45,8 @@ enum CAUSAS {
 
 int indeterminado=0xdeadbeef;
 
+const double x1=290; //pc_bus vertical
+
 const double x7=1340;
 const double y7=510; //Control inmediato
 const double x6=1265; //Bus a M1
@@ -728,11 +730,11 @@ bool get isBranchHazard => _isBranchHazard;
     return [
       Bus(startPointLabel: 'NPC-0', endPointLabel: 'NPC-1', isActive: (s) => true, valueKey: 'npc_bus'),
       Bus(startPointLabel: 'PC-1', endPointLabel: 'PC-2', isActive: (s) => s.isPCActive, valueKey: 'pc_bus'),
-      Bus(startPointLabel: 'PC-2', endPointLabel: 'NPC-2', isActive: (s) => s.isPCActive,waypoints: List.of([const Offset(260,180)]), valueKey: 'pc_bus'),
+      Bus(startPointLabel: 'PC-2', endPointLabel: 'NPC-2', isActive: (s) => s.isPCActive,waypoints: List.of([const Offset(x1,180)]), valueKey: 'pc_bus'),
       Bus(startPointLabel: 'PC-2', endPointLabel: 'IM-0', isActive: (s) => s.isPCActive, valueKey: 'pc_bus'),
-      Bus(startPointLabel: 'PC-2', endPointLabel: 'BR-1', isActive: (s) => s.isPCActive,waypoints: List.of([const Offset(260,440)]), valueKey: 'pc_bus'),
+      Bus(startPointLabel: 'PC-2', endPointLabel: 'BR-1', isActive: (s) => s.isPCActive,waypoints: List.of([const Offset(x1,440)]), valueKey: 'pc_bus'),
       Bus(startPointLabel: 'NPC-3', endPointLabel: 'NPC-4', isActive: (s) => s.isPcAdderActive, valueKey: 'npc_bus'),
-      Bus(startPointLabel: 'NPC-4', endPointLabel: 'M2-0', isActive: (s) => s.isPcAdderActive,waypoints: List.of([const Offset(420,80),const Offset(20,80),const Offset(20,228)] ), valueKey: 'npc_bus'),
+      Bus(startPointLabel: 'NPC-4', endPointLabel: 'M2-0', isActive: (s) => s.isPcAdderActive,waypoints: List.of([const Offset(440,150),const Offset(440,80),const Offset(20,80),const Offset(20,228)] ), valueKey: 'npc_bus'),
       Bus(startPointLabel: 'NPC-4', endPointLabel: 'M1-0', isActive: (s) => s.isPcAdderActive,waypoints: List.of([const Offset(x6,150),const Offset(x6,228)] ), valueKey: 'npc_bus'),
       Bus(startPointLabel: 'IM-1', endPointLabel: 'IB-0', isActive: (s) => s.isIMemActive, valueKey: 'instruction_bus'),
 
@@ -912,7 +914,7 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
 
     //Bus(startPointLabel: 'PC-2', endPointLabel: 'BR-1', isActive: (s) => s.isPCActive,waypoints: List.of([const Offset(260,440)]), valueKey: 'pc_bus'),
 
-        Bus(startPointLabel: 'PC-2', endPointLabel: 'FD1-0', isActive: (s) => true, valueKey: 'pc_bus',waypoints:List.of([const Offset(260,440)])),
+        Bus(startPointLabel: 'PC-2', endPointLabel: 'FD1-0', isActive: (s) => true, valueKey: 'pc_bus',waypoints:List.of([const Offset(x1,440)])),
         Bus(startPointLabel: 'FD1-1', endPointLabel: 'DE2-0', isActive: (s) => s.isPathActive('Pipe_IF_ID_PC_out'), valueKey: 'Pipe_IF_ID_PC_out'),
         Bus(startPointLabel: 'DE2-1', endPointLabel: 'BR-1', isActive: (s) => s.isPathActive('Pipe_ID_EX_PC_out'), valueKey: 'Pipe_ID_EX_PC_out'),
 
@@ -931,7 +933,7 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
 
 
     buses.addAll([
-      Bus(startPointLabel: 'CU-4', endPointLabel: 'DEControl-0', isActive: (s) => s.isPathActive("Pipe_IF_ID_NPC_out"),valueKey: 'Pipe_ID_EX_Control',waypoints: List.of([const Offset(660,95)]),isControl: true,size:3),
+      Bus(startPointLabel: 'CU-4', endPointLabel: 'DEControl-0', isActive: (s) => s.isPathActive("Pipe_IF_ID_NPC_out"),valueKey: 'Pipe_ID_EX_Control',waypoints: List.of([const Offset(660,95)]),isControl: true,size:16),
       Bus(startPointLabel: 'DEControl-1', endPointLabel: 'EMControl-0', isActive: (s) => s.isPathActive("Pipe_ID_EX_NPC_out"),valueKey: 'Pipe_ID_EX_Control_out',isControl: true,size:16),
       Bus(startPointLabel: 'EMControl-1', endPointLabel: 'MWControl-0', isActive: (s) => s.isPathActive("Pipe_EX_MEM_NPC_out"),valueKey: 'Pipe_EX_MEM_Control_out',isControl: true,size:3),
 

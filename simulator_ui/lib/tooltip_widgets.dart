@@ -1,6 +1,7 @@
 //import 'dart:ffi';
 
 import 'package:flutter/material.dart';
+import 'package:namer_app/services/simulation_service.dart';
 import 'package:namer_app/generated/control_table.g.dart';
 import 'package:namer_app/simulation_mode.dart';
 import 'datapath_state.dart';
@@ -283,9 +284,12 @@ Widget buildInstructionMemoryTooltip(DatapathState datapathState) {
 
 Widget buildDataMemoryTooltip(DatapathState datapathState) {
   final dataMemory = datapathState.dataMemory;
-  final addressBus = datapathState.busValues['alu_result_bus'] ?? datapathState.busValues['Pipe_EX_MEM_ALU_result_out'];
-  final memWrite = datapathState.busValues['control_MemWr']==1 || datapathState.isPathActive('Pipe_MEM_WB_Control_out_MemWrite');
-  final memRead = datapathState.busValues['control_ResSrc']==0;//datapathState.isPathActive('control_MemRead') || datapathState.isPathActive('Pipe_MEM_WB_Control_out_MemRead');// ToDo
+  final noPipeline=datapathState.simulationMode != SimulationMode.pipeline;
+  final addressBus = noPipeline?(datapathState.busValues['alu_result_bus'] ??0): datapathState.busValues['Pipe_EX_MEM_ALU_result_out'];
+  // Determina si la instrucción en la etapa MEM es un 'load'.
+  // Un 'load' tiene ResSrc = 0 en la palabra de control de la etapa de memoria.
+  final memWrite = datapathState.busValues['control_MemWr']==1 || datapathState.busValues['Pipe_MemWr']==1;
+  final memRead = (datapathState.busValues['control_ResSrc']==0 && noPipeline )|| datapathState.busValues['Pipe_Mem_ResSrc']==0;
 
   if (dataMemory == null || dataMemory.isEmpty) {
     return const Text('(Memory is empty)', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic));
@@ -680,14 +684,39 @@ Widget buildControlBusTooltip(DatapathState datapathState, String signalKey) {
     final signalName = signalKey.replaceFirst('control_', '').replaceFirst('Pipe_', '');
     final options = controlSignalOptions[signalName]; // Usamos el mapa correcto
     var currentValue = datapathState.busValues[signalKey];
+
     if(signalKey=="Pipe_ID_EX_Control")
      {
       currentValue=datapathState.busValues["Pipe_ID_EX_Control"];
+      final hexValue = toHex(currentValue, 4); // Formateamos a 4 dígitos hexadecimales
       return Text(
-        '$signalKey: $currentValue',
-        style: miEstiloTooltip,
+        '$signalKey: $hexValue ($currentValue)', // Mostramos ambos formatos
+        style: miEstiloTooltip.copyWith(color: Colors.cyan), // Usamos un color para destacarlo
       );
     }
+
+    if(signalKey=="Pipe_ID_EX_Control_out")
+     {
+      currentValue=datapathState.busValues["Pipe_ID_EX_Control_out"];
+      final hexValue = toHex(currentValue, 4); // Formateamos a 4 dígitos hexadecimales
+      return Text(
+        '$signalKey: $hexValue ($currentValue)', // Mostramos ambos formatos
+        style: miEstiloTooltip.copyWith(color: Colors.cyan), // Usamos un color para destacarlo
+      );
+    }
+
+    if(signalKey=="Pipe_EX_MEM_Control_out")
+     {
+      currentValue=datapathState.busValues["Pipe_EX_MEM_Control_out"];
+      final hexValue = toHex(currentValue, 4); // Formateamos a 4 dígitos hexadecimales
+      return Text(
+        '$signalKey: $hexValue ($currentValue)', // Mostramos ambos formatos
+        style: miEstiloTooltip.copyWith(color: Colors.cyan), // Usamos un color para destacarlo
+      );
+    }
+
+
+
     if (options == null || currentValue != null) {
       return Text(
         '$signalKey: $currentValue',

@@ -6,6 +6,7 @@ const Color color2 = Color.fromARGB(255, 239, 245, 66);
 const Color color3 = Color.fromRGBO(120, 113, 245, 1);   
 const Color color4 = Color.fromARGB(255, 250, 101, 98);
 const Color color5 = Color.fromARGB(255, 9, 227, 251);
+const colorInactivo= Color(0xFFF5F5F5);
 
 /// Lista de colores para diferenciar instrucciones en el historial.
 const List<Color> instructionColors = [

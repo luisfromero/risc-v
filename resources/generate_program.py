@@ -71,7 +71,7 @@ PROGRAM_C = bytes([
 #    XOR, AND y OR.
 # 6. Entra en un bucle infinito para finalizar la ejecución.
 
-PROGRAM_D = bytes([
+PROGRAM_E = bytes([
     0x93, 0x04, 0xa0, 0x00, # addi x9 x0 10
     0x13, 0x09, 0xa0, 0x00, # addi x18 x0 10
     0x93, 0x09, 0x04, 0x08, # addi x19 x8 128
@@ -116,9 +116,12 @@ PROGRAM_D = bytes([
     0x67, 0x80, 0x00, 0x00, # jalr x0 x1 0
 ])
 
-f=open("../programs/bin/programD.bin", "rb")
-buffer=f.read()
-PROGRAM_D=buffer
+# Leemos los programas de prueba desde sus archivos binarios.
+with open("../programs/bin/programD.bin", "rb") as f:
+    PROGRAM_D = f.read()
+
+with open("../programs/bin/completo.bin", "rb") as f:
+    PROGRAMA_COMPLETO = f.read()
 
 # ==============================================================================
 #  LÓGICA DE GENERACIÓN DE ARCHIVOS
@@ -133,7 +136,8 @@ def generate_python_file(output_path: pathlib.Path):
         f.write(f"DEFAULT_PROGRAM_A = {repr(PROGRAM_A)}\n\n")
         f.write(f"DEFAULT_PROGRAM_B = {repr(PROGRAM_B)}\n\n")
         f.write(f"DEFAULT_PROGRAM_C = {repr(PROGRAM_C)}\n\n")
-        f.write(f"DEFAULT_PROGRAM_D = {repr(PROGRAM_D)}\n")
+        f.write(f"DEFAULT_PROGRAM_D = {repr(PROGRAM_D)}\n\n")
+        f.write(f"DEFAULT_PROGRAM = {repr(PROGRAMA_COMPLETO)}\n") # Este es el programa por defecto.
     print(f"Generated Python program data at: {output_path}")
 
 def generate_dart_file(output_path: pathlib.Path):
@@ -158,6 +162,8 @@ def generate_dart_file(output_path: pathlib.Path):
         write_byte_list(f, "defaultProgramC", PROGRAM_C)
         f.write("\n")
         write_byte_list(f, "defaultProgramD", PROGRAM_D)
+        f.write("\n")
+        write_byte_list(f, "default_program", PROGRAMA_COMPLETO) # Este es el programa por defecto.
 
     print(f"Generated Dart program data at: {output_path}")
 

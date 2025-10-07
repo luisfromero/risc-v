@@ -17,12 +17,7 @@ class ExecutionHistoryView extends StatefulWidget {
 
 class _ExecutionHistoryViewState extends State<ExecutionHistoryView> {
   final ScrollController _scrollController = ScrollController();
-
-  @override
-  void didUpdateWidget(covariant ExecutionHistoryView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // La lógica de auto-scroll se ha movido al método `build` para que se ejecute en cada actualización de estado.
-  }
+  SimulationMode? _previousMode;
 
   @override
   void dispose() {
@@ -34,18 +29,24 @@ class _ExecutionHistoryViewState extends State<ExecutionHistoryView> {
   Widget build(BuildContext context) {
     // Escuchamos los cambios del estado para redibujar cuando sea necesario.
     final datapathState = context.watch<DatapathState>();
+    final currentMode = datapathState.simulationMode;
 
     // --- LÓGICA DE AUTO-SCROLL ---
     // Se ejecuta después de que el frame se ha renderizado, asegurando que
     // el ListView tiene su tamaño final y se puede calcular el scroll.
     // Esto se dispara cada vez que `datapathState` notifica un cambio.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients && _scrollController.position.maxScrollExtent > 0) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
+      if (!_scrollController.hasClients) return;
+
+      // Si el modo de simulación ha cambiado, resetea el scroll.
+      if (_previousMode != currentMode) {
+        _scrollController.jumpTo(0);
+        _previousMode = currentMode;
+      } else if (_scrollController.position.maxScrollExtent > 0) {
+        // Si no, aplica el auto-scroll normal hacia el final.
+        _scrollController.animateTo(_scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut);
       }
     });
 

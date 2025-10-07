@@ -413,9 +413,10 @@ class MyApp extends StatelessWidget {
                       size: Size.infinite,
                     ),
 
+                    //iNFO ICONS
                     Positioned(
                       top:0,
-                      left: 0,
+                      left: 10,
                       child: Row(
                         children: [
                           Tooltip(
@@ -467,7 +468,7 @@ class MyApp extends StatelessWidget {
                     // --- PC ---
                     Positioned(
                       top: 200,
-                      left: 200,
+                      left: 230,
                       // MouseRegion detecta cuando el ratón entra o sale de su área.
                       child: MouseRegion(
                         onEnter: (_) => datapathState.setHoverInfo('PC: ${formatSingleRegisterHover(datapathState.pcValue, datapathState.busValues['mux_pc_bus'])}'),
@@ -483,7 +484,7 @@ class MyApp extends StatelessWidget {
                     // --- Sumador del PC ---
                     Positioned(
                       top: 90,
-                      left: 300,
+                      left: 320,
                       child: MouseRegion(
                         onEnter: (_) => datapathState.setHoverInfo(_pcAdderHoverId),
                         onExit: (_) => datapathState.setHoverInfo(''),
@@ -493,7 +494,7 @@ class MyApp extends StatelessWidget {
                           label: 'NPC',
                           isActive: datapathState.isPcAdderActive,
                           connectionPoints: [
-                            Offset(-0.3,0.25),
+                            Offset(-1,0.25),
                             Offset(0,0.25),
                             Offset(0,0.75),
                             Offset(1,0.5),
@@ -534,7 +535,7 @@ class MyApp extends StatelessWidget {
                       child: MouseRegion(
                         onEnter: (_) => datapathState.setHoverInfo('Constant: 4'),
                         onExit: (_) => datapathState.setHoverInfo(''),
-                        child: Text("4 (0x00000004)")
+                        child: Text("0x00000004")
                       ),
                     ),
                     // --- Instruction Buffer ---
@@ -1179,7 +1180,7 @@ class MyApp extends StatelessWidget {
                         ),
                       ),                    
                       
-                      
+                  //zONA DERECHA
                   Positioned(top:0,left:1400,child:
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

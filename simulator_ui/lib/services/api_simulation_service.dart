@@ -11,7 +11,7 @@ import 'dart:typed_data';
 class ApiSimulationService implements SimulationService {
   
   // esta da error de cors que no supe arreglar final String _baseUrl = 'http://riscv-api.ac.uma.es';//
-  final String _baseUrl ='http://localhost:8070'; // URL de tu API
+  final String _baseUrl ='http://riscv-api.ac.uma.es'; // URL de tu API
   String? _sessionId; // <-- NUEVO: Para guardar el ID de sesión.
   SimulationMode _currentMode = SimulationMode.singleCycle;
   // Para mantener el estado actual, incluyendo las memorias que se cargan bajo demanda.
