@@ -138,7 +138,7 @@ class BusesPainter extends CustomPainter {
       // El valor del bus se sigue dibujando una vez, si está activo.
       if (isActive && bus.valueKey != null && datapathState.busValues[bus.valueKey] != null && datapathState.showBusesLabels) {
         // Dibuja el valor del bus en el canvas.
-      _drawBusValue(canvas, bus, pointsMap, datapathState.busValues[bus.valueKey]!);
+      _drawBusValue(canvas, allBusPoints, bus, datapathState.busValues[bus.valueKey]!);
       }
     }
     datapathState.setBusHoverInfoList(busHoverInfoList);
@@ -175,16 +175,9 @@ class BusesPainter extends CustomPainter {
   }
 
   /// Dibuja el valor de un bus en el canvas.
-  void _drawBusValue(Canvas canvas, Bus bus, Map<String, ConnectionPoint> pointsMap, int value) {
-    final startPoint = pointsMap[bus.startPointLabel];
-    final endPoint = pointsMap[bus.endPointLabel];
-    if (startPoint == null || endPoint == null) {
-      return;
-    }
-
+  void _drawBusValue(Canvas canvas, List<Offset> allBusPoints, Bus bus, int value) {
     // 1. Calcular la posición para el texto.
     // Usaremos el punto medio del segmento "central" del bus.
-    final allBusPoints = [startPoint.position, ...bus.waypoints, endPoint.position];
     Offset textPosition;
 
     if (allBusPoints.length < 2) return; // No se puede dibujar en un punto.
@@ -205,7 +198,7 @@ class BusesPainter extends CustomPainter {
       valueText = value.toRadixString(2).padLeft(bus.size, '0');
       if(valueText.length > 5) {
         // Si es muy largo, lo cortamos y añadimos "..."
-        valueText = '0x'+value.toRadixString(16).padLeft(4, '0');
+        valueText = '0x${value.toRadixString(16).padLeft(4, '0')}';
       } 
 
     } else {

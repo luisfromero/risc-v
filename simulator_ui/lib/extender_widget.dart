@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'colors.dart';
+import 'geometry.dart';
 
 class ExtenderWidget extends StatelessWidget {
   final String label;
@@ -15,8 +16,8 @@ class ExtenderWidget extends StatelessWidget {
     required this.label,
         this.isActive = false, // Por defecto no está activo
 
-    this.width = 100,
-    this.height = 40,
+    this.width = widthExtender,
+    this.height = heightExtender,
     this.connectionPoints = const [
       Offset(0, 0.5),
       Offset(0.5, 1),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:namer_app/colors.dart';
 import 'package:provider/provider.dart';
 import 'datapath_state.dart';
+import 'geometry.dart';
 
 /// Un widget que representa un registro de pipeline (como A, B, NPC).
 /// Su ancho es 0 en modo single-cycle (transparente) y 15 en los demás modos.
@@ -36,7 +37,7 @@ class RegWidget extends StatelessWidget {
     final Color backgroundColor = isActive ? color : color.withAlpha(30); // Un gris claro opaco
     final Color borderColor = !visibility ? Colors.black.withAlpha(0): isActive ? Colors.black : Colors.black.withAlpha(15);
 
-    final double widgetWidth = !visibility ? 0 : 15;
+    final double widgetWidth = !visibility ? 0 : widthReg;
 
     return Container(
       width: widgetWidth,

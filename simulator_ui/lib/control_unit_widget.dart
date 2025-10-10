@@ -1,27 +1,27 @@
 
 import 'package:flutter/material.dart';
+import 'geometry.dart';
+
 
 class ControlUnitWidget extends StatelessWidget {
   final List<Offset> connectionPoints;
     final bool isActive; // Para recibir si debe estar "activo" (color verde)
 
   const ControlUnitWidget({super.key,
-  
+
+
   this.connectionPoints=const [
-    Offset(0.1, 1),
-
-    Offset(0.191, 1),
-    Offset(0.266, 1),
-    Offset(0.317, 1),
-    Offset(0.36, 1),
-    Offset(0.509, 1),
-    Offset(0.631, 1),
-    Offset(0.7243, 1),
-    Offset(0.8084, 1),
-    Offset(0.954, 1),
-
-    
-    Offset(1, 1)
+    Offset(ucx1, 1),
+    Offset(ucx2, 1),
+    Offset(ucx3, 1),
+    Offset(ucx4, 1),
+    Offset(ucx5, 1),
+    Offset(ucx6, 1),
+    Offset(ucx7, 1),
+    Offset(ucx8, 1),
+    Offset(ucx9, 1),
+    Offset(ucx10, 1),
+    Offset(ucx11, 1)
   ],
       this.isActive = false, // Por defecto no está activo
 

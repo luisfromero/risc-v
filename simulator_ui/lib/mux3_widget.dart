@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'colors.dart';
+import 'geometry.dart';
 
 class Mux3Widget extends StatelessWidget {
   final int value;
@@ -34,8 +34,8 @@ class Mux3Widget extends StatelessWidget {
   final TextStyle estilo=  TextStyle(fontSize: 9, color:textColor);
 
     return SizedBox(
-      width: 20,
-      height: 40,
+      width: widthMuxFwd,
+      height: heightMuxFwd,
       child: Stack(
         alignment: Alignment.center,
         children: [

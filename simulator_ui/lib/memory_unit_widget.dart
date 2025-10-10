@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:namer_app/geometry.dart';
 import 'colors.dart';
 
 class MemoryUnitWidget extends StatelessWidget {
@@ -13,8 +14,8 @@ class MemoryUnitWidget extends StatelessWidget {
     super.key,
     required this.label,
     this.isActive = false, // Por defecto no está activo
-    this.width = 80,
-    this.height = 120,
+    this.width = widthMems,
+    this.height = heightMems,
     this.connectionPoints=const [],
     this.color = defaultColor, // Color por defecto
   });

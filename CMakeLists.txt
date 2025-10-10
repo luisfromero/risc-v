@@ -13,7 +13,8 @@ FetchContent_Declare(
   nlohmann_json
   GIT_REPOSITORY https://github.com/nlohmann/json.git
   GIT_TAG v3.11.3 # Usamos una versión específica para asegurar la estabilidad
-  # Solución para problemas de certificados SSL en entornos corporativos o con proxies
+  # La siguiente línea puede ser necesaria en entornos corporativos con proxies SSL.
+  # Si tienes problemas para descargar, descoméntala.
   GIT_CONFIG "http.sslVerify=false"
 )
 # Hacemos que la dependencia esté disponible para ser usada por nuestros targets.

@@ -1,7 +1,6 @@
 //import 'dart:ffi';
 
 import 'package:flutter/material.dart';
-import 'package:namer_app/services/simulation_service.dart';
 import 'package:namer_app/generated/control_table.g.dart';
 import 'package:namer_app/simulation_mode.dart';
 import 'datapath_state.dart';
@@ -724,7 +723,7 @@ Widget buildControlBusTooltip(DatapathState datapathState, String signalKey) {
       );
     }
 
-    if (options == null || currentValue == null) {
+    if (currentValue == null) {
       return Text(
         '$signalKey: N/A (options: ${options == null}, value: ${currentValue == null})',
         style: miEstiloTooltip,

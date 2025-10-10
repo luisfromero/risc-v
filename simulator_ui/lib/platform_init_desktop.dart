@@ -25,6 +25,8 @@ Future<void> setupWindow() async {
       // Volvemos a usar el método center() del window_manager.
       // Se ejecuta lo suficientemente tarde para no causar la excepción original.
       //await windowManager.center();
+      //      await windowManager.setAlignment(Alignment.center);
+
     });
   }
 }

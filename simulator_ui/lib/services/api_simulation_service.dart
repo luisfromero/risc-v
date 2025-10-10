@@ -1,7 +1,6 @@
 // simulator_ui/lib/services/api_simulation_service.dart
 
 import 'dart:convert';
-import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../simulation_mode.dart';
 import '../datapath_state.dart';

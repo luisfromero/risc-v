@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:namer_app/geometry.dart';
 import 'colors.dart';
 
 class Mux2Widget extends StatelessWidget {
@@ -33,8 +34,8 @@ class Mux2Widget extends StatelessWidget {
   final TextStyle estilo=  TextStyle(fontSize: 16, color:textColor);
 
     return SizedBox(
-      width: 30,
-      height: 50,
+      width: widthMuxALU,
+      height: heightMuxALU,
       // Stack nos permite apilar widgets. Dibujaremos la forma
       // y pondremos el texto '+' encima.
       child: Stack(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'geometry.dart';
 
 class HazardUnitWidget extends StatelessWidget {
   final String label;
@@ -22,8 +23,8 @@ class HazardUnitWidget extends StatelessWidget {
     final Color borderColor = isActive ? activeColor : Colors.transparent;
 
     return Container(
-      width: 100,
-      height: 50,
+      width: widthHazard,
+      height: heightHazard,
       padding: const EdgeInsets.all(4.0),
       decoration: BoxDecoration(
         color: backgroundColor,
@@ -40,6 +41,7 @@ class HazardUnitWidget extends StatelessWidget {
           style: TextStyle(
             color: textColor,
             fontWeight: FontWeight.bold,
+            fontSize: 10,
           ),
         ),
       ),

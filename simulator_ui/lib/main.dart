@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:namer_app/geometry.dart';
 import 'dart:math';
 import 'colors.dart';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'reg_widget.dart';
 import 'package:flutter/services.dart'; // Para RawKeyboard
@@ -128,10 +128,9 @@ String _getHazardTooltipText(DatapathState datapathState) {
 
 
     // Determinamos qué registro causa la dependencia.
-    final conflictingRegister = contiene ? 'x${loadReg}' : 'un registro';
+    final conflictingRegister = contiene ? 'x$loadReg' : 'un registro';
 
-    return "La unidad de Riesgo de LOAD se ha activado\nporque la instrucción\n'${instruccion}' (en ID) intenta leer el registro $conflictingRegister,\nque está siendo cargado desde memoria por '${loadInstruction.trim()}' (en EX)."+
-    "\n\nSe ha insertado un ciclo de espera (stall) para resolver el riesgo,\nanulando la carga de PC (mantiene la instrucción dependiente)\n y colocando una NOP en la segunda etapa.";
+    return "La unidad de Riesgo de LOAD se ha activado\nporque la instrucción\n'$instruccion' (en ID) intenta leer el registro $conflictingRegister,\nque está siendo cargado desde memoria por '${loadInstruction.trim()}' (en EX).""\n\nSe ha insertado un ciclo de espera (stall) para resolver el riesgo,\nanulando la carga de PC (mantiene la instrucción dependiente)\n y colocando una NOP en la segunda etapa.";
   } else if (datapathState.isBranchHazard) {
     // Hacemos el tooltip más específico para el riesgo de salto.
     final instruction = datapathState.pipeExInstruction;
@@ -146,7 +145,7 @@ String _getHazardTooltipText(DatapathState datapathState) {
     } else {
       reason += " incondicionalmente.";
     }
-    return 'La unidad de Riesgo de Salto se ha activado\nporque $reason'+'\n\nNota: El campo RD del registro de segmentación,\nen branch, se usa para propagar funct3 (tipo de branch).';
+    return 'La unidad de Riesgo de Salto se ha activado\nporque $reason''\n\nNota: El campo RD del registro de segmentación,\nen branch, se usa para propagar funct3 (tipo de branch).';
   } else if (datapathState.busValues['bus_ControlForwardA'] != 1 || datapathState.busValues['bus_ControlForwardB'] != 1) {
     // Hacemos el tooltip más específico para los cortocircuitos.
     final forwardA = datapathState.busValues['bus_ControlForwardA'];
@@ -179,8 +178,22 @@ String _getHazardTooltipText(DatapathState datapathState) {
 }
 
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late TransformationController _transformationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _transformationController = TransformationController();
+  }
+
   @override
   Widget build(BuildContext context) {
     final datapathState = Provider.of<DatapathState>(context);
@@ -237,6 +250,16 @@ class MyApp extends StatelessWidget {
           ),
           backgroundColor: Colors.blueGrey,
           actions: [
+            // Botón para resetear el zoom y paneo
+            Tooltip(
+              message: 'Reset view',
+              child: IconButton(
+                icon: const Icon(Icons.zoom_in_map),
+                onPressed: () {
+                  _transformationController.value = Matrix4.identity();
+                },
+              ),
+            ),
             // Widget para mostrar las coordenadas del ratón en la barra superior.
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -274,9 +297,10 @@ class MyApp extends StatelessWidget {
                   // Envolvemos los botones en un SizedBox para fijar el ancho total.
                   SizedBox(
                     width: 255, // Ancho total fijo para los tres botones.
+                    height:40,
                     child: Row(
                       children: [
-                        // Cada botón se envuelve en Expanded para que compartan el espacio.
+                        // Cada bo90tón se envuelve en Expanded para que compartan el espacio.
                         Expanded(
                           child: 
                           Tooltip(message: 'Upload program to memory',
@@ -358,920 +382,103 @@ class MyApp extends StatelessWidget {
                     )
                   ),
                   const SizedBox(width: 8), // Espacio antes de la Unidad de Control
-                  // Widget de la Unidad de Control
-                  MouseRegion(
-                    onEnter: (_) => datapathState.setHoverInfo(_controlHoverId),
-                    onExit: (_) => datapathState.setHoverInfo(''),
-                    child: SizedBox(
-                      // Mantenemos el SizedBox para fijar el tamaño de la ControlUnit
-                      width: 1070,
-                      height: 90,
-                      child: ControlUnitWidget(
-                        key: datapathState.controlUnitKey,
-                        isActive: datapathState.isControlActive,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                  Image.asset(
-                        'img/dac.png', // <-- CAMBIA ESTO por el nombre de tu primer logo
-                        width: 60,
-                        height: 50,
-                      ),
-                  const SizedBox(width: 20),
-                  Image.asset(
-                        'img/uma.png', // <-- CAMBIA ESTO por el nombre de tu primer logo
-                        width: 70,
-                        height: 70,
-                      ),
-                ],)
-                
-              ),
+                  // La Unidad de Control se ha movido al Stack principal para que sea parte del canvas con zoom.
                 ],
               ),
             ),
             Expanded(
-              // --- CAMBIO 2: AÑADIDO ---
-              // Envolvemos el Stack en un MouseRegion para capturar la posición del ratón.
-              child: MouseRegion(
-                onHover: (event) {
-                  // Actualizamos la posición del ratón en el estado.
-                  // Usamos la posición local para que las coordenadas sean relativas
-                  // al área del Stack.
-                  datapathState.setMousePosition(event.localPosition);
-                },
-                child: Stack(
-                  key: datapathState.stackKey,
-                  children: [
-                    // --- Pintor de Buses (se dibuja detrás de todo) ---
-                    CustomPaint(
-                      painter: BusesPainter(datapathState),
-                      size: Size.infinite,
-                    ),
-
-                    //iNFO ICONS
-                    Positioned(
-                      top:0,
-                      left: 10,
-                      child: Row(
-                        children: [
-                          Tooltip(
-                            message: 'Instruction Formats',
-                            child: MouseRegion(
-                              onEnter: (_) => datapathState.setHoverInfo(_instructionFormatTableHoverId),
-                              onExit: (_) => datapathState.setHoverInfo(''),
-                              child: IconButton(
-                                padding: EdgeInsets.zero,
-                                icon: const Icon(Icons.info_outline),
-                                constraints: const BoxConstraints(),
-                                onPressed: () {}, // No action on click
-                              ),
-                            ),
-                          ),
-                          Tooltip(
-                            message: 'Control Unit Logic Table',
-                            child: MouseRegion(
-                              onEnter: (_) => datapathState.setHoverInfo(_controlTableHoverId),
-                              onExit: (_) => datapathState.setHoverInfo(''),
-                              child: IconButton(
-                                padding: EdgeInsets.zero,
-                                icon: const Icon(Icons.bolt), // Icono de rayo
-                                constraints: const BoxConstraints(),
-                                onPressed: () {}, // No action on click
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  
-
-                    // --- Mux2 PC ---
-                    Positioned(
-                      top: 220,
-                      left: 60,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo(_muxPcHoverId),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: MuxWidget(
-                          key: datapathState.mux2Key,
-                          value: datapathState.busValues['control_PCsrc'] ?? 0,
-                          isActive: isPipelineMode? true: datapathState.isMux2Active,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC((datapathState.busValues['Pipe_MEM_WB_NPC_out']??0)-4)),
-                        ),
-                      ),
-                    ),
-                    // --- PC ---
-                    Positioned(
-                      top: 200,
-                      left: 230,
-                      // MouseRegion detecta cuando el ratón entra o sale de su área.
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('PC: ${formatSingleRegisterHover(datapathState.pcValue, datapathState.busValues['mux_pc_bus'])}'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: PcWidget(
-                          key: datapathState.pcKey,
-                          isActive: datapathState.isPCActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC((datapathState.busValues['npc_bus']??0)-4)),
-                        ),
-                      ),
-                    ),
-
-                    // --- Sumador del PC ---
-                    Positioned(
-                      top: 90,
-                      left: 320,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo(_pcAdderHoverId),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        // El color del sumador ahora depende del estado global
-                        child: AdderWidget(
-                          key: datapathState.pcAdderKey,
-                          label: 'NPC',
-                          isActive: datapathState.isPcAdderActive,
-                          connectionPoints: [
-                            Offset(-1,0.25),
-                            Offset(0,0.25),
-                            Offset(0,0.75),
-                            Offset(1,0.5),
-                            Offset(2,0.5),
-                          ],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC((datapathState.busValues['npc_bus']??0)-4)),
-
-
-                        ),
-                      ),
-                    ),
-                    // --- Memoria de Instrucciones ---
-                    Positioned(
-                      top: 200,
-                      left: 380,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo(_instructionMemoryHoverId),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: MemoryUnitWidget(
-                          key: datapathState.instructionMemoryKey,
-                          label: 'Instruct.\nMemory',
-                          width: 80,
-                          height: 120,
-                          isActive: !isSingleCycleMode?true: datapathState.isIMemActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC((datapathState.busValues['npc_bus']??0)-4)),
-                          // 2 Puntos para I-Mem
-                          connectionPoints: const [
-                            Offset(0,0.5),
-                            Offset(1,0.5),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // --- Cte ---
-                    Positioned(
-                      top: 110,
-                      left: 170,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('Constant: 4'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: Text("0x00000004")
-                      ),
-                    ),
-                    // --- Instruction Buffer ---
-                    Positioned(
-                      top: 160,
-                      left: 520,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo(isSingleCycleMode?'Instruction Buffer':
-                        'IF_ID_Instr ${formatSingleRegisterHover(datapathState.busValues['Pipe_IF_ID_Instr'],datapathState.busValues['Pipe_IF_ID_Instr_out'])}'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: IBWidget(
-                          key: datapathState.ibKey,
-                          isActive: !isSingleCycleMode? datapathState.isPathActive('Pipe_IF_ID_Instr_out'): datapathState.isIBActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC((datapathState.busValues['Pipe_IF_ID_NPC_out']??0)-4)),
-                    
-                        ),
-                      ),
-                    ),
-
-                    // --- Pipeline Registers IF/ID ---
-                    Positioned(
-                      top: 120,
-                      left: 520,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('IF_ID_NPC ${formatSingleRegisterHover(datapathState.busValues['Pipe_IF_ID_NPC'],datapathState.busValues['Pipe_IF_ID_NPC_out'])}'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: RegWidget(
-                          key: datapathState.pipereg_fd0_Key,
-                          label: 'FD0',
-                          height: 42,
-                          isActive: datapathState.isPathActive("Pipe_IF_ID_Instr_out"),
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC((datapathState.busValues['Pipe_IF_ID_NPC_out']??0)-4)),
-                          visibility: isPipelineMode,
-                          connectionPoints: const [Offset(0, 0.715),Offset(1, 0.715),Offset(0.5, 0)],
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 420,
-                      left: 520,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('IF_ID_PC ${formatSingleRegisterHover(datapathState.busValues['Pipe_IF_ID_PC'],datapathState.busValues['Pipe_IF_ID_PC_out']??0-4)}'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: RegWidget(
-                          key: datapathState.pipereg_fd1_Key,
-                          label: 'FD1',
-                          height: 40,
-                          isActive: datapathState.isPathActive("Pipe_IF_ID_Instr_out"),
-                          visibility: isPipelineMode,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC((datapathState.busValues['Pipe_IF_ID_NPC_out']??0)-4)),
-                        ),
-                      ),
-                    ),
-
-                    // --- Banco de Registros ---
-                    Positioned(
-                      top: 200,
-                      left: 620,
-                      child: MouseRegion(                        
-                        onEnter: (_) => datapathState.setHoverInfo(_registerFileHoverId),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: MemoryUnitWidget(
-                          key: datapathState.registerFileKey,
-                          label: 'Register\nFile',
-                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_IF_ID_Instr_out"): datapathState.isRegFileActive,
-                          height: 120,
-                          // 7 Puntos para el Banco de Registros
-                          connectionPoints: const [
-                            Offset(0,0.2),
-                            Offset(0,0.4),
-                            Offset(0,0.6),
-                            Offset(0,0.8),
-                            Offset(0.5,0),
-                            Offset(1,0.25),
-                            Offset(1,0.65),
-                            Offset(15/8.0,0.65),
-                            ],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC((datapathState.busValues['Pipe_IF_ID_NPC_out']??0)-4)),
-                        ),
-                      ),
-                    ),
-                    // --- Extender ---
-                    Positioned(
-                      top: 364,
-                      left: 620,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo(_immHoverId),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: ExtenderWidget(
-                          key: datapathState.extenderKey,
-                          label: 'Imm. ext.',
-                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_IF_ID_Instr_out"): datapathState.isExtenderActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC((datapathState.busValues['Pipe_IF_ID_NPC_out']??0)-4)),
-
-                          width: 100,
-                          height: 30,
-                        ),
-                      ),
-                    ),
-
-                    // --- Pipeline Registers ---
-                    if(datapathState.showControl||datapathState.showForwarding||datapathState.showLHU||datapathState.showBHU)
-                    Positioned(
-                      top: 80,
-                      left: 740,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Control ${formatSingleRegisterHover(datapathState.busValues['Pipe_ID_EX_Control'],datapathState.busValues['Pipe_ID_EX_Control_out'], digits: 4)}'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: RegWidget(
-                          key: datapathState.pipereg_deControl_Key,
-                          label: 'DEControl ',
-                          height: 30,
-                          isActive: datapathState.isPathActive("Pipe_ID_EX_Control_out"),
-                          visibility: isPipelineMode,
-                          connectionPoints: const [Offset(0, 0.5),Offset(1, 0.33),Offset(1, 0.666),], //Llega en 100, salen en 90 y 100
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
-
-                        ),
-                      ),
-                    ),
-
-                    Positioned(
-                      top: 120,
-                      left: 740,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (NPC)  ${formatSingleRegisterHover(datapathState.busValues['Pipe_ID_EX_NPC'],datapathState.busValues['Pipe_ID_EX_NPC_out'])}'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: RegWidget(
-                          key: datapathState.pipereg_de0_Key,
-                          label: 'DE0',
-                          height: 42,
-                          isActive: datapathState.isPathActive("Pipe_ID_EX_NPC_out"),
-                          visibility: isPipelineMode,
-                          connectionPoints: const [Offset(0, 0.715),Offset(1, 0.715),],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
-
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 160,
-                      left: 740,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo(
-                          (isMultiCycleMode)?
-                          formatMultiRegisterHover([
-                            HoverRegisterData("ID/EX (A)", datapathState.busValues['Pipe_ID_EX_A'], datapathState.busValues['Pipe_ID_EX_A_out']),
-                            HoverRegisterData("ID/EX (B)", datapathState.busValues['Pipe_ID_EX_B'], datapathState.busValues['Pipe_ID_EX_B_out']),
-                            HoverRegisterData("ID/EX (Imm)", datapathState.busValues['Pipe_ID_EX_Imm'], datapathState.busValues['Pipe_ID_EX_Imm_out']),
-                          ])
-                          :
-                          formatMultiRegisterHover([
-                            HoverRegisterData("ID/EX (A)", datapathState.busValues['Pipe_ID_EX_A'], datapathState.busValues['Pipe_ID_EX_A_out']),
-                            HoverRegisterData("ID/EX (B)", datapathState.busValues['Pipe_ID_EX_B'], datapathState.busValues['Pipe_ID_EX_B_out']),
-                            HoverRegisterData("ID/EX (RD)", datapathState.busValues['Pipe_ID_EX_RD'], datapathState.busValues['Pipe_ID_EX_RD_out'],digits:5),
-                            HoverRegisterData("ID/EX (RS1)", datapathState.busValues['Pipe_ID_EX_RS1'], datapathState.busValues['Pipe_ID_EX_RS1_out'], digits: 5),
-                            HoverRegisterData("ID/EX (RS2)", datapathState.busValues['Pipe_ID_EX_RS2'], datapathState.busValues['Pipe_ID_EX_RS2_out'], digits: 5),
-                            HoverRegisterData("ID/EX (Imm)", datapathState.busValues['Pipe_ID_EX_Imm'], datapathState.busValues['Pipe_ID_EX_Imm_out']),
-                          ])
-                        ),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: RegWidget(
-                          label:'DE1',
-                          height: 262,
-                          key: datapathState.pipereg_de1_Key,
-                          isActive: datapathState.isPathActive("Pipe_ID_EX_NPC_out"),
-                          visibility: !isSingleCycleMode,
-                          connectionPoints: const [Offset(0, 0.269),Offset(0, 0.453),Offset(0, 0.7115),Offset(0, 0.838),Offset(1, 0.269),Offset(1, 0.453),Offset(1, 0.7115),Offset(1, 0.838),Offset(1, 0.1)],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 420,
-                      left: 740,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (PC) ${formatSingleRegisterHover(datapathState.busValues['Pipe_ID_EX_PC'],datapathState.busValues['Pipe_ID_EX_PC_out'])}'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: RegWidget(
-                          key: datapathState.pipereg_de2_Key,
-                          label: 'DE2',
-                          height: 40,
-                          isActive: datapathState.isPathActive("Pipe_ID_EX_PC_out"),
-                          visibility: isPipelineMode,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
-                        ),
-                      ),
-                    ),
-
-
-                    // --- MuxB ---
-                    Positioned(
-                      top: 265,
-                      left: 810,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo(_muxBHoverId),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: Mux2Widget(
-                          key: datapathState.mux3Key,
-                          value: datapathState.busValues['control_ALUsrc'] ?? 0,
-                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_ID_EX_B_out"): datapathState.isMux3Active,
-                          labels: ['0', '1', '2', ' '],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
-
-                        ),
-                      ),
-                    ),
-
-                    // --- Forwarding muxes ---
-                    if(isPipelineMode)
-                    Positioned(
-                      top: 210,
-                      left: 880,
-                      child: Opacity(
-                        opacity: datapathState.showForwarding||(datapathState.busValues['bus_ControlForwardA'] !=1)? 1.0 : 0.0,
-                        child: MouseRegion(
-                          onEnter: (_) { if (datapathState.showForwarding) datapathState.setHoverInfo(_muxBHoverId); },
-                          onExit: (_) => datapathState.setHoverInfo(''),
-                          child: Mux3Widget(
-                            key: datapathState.muxFWAKey,
-                            value: 1,
-                            isActive: true,
-                          ),
-                        ),
-                      ),
-                    ),
-                    if(isPipelineMode)
-                    Positioned(
-                      top: 270,
-                      left: 880,
-                      child: Opacity(
-                        opacity: datapathState.showForwarding||(datapathState.busValues['bus_ControlForwardB'] !=1)? 1.0 : 0.0,
-                        child: MouseRegion(
-                          onEnter: (_) { if (datapathState.showForwarding) datapathState.setHoverInfo(_muxBHoverId); },
-                          onExit: (_) => datapathState.setHoverInfo(''),
-                          child: Mux3Widget(
-                            key: datapathState.muxFWBKey,
-                            value: 1,
-                            isActive: true,
-                          ),
-                        ),
-                      ),
-                    ),
-
-
-                    // --- ALU ---
-                    Positioned(
-                      top: 200,
-                      left: 920,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo(_aluHoverId),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: AdderWidget(
-                          key: datapathState.aluKey,
-                          label: 'ALU',
-                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_ID_EX_A_out"): datapathState.isAluActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
-                          // 5 Puntos para la ALU
-                          connectionPoints: const [
-                            Offset(0,0.25),
-                            Offset(0,0.75),
-                            Offset(0.5,0.15),
-                            Offset(1,0.35),
-                            Offset(1,0.5),
-                            Offset(2.5,0.5),
-                            Offset(1.2,0.5),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // --- Sumador de Saltos (Branch) ---
-                    Positioned(
-                      top: 350,
-                      left: 810,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo(_branchHoverId),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: AdderWidget(
-                          key: datapathState.branchAdderKey,
-                          label: '  BR\ntarget',
-                          isActive: !isSingleCycleMode?datapathState.isPathActive("branch_target_bus"): datapathState.isBranchAdderActive,
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
-                        ),
-                      ),
-                    ),
-                    
-                    // --- Pipeline Registers ---
-                    if(datapathState.showControl||datapathState.showForwarding||datapathState.showLHU||datapathState.showBHU)
-                    Positioned(
-                      top: 80,
-                      left: 1020,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('EX/MEM Control ${formatSingleRegisterHover(datapathState.busValues['Pipe_EX_MEM_Control'],datapathState.busValues['Pipe_EX_MEM_Control_out'], digits: 4)}'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: RegWidget(
-                          key: datapathState.pipereg_emControl_Key,
-                          label: 'EMControl ',
-                          height: 20,
-                          isActive: datapathState.isPathActive("Pipe_EX_MEM_Control_out"),
-                          visibility: isPipelineMode,
-                          connectionPoints: const [Offset(0, 0.5),Offset(1, 0.25),Offset(1, 0.75),Offset(0.5, 0),], // Le llega en 90. Uno sale en 85 y el otro en 95
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_EX_MEM_NPC_out']??0)-4)),
-
-                        ),
-                      ),
-                    ),
-
-
-                    Positioned(
-                      top: 120,
-                      left: 1020,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('EX/ME Register (NPC) ${formatSingleRegisterHover(datapathState.busValues['Pipe_EX_MEM_NPC'],datapathState.busValues['Pipe_EX_MEM_NPC_out'])}'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: RegWidget(
-                          key: datapathState.pipereg_em0_Key,
-                          height: 42,
-                          label: 'EM0',
-                          isActive: datapathState.isPathActive( "Pipe_EX_MEM_NPC_out"),
-                          visibility: isPipelineMode,
-                          connectionPoints: const [Offset(0, 0.715),Offset(1, 0.715),],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC((datapathState.busValues['Pipe_EX_MEM_NPC_out']??0)-4)),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 160,
-                      left: 1020,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo(
-                          (isMultiCycleMode)?
-                          formatMultiRegisterHover([
-                            HoverRegisterData("EX/ME (ALU_result)", datapathState.busValues['Pipe_EX_MEM_ALU_result'], datapathState.busValues['Pipe_EX_MEM_ALU_result_out']),
-                            HoverRegisterData("EX/ME (B)", datapathState.busValues['Pipe_EX_MEM_ALU_B'], datapathState.busValues['Pipe_EX_MEM_ALU_B_out']),
-                          ])
-                          :
-                          formatMultiRegisterHover([
-                            HoverRegisterData("EX/ME (ALU_result)", datapathState.busValues['Pipe_EX_MEM_ALU_result'], datapathState.busValues['Pipe_EX_MEM_ALU_result_out']),
-                            HoverRegisterData("EX/ME (B)", datapathState.busValues['Pipe_EX_MEM_ALU_B'], datapathState.busValues['Pipe_EX_MEM_ALU_B_out']),
-                            HoverRegisterData("EX/ME (RD)", datapathState.busValues['Pipe_EX_MEM_RD'], datapathState.busValues['Pipe_EX_MEM_RD_out'], digits: 5),
-                          ])
-                          ),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: RegWidget(
-                          label:'EM1',
-                          height: 262,
-                          key: datapathState.pipereg_em1_Key,
-                          isActive: datapathState.isPathActive("Pipe_EX_MEM_ALU_result_out"),
-                          visibility: !isSingleCycleMode,
-                          connectionPoints: const [Offset(0, 0.315),Offset(0, 0.384),Offset(0, 0.654),Offset(0, 0.7115),Offset(1, 0.315),Offset(1, 0.384),Offset(1, 0.654),Offset(1, 0.7115)],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC((datapathState.busValues['Pipe_EX_MEM_NPC_out']??0)-4)),
-                        ),
-                      ),
-                    ),
-
- 
-
-
-
-                    // --- Z ---
-                    Positioned(
-                      top: 220,
-                      left: 1040,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('flag Z'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: Text("Z")
-                      ),
-                    ),
-
-                    
-
-                    // --- Memoria de Datos ---
-                    Positioned(
-                      top: 200,
-                      left: 1100,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo(_dataMemoryHoverId),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: MemoryUnitWidget(
-                          key: datapathState.dataMemoryKey,
-                          label: 'Data\nMemory',
-                          width: 80,
-                          isActive: isPipelineMode?(datapathState.busValues["Pipe_MemWr"]==1)||datapathState.isPathActive("mem_read_data_bus") : datapathState.isDMemActive,
-                          height: 120,
-                          // 4 Puntos para D-Mem
-                          connectionPoints: const [
-                            Offset(0,0.5),
-                            Offset(0,0.75),
-                            Offset(0.5,0),
-                            Offset(1,0.566),
-                          ],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC((datapathState.busValues['Pipe_EX_MEM_NPC_out']??0)-4)),
-                        ),
-                      ),
-                    ),
-
-                    // --- Pipeline Registers ---
-                    if(datapathState.showControl||datapathState.showForwarding)
-                    Positioned(
-                      top: 80,
-                      left: 1220,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('MEM/WB Control ${formatSingleRegisterHover(datapathState.busValues['Pipe_MEM_WB_Control'],datapathState.busValues['Pipe_MEM_WB_Control_out'], digits: 4)}'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: RegWidget(
-                          key: datapathState.pipereg_mwControl_Key,
-                          label: 'MWControl ',
-                          height: 10,
-                          isActive: datapathState.isPathActive("Pipe_MEM_WB_Control_out"),
-                          visibility: isPipelineMode,
-                          connectionPoints: const [Offset(0, 0.5),Offset(1, 0.5),Offset(0.5, 0),],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_MEM_WB_NPC_out']??0)-4)),
-
-                        ),
-                      ),
-                    ),
-
-
-                    Positioned(
-                      top: 120,
-                      left: 1220,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo('ME/WR Register (NPC) ${formatSingleRegisterHover(datapathState.busValues['Pipe_MEM_WB_NPC'],datapathState.busValues['Pipe_MEM_WB_NPC_out'])}'),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: RegWidget(
-                          key: datapathState.pipereg_mw0_Key,
-                          label: 'MW0',
-                          height: 42,
-                          isActive: datapathState.isPathActive("Pipe_MEM_WB_NPC_out"),
-                          visibility: isPipelineMode,
-                          connectionPoints: const [Offset(0, 0.715),Offset(1, 0.715),],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC((datapathState.busValues['Pipe_MEM_WB_NPC_out']??0)-4)),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 160,
-                      left: 1220,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo(
-                          (isMultiCycleMode)?
-                          formatMultiRegisterHover([
-                            HoverRegisterData("ME/WB (ALU_result)", datapathState.busValues['Pipe_MEM_WB_ALU_result'], datapathState.busValues['Pipe_MEM_WB_ALU_result_out']),
-                            HoverRegisterData("ME/WB (RM)", datapathState.busValues['Pipe_MEM_WB_RM'], datapathState.busValues['Pipe_MEM_WB_RM_out']),
-                          ])
-                          :
-                          formatMultiRegisterHover([
-                            HoverRegisterData("ME/WB (ALU_result)", datapathState.busValues['Pipe_MEM_WB_ALU_result'], datapathState.busValues['Pipe_MEM_WB_ALU_result_out']),
-                            HoverRegisterData("ME/WB (RM)", datapathState.busValues['Pipe_MEM_WB_RM'], datapathState.busValues['Pipe_MEM_WB_RM_out']),
-                            HoverRegisterData("ME/WB (RD)", datapathState.busValues['Pipe_MEM_WB_RD'], datapathState.busValues['Pipe_MEM_WB_RD_out'], digits: 5),
-                          ])
-                        ),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: RegWidget(
-                          label:'MW1',
-                          height: 262,
-                          key: datapathState.pipereg_mw1_Key,
-                          isActive: datapathState.isPathActive("Pipe_MEM_WB_NPC_out"),
-                          visibility: !isSingleCycleMode,
-                          connectionPoints: const [
-                            Offset(0, 0.0577),
-                            Offset(0, 0.412),
-                            Offset(0, 0.7115),
-                            Offset(1, 0.0577),
-                            Offset(1, 0.412),
-                            Offset(1, 0.7115),
-                            Offset(1.5, 0.412),
-                            ],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC((datapathState.busValues['Pipe_MEM_WB_NPC_out']??0)-4)),
-
-                        ),
-                      ),
-                    ),
-
-                    // --- Unidades de Riesgo y Cortocircuito ---
-                    if (isPipelineMode)
-                      Positioned(
-                        top: 10,
-                        left: 900,
-                        child: HazardUnitWidget(
-                          key: datapathState.loadHazardUnitKey,
-                          label: 'Load Hazard\nUnit',
-                          isActive: datapathState.showLHU || datapathState.isLoadHazard,
-                          connectionPoints: const [
-                            Offset(0, 0.5), // Salida para congelar PC
-                            Offset(0.2, 1), // Entrada desde RD
-                            Offset(0.5, 1), // Entrada desde Control en ex
-                            Offset(0.5, 1.5), // Entrada desde Control en ex
-                            Offset(0, 0.25), // Entrada desde UC, con instruccion decodificada
-                          ],
-                        ),
-                      ),
-
-                    if (isPipelineMode)
-                      Positioned(
-                        top: 10,
-                        left: 900,
-                        child: HazardUnitWidget(
-                          key: datapathState.branchHazardUnitKey,
-                          label: 'Branch Hazard\nUnit',
-                          isActive: datapathState.showBHU ||datapathState.isBranchHazard,
-                          activeColor: const Color.fromARGB(255, 166, 189, 240),
-                          connectionPoints: const [
-                            Offset(1, 0.5), // Entrada desde ALU.Zero
-                            Offset(1.45, 0.5), // Entrada desde ALU.Zero
-                            Offset(0.5, 1), // Entrada desde Control
-                            Offset(0.5, 1.5), // Entrada desde Control
-                            Offset(0, 0.66), // Salida hacia la izquierda (a IF/ID)
-                            Offset(0, 0.33), // Salida hacia la izquierda (a PC)
-                          ],
-                        ),
-                      ),
-
-                    if (isPipelineMode)
-                      Positioned(
-                        top: 10,
-                        left: 900,
-                        child: HazardUnitWidget(
-                          key: datapathState.forwardingUnitKey,
-                          label: 'Forwarding Unit',
-                          isActive: datapathState.showForwarding || datapathState.busValues['bus_ControlForwardA'] != 1 || datapathState.busValues['bus_ControlForwardB'] != 1,
-                          activeColor: Colors.purpleAccent,
-                          connectionPoints: const [
-                            Offset(0.2, 1), // Entrada rd1 rd2
-                            Offset(0.5, 1), // Entrada desde Control ex
-                            Offset(0.5, 1.5), // Entrada desde Control ex
-                            Offset(1, 0.2), // Entrada desde Control me
-                            Offset(1, 0.5), // Entrada desde Control wb
-                            Offset(0, 0.5), // Salida hacia los muxes
-                          ],
-                        ),
-                      ),
-
-                    if (isPipelineMode)
-                      Positioned(
-                        top: 10,
-                        left: 900,
-                        child: MouseRegion(
-                          onEnter: (_) => datapathState.setHoverInfo(_getHazardTooltipText(datapathState)),
-                          onExit: (_) => datapathState.setHoverInfo(''),
-                          child:                         
-                          HazardUnitWidget(
-                          label: '',
-                          isActive: false,
-                          activeColor: Colors.transparent,
-                          ),
-                          ),
-                      ),
-                      
-
-
-                    // --- MuxC result ---
-                    Positioned(
-                      top: 220,
-                      left: 1280,
-                      child: MouseRegion(
-                        onEnter: (_) => datapathState.setHoverInfo(_muxCHoverId),
-                        onExit: (_) => datapathState.setHoverInfo(''),
-                        child: MuxWidget(
-                          key: datapathState.muxCKey,
-                          value: (isPipelineMode?datapathState.busValues['control_ResSrc']:datapathState.busValues['control_ResSrc'] )?? 0,
-                          isActive: isPipelineMode?datapathState.isPathActive("Pipe_MEM_WB_NPC_out"):datapathState.isMuxCActive,
-                          labels: ['2', '1', '0', ' '],
-                          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC((datapathState.busValues['Pipe_MEM_WB_NPC_out']??0)-4)),
-
-                        ),
-                      ),
-                    ),
-
-                    // --- Instruction Labels ---
-                    if (!isPipelineMode)
-                      Positioned(
-                        top: 540,
-                        left: 840,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            //Text(datapathState.instructionValue.toRadixString(2).padLeft(32, '0'),style: miEstiloTooltip.copyWith(fontSize: 24,fontWeight: FontWeight.bold,),                            ),
-                            buildFormattedInstruction(datapathState.instructionInfo, datapathState.instructionValue),
-                          ],
-                        ),
-                      ),
-                    if (!isPipelineMode)
-                      Positioned(
-                        top: 540,
-                        left: 430,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "${datapathState.instruction} (tipo ${datapathState.instructionInfo.type})",
-                              style: miEstiloInst.copyWith(fontSize: 24),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      if (isPipelineMode)
-                      Positioned(
-                        top: 540,
-                        left: 240,
-                        child: Text(
-                          datapathState.pipeIfInstruction,
-                              style: miEstiloInst,
-                        ),
-                      ),                     
-                      if (isPipelineMode)
-                      Positioned(
-                        top: 540,
-                        left: 500,
-                        child: Text(
-                          datapathState.pipeIdInstruction,
-                              style: miEstiloInst,
-                        ),
-                      ),
-                      if (isPipelineMode)
-                      Positioned(
-                        top: 540,
-                        left: 750,
-                        child: Text(
-                          datapathState.pipeExInstruction,
-                              style: miEstiloInst,
-                        ),
-                      ),
-                      if (isPipelineMode)
-                      Positioned(
-                        top: 540,
-                        left: 1010,
-                        child: Text(
-                          datapathState.pipeMemInstruction,
-                              style: miEstiloInst,
-                        ),
-                      ),
-                      if (isPipelineMode)
-                      Positioned(
-                        top: 540,
-                        left: 1230,
-                        child: Text(
-                          datapathState.pipeWbInstruction,
-                              style: miEstiloInst,
-                        ),
-                      ),                    
-                      
-                  //zONA DERECHA
-                  Positioned(top:0,left:1400,child:
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+              child: InteractiveViewer(
+                transformationController: _transformationController,
+                minScale: 0.2,
+                maxScale: 4.0,
+                // Ajustamos el boundaryMargin para incluir el espacio de la ControlUnit en la parte superior.
+                //boundaryMargin: const EdgeInsets.fromLTRB(200, 200 + heightUC, 200, 200),
+                boundaryMargin:EdgeInsets.all(200),
+                // Envolvemos el Stack en un MouseRegion para capturar la posición del ratón.
+                child: MouseRegion(
+                  onHover: (event) {
+                    // La posición local ya está en el sistema de coordenadas transformado del Stack.
+                    // No se necesita ninguna compensación manual.
+                    datapathState.setMousePosition(event.localPosition);
+                  },
+                  child: Stack(
+                    key: datapathState.stackKey,
+                    clipBehavior: Clip.none, // Permite que los widgets se dibujen fuera de los límites del Stack
                     children: [
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: datapathState.showConnectionLabels,
-                            onChanged: (value) => datapathState.setShowConnectionLabels(value),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          const Text('Show connectors', style: TextStyle(fontSize: 9)),
-                        ],
+                      // --- Pintor de Buses (se dibuja detrás de todo) ---
+                      CustomPaint(
+                        painter: BusesPainter(datapathState),
+                        size: Size.infinite,
                       ),
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: datapathState.showBusesLabels,
-                            onChanged:(value) => datapathState.setShowBusesLabels(value), 
-                            visualDensity: VisualDensity.compact),
-                          const Text('Show buses values', style: TextStyle(fontSize: 9, color: Colors.black)),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: datapathState.showControl,
-                            onChanged:(value) => datapathState.setControlVisibility(value), 
-                            visualDensity: VisualDensity.compact),
-                          const Text('Show control signals', style: TextStyle(fontSize: 9, color: Colors.black)),
-                        ],
-                        
-                      ),
-                    if (isPipelineMode)
-                      Row(
+
+                      // --- Logos ---
+                      Positioned(
+                        top: yShift+520,
+                        left: 22,
+                        child: Row(
                           children: [
-                            Checkbox(
-                              value: datapathState.showForwarding,
-                              onChanged:(value) => datapathState.setForwardingVisibility(value), 
-                              visualDensity: VisualDensity.compact),
-                            const Text('Show forwarding', style: TextStyle(fontSize: 9, color: Colors.black)),
-                          ],
-                          
-                        ),
-                    if (isPipelineMode)
-                      Row(
-                          children: [
-                            Checkbox(
-                              value: datapathState.showLHU,
-                              onChanged:(value) => datapathState.setShowLHU(value), 
-                              visualDensity: VisualDensity.compact),
-                            const Text('Show LHU', style: TextStyle(fontSize: 9, color: Colors.black)),
+                            Image.asset(
+                              'img/dac.png',
+                              width: 60,
+                              height: 50,
+                            ),
+                            const SizedBox(width: 20),
+                            Image.asset(
+                              'img/uma.png',
+                              width: 70,
+                              height: 70,
+                            ),
                           ],
                         ),
-                    if (isPipelineMode)
-                      Row(
+                      ),
+                      //iNFO ICONS
+                      Positioned(
+                        top:20,
+                        left: 10,
+                        child: Row(
                           children: [
-                            Checkbox(
-                              value: datapathState.showBHU,
-                              onChanged:(value) => datapathState.setShowBHU(value), 
-                              visualDensity: VisualDensity.compact),
-                            const Text('Show BHU', style: TextStyle(fontSize: 9, color: Colors.black)),
+                            Tooltip(
+                              message: 'Instruction Formats',
+                              child: MouseRegion(
+                                onEnter: (_) => datapathState.setHoverInfo(_instructionFormatTableHoverId),
+                                onExit: (_) => datapathState.setHoverInfo(''),
+                                child: IconButton(
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(Icons.info_outline),
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () {}, // No action on click
+                                ),
+                              ),
+                            ),
+                            Tooltip(
+                              message: 'Control Unit Logic Table',
+                              child: MouseRegion(
+                                onEnter: (_) => datapathState.setHoverInfo(_controlTableHoverId),
+                                onExit: (_) => datapathState.setHoverInfo(''),
+                                child: IconButton(
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(Icons.bolt), // Icono de rayo
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () {}, // No action on click
+                                ),
+                              ),
+                            ),
                           ],
                         ),
-                      const SizedBox(height: 16),
-                      // --- Contenedor para el Historial de Ejecución ---
-                      // Le damos un tamaño fijo y un borde para que se vea bien.
-                      Container(
-                        height: 470, // Altura fija para el historial
-                        width: 180,  // Ancho fijo
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade400),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const ExecutionHistoryView(),
                       ),
+                    
+                      // --- Todos los widgets del datapath ---
+                      ..._buildDatapathWidgets(datapathState, isSingleCycleMode, isPipelineMode, isMultiCycleMode),
+                    
+                      // --- Tooltip Flotante ---
+                      // Se muestra solo si hay información de hover y se dibuja encima de todo.
+                      if (datapathState.hoverInfo.isNotEmpty)
+                        FloatingTooltip(
+                          message: datapathState.hoverInfo,
+                          position: datapathState.mousePosition,
+                        ),
                     ],
                   ),
-                  ),
-
-
-
-                    // --- Tooltip Flotante ---
-                    // Se muestra solo si hay información de hover y se dibuja encima de todo.
-                    if (datapathState.hoverInfo.isNotEmpty)
-                      FloatingTooltip(
-                        message: datapathState.hoverInfo,
-                        position: datapathState.mousePosition,
-                      ),
-                  ],
                 ),
               ),
             ),
@@ -1297,12 +504,860 @@ class MyApp extends StatelessWidget {
       ),
     );
   }
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
 }
 
 final miEstiloInst = TextStyle(
   fontFamily: 'RobotoMono',
   fontSize: 18,
   color: Colors.black,
+  fontWeight: FontWeight.bold,
+  fontFeatures: [const FontFeature.disable('liga')],
+);
+
+/// Extrae la lógica de construcción de los widgets del datapath a una función separada
+/// para mantener el método `build` principal más limpio.
+List<Widget> _buildDatapathWidgets(DatapathState datapathState, bool isSingleCycleMode, bool isPipelineMode, bool isMultiCycleMode) {
+  return [
+    // --- Unidad de Control ---
+    Positioned(
+      top: yPosUC,
+      left: xPosUC,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo(_controlHoverId),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: SizedBox( // Mantenemos el SizedBox para darle el tamaño fijo necesario.
+          width: widthUC,
+          height: heightUC,
+          child: ControlUnitWidget(
+            key: datapathState.controlUnitKey,
+            isActive: datapathState.isControlActive,
+          ),
+        ),
+      ),
+    ),
+    // --- Mux2 PC ---
+    Positioned(
+      top: yMuxPC,
+      left: xMuxPC,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo(_muxPcHoverId),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: MuxWidget(
+          key: datapathState.mux2Key,
+          value: datapathState.busValues['control_PCsrc'] ?? 0,
+          isActive: isPipelineMode? true: datapathState.isMux2Active,
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC((datapathState.busValues['Pipe_MEM_WB_NPC_out']??0)-4)),
+        ),
+      ),
+    ),
+    // --- PC ---
+    Positioned(
+      top: yPC,
+      left: xPC,
+      // MouseRegion detecta cuando el ratón entra o sale de su área.
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo('PC: ${formatSingleRegisterHover(datapathState.pcValue, datapathState.busValues['mux_pc_bus'])}'),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: PcWidget(
+          key: datapathState.pcKey,
+          isActive: datapathState.isPCActive,
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC((datapathState.busValues['npc_bus']??0)-4)),
+        ),
+      ),
+    ),
+
+    // --- Sumador del PC ---
+    Positioned(
+      top: yAdderPC,
+      left: xAdderPC,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo(_pcAdderHoverId),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        // El color del sumador ahora depende del estado global
+        child: AdderWidget(
+          key: datapathState.pcAdderKey,
+          label: 'NPC',
+          isActive: datapathState.isPcAdderActive,
+          connectionPoints: [
+            Offset(-1.5,0.25),
+            Offset(0,0.25),
+            Offset(0,0.75),
+            Offset(1,0.5),
+            Offset(2,0.5),
+          ],
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC((datapathState.busValues['npc_bus']??0)-4)),
+
+
+        ),
+      ),
+    ),
+    // --- Memoria de Instrucciones ---
+    Positioned(
+      top: yInstrMem,
+      left: xInstrMem,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo(_instructionMemoryHoverId),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: MemoryUnitWidget(
+          key: datapathState.instructionMemoryKey,
+          label: 'Instruct.\nMemory',
+          width: widthMems,
+          height: heightMems,
+          isActive: !isSingleCycleMode?true: datapathState.isIMemActive,
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color1:pipelineColorForPC((datapathState.busValues['npc_bus']??0)-4)),
+          // 2 Puntos para I-Mem
+          connectionPoints: const [
+            Offset(0,0.5),
+            Offset(1,0.5),
+          ],
+        ),
+      ),
+    ),
+    // --- Cte ---
+    Positioned(
+      top: yConst4,
+      left: xConst4,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo('Constant: 4'),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: Text("0x00000004")
+      ),
+    ),
+    // --- Instruction Buffer ---
+    Positioned(
+      top: yIB,
+      left: xIB,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo(isSingleCycleMode?'Instruction Buffer':
+        'IF_ID_Instr ${formatSingleRegisterHover(datapathState.busValues['Pipe_IF_ID_Instr'],datapathState.busValues['Pipe_IF_ID_Instr_out'])}'),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: IBWidget(
+          key: datapathState.ibKey,
+          isActive: !isSingleCycleMode? datapathState.isPathActive('Pipe_IF_ID_Instr_out'): datapathState.isIBActive,
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC((datapathState.busValues['Pipe_IF_ID_NPC_out']??0)-4)),
+    
+        ),
+      ),
+    ),
+
+    // --- Pipeline Registers IF/ID ---
+    Positioned(
+      top: yPipeRegIFID_NPC,
+      left: xPipeRegIFID_NPC,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo('IF_ID_NPC ${formatSingleRegisterHover(datapathState.busValues['Pipe_IF_ID_NPC'],datapathState.busValues['Pipe_IF_ID_NPC_out'])}'),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: RegWidget(
+          key: datapathState.pipereg_fd0_Key,
+          label: 'FD0',
+          height: heightNPCReg,
+          isActive: datapathState.isPathActive("Pipe_IF_ID_Instr_out"),
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC((datapathState.busValues['Pipe_IF_ID_NPC_out']??0)-4)),
+          visibility: isPipelineMode,
+          connectionPoints: const [Offset(0, yPipeNPC1),Offset(1, yPipeNPC1),Offset(0.5, 0)],
+        ),
+      ),
+    ),
+    Positioned(
+      top: yPipeRegIFID_PC,
+      left: xPipeRegIFID_PC,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo('IF_ID_PC ${formatSingleRegisterHover(datapathState.busValues['Pipe_IF_ID_PC'],datapathState.busValues['Pipe_IF_ID_PC_out']??0-4)}'),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: RegWidget(
+          key: datapathState.pipereg_fd1_Key,
+          label: 'FD1',
+          height: heightPCPipeReg,
+          isActive: datapathState.isPathActive("Pipe_IF_ID_Instr_out"),
+          visibility: isPipelineMode,
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC((datapathState.busValues['Pipe_IF_ID_NPC_out']??0)-4)),
+        ),
+      ),
+    ),
+
+    // --- Banco de Registros ---
+    Positioned(
+      top: yRegFile,
+      left: xRegFile,
+      child: MouseRegion(                        
+        onEnter: (_) => datapathState.setHoverInfo(_registerFileHoverId),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: MemoryUnitWidget(
+          key: datapathState.registerFileKey,
+          label: 'Register\nFile',
+          isActive: isPipelineMode ? datapathState.isPathActive("Pipe_IF_ID_Instr_out") : datapathState.isRegFileActive,
+          width: widthMems,
+          height: heightMems,
+          // 7 Puntos para el Banco de Registros
+          connectionPoints: const [
+            Offset(0,0.2),
+            Offset(0,0.4),
+            Offset(0,0.6),
+            Offset(0,0.8),
+            Offset(0.5,0),
+            Offset(1,0.25),
+            Offset(1,r_BR_B),
+            Offset(15/8.0,r_BR_B),
+            ],
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC((datapathState.busValues['Pipe_IF_ID_NPC_out']??0)-4)),
+        ),
+      ),
+    ),
+    // --- Extender ---
+    Positioned(
+      top: yExtender,
+      left: xExtender,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo(_immHoverId),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: ExtenderWidget(
+          key: datapathState.extenderKey,
+          label: 'Imm. ext.',
+          isActive: isPipelineMode?datapathState.isPathActive("Pipe_IF_ID_Instr_out"): datapathState.isExtenderActive,
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color2:pipelineColorForPC((datapathState.busValues['Pipe_IF_ID_NPC_out']??0)-4)),
+        ),
+      ),
+    ),
+
+    // --- Pipeline Registers ---
+    if(datapathState.showControl||datapathState.showForwarding||datapathState.showLHU||datapathState.showBHU)
+    Positioned(
+      top: yPipeRegIDEX_Control,
+      left: xPipeRegIDEX_Control, 
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo('DE/EX Control ${formatSingleRegisterHover(datapathState.busValues['Pipe_ID_EX_Control'],datapathState.busValues['Pipe_ID_EX_Control_out'], digits: 4)}'),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: RegWidget(
+          key: datapathState.pipereg_deControl_Key,
+          label: 'DEControl ',
+          height: heightControlPipe1,
+          isActive: datapathState.isPathActive("Pipe_ID_EX_Control_out"),
+          visibility: isPipelineMode,
+          connectionPoints: const [Offset(0, 0.5),Offset(1, 0.33),Offset(1, 0.666),], //Llega en 100, salen en 90 y 100
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
+
+        ),
+      ),
+    ),
+
+    Positioned(
+      top: yPipeRegIDEX_NPC,
+      left: xPipeRegIDEX_NPC,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (NPC)  ${formatSingleRegisterHover(datapathState.busValues['Pipe_ID_EX_NPC'],datapathState.busValues['Pipe_ID_EX_NPC_out'])}'),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: RegWidget(
+          key: datapathState.pipereg_de0_Key,
+          label: 'DE0',
+          height: heightNPCReg,
+          isActive: datapathState.isPathActive("Pipe_ID_EX_NPC_out"),
+          visibility: isPipelineMode,
+          connectionPoints: const [Offset(0, yPipeNPC1),Offset(1, yPipeNPC1),],
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
+
+        ),
+      ),
+    ),
+    Positioned(
+      top: yPipeRegIDEX_Data,
+      left: xPipeRegIDEX_Data,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo(
+          (isMultiCycleMode)?
+          formatMultiRegisterHover([
+            HoverRegisterData("ID/EX (A)", datapathState.busValues['Pipe_ID_EX_A'], datapathState.busValues['Pipe_ID_EX_A_out']),
+            HoverRegisterData("ID/EX (B)", datapathState.busValues['Pipe_ID_EX_B'], datapathState.busValues['Pipe_ID_EX_B_out']),
+            HoverRegisterData("ID/EX (Imm)", datapathState.busValues['Pipe_ID_EX_Imm'], datapathState.busValues['Pipe_ID_EX_Imm_out']),
+          ])
+          :
+          formatMultiRegisterHover([
+            HoverRegisterData("ID/EX (A)", datapathState.busValues['Pipe_ID_EX_A'], datapathState.busValues['Pipe_ID_EX_A_out']),
+            HoverRegisterData("ID/EX (B)", datapathState.busValues['Pipe_ID_EX_B'], datapathState.busValues['Pipe_ID_EX_B_out']),
+            HoverRegisterData("ID/EX (RD)", datapathState.busValues['Pipe_ID_EX_RD'], datapathState.busValues['Pipe_ID_EX_RD_out'],digits:5),
+            HoverRegisterData("ID/EX (RS1)", datapathState.busValues['Pipe_ID_EX_RS1'], datapathState.busValues['Pipe_ID_EX_RS1_out'], digits: 5),
+            HoverRegisterData("ID/EX (RS2)", datapathState.busValues['Pipe_ID_EX_RS2'], datapathState.busValues['Pipe_ID_EX_RS2_out'], digits: 5),
+            HoverRegisterData("ID/EX (Imm)", datapathState.busValues['Pipe_ID_EX_Imm'], datapathState.busValues['Pipe_ID_EX_Imm_out']),
+          ])
+        ),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: RegWidget(
+          label:'DE1',
+          height: heightIB,
+          key: datapathState.pipereg_de1_Key,
+          isActive: datapathState.isPathActive("Pipe_ID_EX_NPC_out"),
+          visibility: !isSingleCycleMode,
+          connectionPoints: const [Offset(0, r_DE0),Offset(0, r_DE1),Offset(0, r_DE2),Offset(0, r_DE3),Offset(1, r_DE0),Offset(1, r_DE1),Offset(1, r_DE2),Offset(1, r_DE3),Offset(1, r_DE4)],
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
+        ),
+      ),
+    ),
+    Positioned(
+      top: yPipeRegIDEX_PC,
+      left: xPipeRegIDEX_PC,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo('DE/EX Register (PC) ${formatSingleRegisterHover(datapathState.busValues['Pipe_ID_EX_PC'],datapathState.busValues['Pipe_ID_EX_PC_out'])}'),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: RegWidget(
+          key: datapathState.pipereg_de2_Key,
+          label: 'DE2',
+          height: heightPCPipeReg,
+          isActive: datapathState.isPathActive("Pipe_ID_EX_PC_out"),
+          visibility: isPipelineMode,
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
+        ),
+      ),
+    ),
+
+
+    // --- MuxB ---
+    Positioned(
+      top: yMuxALU,
+      left: xMuxALU,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo(_muxBHoverId),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: Mux2Widget(
+          key: datapathState.mux3Key,
+          value: datapathState.busValues['control_ALUsrc'] ?? 0,
+          isActive: isPipelineMode?datapathState.isPathActive("Pipe_ID_EX_B_out"): datapathState.isMux3Active,
+          labels: ['0', '1', '2', ' '],
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
+
+        ),
+      ),
+    ),
+
+    // --- Forwarding muxes ---
+    if(isPipelineMode)
+    Positioned(
+      top: yMuxFwdA,
+      left: xMuxFwdA,
+      child: Opacity(
+        opacity: datapathState.showForwarding||(datapathState.busValues['bus_ControlForwardA'] !=1)? 1.0 : 0.0,
+        child: MouseRegion(
+          onEnter: (_) { if (datapathState.showForwarding) datapathState.setHoverInfo(_muxBHoverId); },
+          onExit: (_) => datapathState.setHoverInfo(''),
+          child: Mux3Widget(
+            key: datapathState.muxFWAKey,
+            value: 1,
+            isActive: true,
+          ),
+        ),
+      ),
+    ),
+    if(isPipelineMode)
+    Positioned(
+      top: yMuxFwdB,
+      left: xMuxFwdB,
+      child: Opacity(
+        opacity: datapathState.showForwarding||(datapathState.busValues['bus_ControlForwardB'] !=1)? 1.0 : 0.0,
+        child: MouseRegion(
+          onEnter: (_) { if (datapathState.showForwarding) datapathState.setHoverInfo(_muxBHoverId); },
+          onExit: (_) => datapathState.setHoverInfo(''),
+          child: Mux3Widget(
+            key: datapathState.muxFWBKey,
+            value: 1,
+            isActive: true,
+          ),
+        ),
+      ),
+    ),
+
+
+    // --- ALU ---
+    Positioned(
+      top: yALU,
+      left: xALU,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo(_aluHoverId),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: AdderWidget(
+          key: datapathState.aluKey,
+          label: 'ALU',
+          isActive: isPipelineMode ? datapathState.isPathActive("Pipe_ID_EX_A_out") : datapathState.isAluActive,
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
+          // 5 Puntos para la ALU
+          connectionPoints: const [
+            Offset(0,0.25),
+            Offset(0,0.75),
+            Offset(0.5,0.15),
+            Offset(1,0.35),
+            Offset(1,0.5),
+            Offset(2.5,0.5),
+            Offset(1.2,0.5),
+          ],
+        ),
+      ),
+    ),
+    // --- Sumador de Saltos (Branch) ---
+    Positioned(
+      top: yAdderBranch,
+      left: xAdderBranch,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo(_branchHoverId),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: AdderWidget(
+          key: datapathState.branchAdderKey,
+          label: '  BR\ntarget',
+          isActive: !isSingleCycleMode?datapathState.isPathActive("branch_target_bus"): datapathState.isBranchAdderActive,
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_ID_EX_NPC_out']??0)-4)),
+        ),
+      ),
+    ),
+    
+    // --- Pipeline Registers ---
+    if(datapathState.showControl||datapathState.showForwarding||datapathState.showLHU||datapathState.showBHU)
+    Positioned(
+      top: yPipeRegEXMEM_Control,
+      left: xPipeRegEXMEM_Control,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo('EX/MEM Control ${formatSingleRegisterHover(datapathState.busValues['Pipe_EX_MEM_Control'],datapathState.busValues['Pipe_EX_MEM_Control_out'], digits: 4)}'),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: RegWidget(
+          key: datapathState.pipereg_emControl_Key,
+          label: 'EMControl ',
+          height: heightControlPipe2,
+          isActive: datapathState.isPathActive("Pipe_EX_MEM_Control_out"),
+          visibility: isPipelineMode,
+          connectionPoints: const [Offset(0, 0.5),Offset(1, 0.25),Offset(1, 0.75),Offset(0.5, 0),], // Le llega en 90. Uno sale en 85 y el otro en 95
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_EX_MEM_NPC_out']??0)-4)),
+
+        ),
+      ),
+    ),
+
+
+    Positioned(
+      top: yPipeRegEXMEM_NPC,
+      left: xPipeRegEXMEM_NPC,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo('EX/ME Register (NPC) ${formatSingleRegisterHover(datapathState.busValues['Pipe_EX_MEM_NPC'],datapathState.busValues['Pipe_EX_MEM_NPC_out'])}'),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: RegWidget(
+          key: datapathState.pipereg_em0_Key,
+          height: heightNPCReg,
+          label: 'EM0',
+          isActive: datapathState.isPathActive( "Pipe_EX_MEM_NPC_out"),
+          visibility: isPipelineMode,
+          connectionPoints: const [Offset(0, yPipeNPC1),Offset(1, yPipeNPC1),],
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC((datapathState.busValues['Pipe_EX_MEM_NPC_out']??0)-4)),
+        ),
+      ),
+    ),
+    Positioned(
+      top: yPipeRegEXMEM_Data,
+      left: xPipeRegEXMEM_Data,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo(
+          (isMultiCycleMode)?
+          formatMultiRegisterHover([
+            HoverRegisterData("EX/ME (ALU_result)", datapathState.busValues['Pipe_EX_MEM_ALU_result'], datapathState.busValues['Pipe_EX_MEM_ALU_result_out']),
+            HoverRegisterData("EX/ME (B)", datapathState.busValues['Pipe_EX_MEM_ALU_B'], datapathState.busValues['Pipe_EX_MEM_ALU_B_out']),
+          ])
+          :
+          formatMultiRegisterHover([
+            HoverRegisterData("EX/ME (ALU_result)", datapathState.busValues['Pipe_EX_MEM_ALU_result'], datapathState.busValues['Pipe_EX_MEM_ALU_result_out']),
+            HoverRegisterData("EX/ME (B)", datapathState.busValues['Pipe_EX_MEM_ALU_B'], datapathState.busValues['Pipe_EX_MEM_ALU_B_out']),
+            HoverRegisterData("EX/ME (RD)", datapathState.busValues['Pipe_EX_MEM_RD'], datapathState.busValues['Pipe_EX_MEM_RD_out'], digits: 5),
+          ])
+          ),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: RegWidget(
+          label:'EM1',
+          height: heightIB,
+          key: datapathState.pipereg_em1_Key,
+          isActive: datapathState.isPathActive("Pipe_EX_MEM_ALU_result_out"),
+          visibility: !isSingleCycleMode,
+          connectionPoints: const [Offset(0, 0.315),Offset(0, 0.384),Offset(0, 0.654),Offset(0, 0.7115),Offset(1, 0.315),Offset(1, 0.384),Offset(1, 0.654),Offset(1, 0.7115)],
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC((datapathState.busValues['Pipe_EX_MEM_NPC_out']??0)-4)),
+        ),
+      ),
+    ),
+
+ 
+
+
+
+    // --- Z ---
+    Positioned(
+      top: yFlagZ,
+      left: xFlagZ,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo('flag Z'),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: Text("Z")
+      ),
+    ),
+
+    
+
+    // --- Memoria de Datos ---
+    Positioned(
+      top: yDataMem,
+      left: xDataMem,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo(_dataMemoryHoverId),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: MemoryUnitWidget(
+          key: datapathState.dataMemoryKey,
+          label: 'Data\nMemory',
+          width: widthMems,
+          height: heightMems,
+          isActive: isPipelineMode ? (datapathState.busValues["Pipe_MemWr"] == 1) || datapathState.isPathActive("mem_read_data_bus") : datapathState.isDMemActive,
+          // 4 Puntos para D-Mem
+          connectionPoints: const [
+            Offset(0,0.5),
+            Offset(0,0.75),
+            Offset(0.5,0),
+            Offset(1,ry_salidaMemData), // Se calcula del mux
+          ],
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color4:pipelineColorForPC((datapathState.busValues['Pipe_EX_MEM_NPC_out']??0)-4)),
+        ),
+      ),
+    ),
+
+    // --- Pipeline Registers ---
+    if(datapathState.showControl||datapathState.showForwarding)
+    Positioned(
+      top: yPipeRegMEMWB_Control,
+      left: xPipeRegMEMWB_Control,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo('MEM/WB Control ${formatSingleRegisterHover(datapathState.busValues['Pipe_MEM_WB_Control'],datapathState.busValues['Pipe_MEM_WB_Control_out'], digits: 4)}'),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: RegWidget(
+          key: datapathState.pipereg_mwControl_Key,
+          label: 'MWControl ',
+          height: heightControlPipe3,
+          isActive: datapathState.isPathActive("Pipe_MEM_WB_Control_out"),
+          visibility: isPipelineMode,
+          connectionPoints: const [Offset(0, 0.5),Offset(1, 0.5),Offset(0.5, 0),],
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color3:pipelineColorForPC((datapathState.busValues['Pipe_MEM_WB_NPC_out']??0)-4)),
+
+        ),
+      ),
+    ),
+
+
+    Positioned(
+      top: yPipeRegMEMWB_NPC,
+      left: xPipeRegMEMWB_NPC,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo('ME/WR Register (NPC) ${formatSingleRegisterHover(datapathState.busValues['Pipe_MEM_WB_NPC'],datapathState.busValues['Pipe_MEM_WB_NPC_out'])}'),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: RegWidget(
+          key: datapathState.pipereg_mw0_Key,
+          label: 'MW0',
+          height: heightNPCReg,
+          isActive: datapathState.isPathActive("Pipe_MEM_WB_NPC_out"),
+          visibility: isPipelineMode,
+          connectionPoints: const [Offset(0, yPipeNPC1),Offset(1,yPipeNPC1),],
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC((datapathState.busValues['Pipe_MEM_WB_NPC_out']??0)-4)),
+        ),
+      ),
+    ),
+    Positioned(
+      top: yPipeRegMEMWB_Data,
+      left: xPipeRegMEMWB_Data,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo(
+          (isMultiCycleMode)?
+          formatMultiRegisterHover([
+            HoverRegisterData("ME/WB (ALU_result)", datapathState.busValues['Pipe_MEM_WB_ALU_result'], datapathState.busValues['Pipe_MEM_WB_ALU_result_out']),
+            HoverRegisterData("ME/WB (RM)", datapathState.busValues['Pipe_MEM_WB_RM'], datapathState.busValues['Pipe_MEM_WB_RM_out']),
+          ])
+          :
+          formatMultiRegisterHover([
+            HoverRegisterData("ME/WB (ALU_result)", datapathState.busValues['Pipe_MEM_WB_ALU_result'], datapathState.busValues['Pipe_MEM_WB_ALU_result_out']),
+            HoverRegisterData("ME/WB (RM)", datapathState.busValues['Pipe_MEM_WB_RM'], datapathState.busValues['Pipe_MEM_WB_RM_out']),
+            HoverRegisterData("ME/WB (RD)", datapathState.busValues['Pipe_MEM_WB_RD'], datapathState.busValues['Pipe_MEM_WB_RD_out'], digits: 5),
+          ])
+        ),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: RegWidget(
+          label:'MW1',
+          height: heightIB,
+          key: datapathState.pipereg_mw1_Key,
+          isActive: datapathState.isPathActive("Pipe_MEM_WB_NPC_out"),
+          visibility: !isSingleCycleMode,
+          connectionPoints: const [
+            Offset(0, r_MW0),
+            Offset(0, r_MW1),
+            Offset(0, r_MW2),
+            Offset(1, r_MW0),
+            Offset(1, r_MW1),
+            Offset(1, r_MW2),
+            Offset(1.5, r_MW1),
+            ],
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC((datapathState.busValues['Pipe_MEM_WB_NPC_out']??0)-4)),
+
+        ),
+      ),
+    ),
+
+    // --- Unidades de Riesgo y Cortocircuito ---
+    if (isPipelineMode)
+      Positioned(
+        top: yHazardUnits,
+        left: xHazardUnits,
+        child: HazardUnitWidget(
+          key: datapathState.loadHazardUnitKey,
+          label: 'Load Hazard\nUnit',
+          isActive: datapathState.showLHU || datapathState.isLoadHazard,
+          connectionPoints: const [
+            Offset(0, 0.5), // Salida para congelar PC
+            Offset(0.2, 1), // Entrada desde RD
+            Offset(0.5, 1), // Entrada desde Control en ex
+            Offset(0.5, 1.5), // Entrada desde Control en ex
+            Offset(0, 0.25), // Entrada desde UC, con instruccion decodificada
+          ],
+        ),
+      ),
+
+    if (isPipelineMode)
+      Positioned(
+        top: yHazardUnits,
+        left: xHazardUnits,
+        child: HazardUnitWidget(
+          key: datapathState.branchHazardUnitKey,
+          label: 'Branch Hazard\nUnit',
+          isActive: datapathState.showBHU ||datapathState.isBranchHazard,
+          activeColor: const Color.fromARGB(255, 166, 189, 240),
+          connectionPoints: const [
+            Offset(1, 0.5), // Entrada desde ALU.Zero
+            Offset(1.45, 0.5), // Entrada desde ALU.Zero
+            Offset(0.5, 1), // Entrada desde Control
+            Offset(0.5, 1.5), // Entrada desde Control
+            Offset(0, 0.66), // Salida hacia la izquierda (a IF/ID)
+            Offset(0, 0.33), // Salida hacia la izquierda (a PC)
+          ],
+        ),
+      ),
+
+    if (isPipelineMode)
+      Positioned(
+        top: yHazardUnits,
+        left: xHazardUnits,
+        child: HazardUnitWidget(
+          key: datapathState.forwardingUnitKey,
+          label: 'Forwarding Unit',
+          isActive: datapathState.showForwarding || datapathState.busValues['bus_ControlForwardA'] != 1 || datapathState.busValues['bus_ControlForwardB'] != 1,
+          activeColor: Colors.purpleAccent,
+          connectionPoints: const [
+            Offset(0.2, 1), // Entrada rd1 rd2
+            Offset(0.5, 1), // Entrada desde Control ex
+            Offset(0.5, 1.5), // Entrada desde Control ex
+            Offset(1, 0.2), // Entrada desde Control me
+            Offset(1, 0.5), // Entrada desde Control wb
+            Offset(rx_controlMuxHzd, 1), // Salida hacia los muxes
+          ],
+        ),
+      ),
+
+    if (isPipelineMode)
+      Positioned(
+        top: yHazardUnits,
+        left: xHazardUnits,
+        child: MouseRegion(
+          onEnter: (_) => datapathState.setHoverInfo(_getHazardTooltipText(datapathState)),
+          onExit: (_) => datapathState.setHoverInfo(''),
+          child:                         
+          HazardUnitWidget(
+          label: '',
+          isActive: false,
+          activeColor: Colors.transparent,
+          ),
+          ),
+      ),
+      
+
+
+    // --- MuxC result ---
+    Positioned(
+      top: yMuxWB,
+      left: xMuxWB,
+      child: MouseRegion(
+        onEnter: (_) => datapathState.setHoverInfo(_muxCHoverId),
+        onExit: (_) => datapathState.setHoverInfo(''),
+        child: MuxWidget(
+          key: datapathState.muxCKey,
+          value: (isPipelineMode ? datapathState.busValues['control_ResSrc'] : datapathState.busValues['control_ResSrc']) ?? 0,
+          isActive: isPipelineMode?datapathState.isPathActive("Pipe_MEM_WB_NPC_out"):datapathState.isMuxCActive,
+          labels: ['2', '1', '0', ' '],
+          color:isSingleCycleMode?defaultColor:(isMultiCycleMode?color5:pipelineColorForPC((datapathState.busValues['Pipe_MEM_WB_NPC_out']??0)-4)),
+
+        ),
+      ),
+    ),
+
+    // --- Instruction Labels ---
+    if (!isPipelineMode)
+      Positioned(
+        top: yInstrucciones,
+        left: xInstruction,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            //Text(datapathState.instructionValue.toRadixString(2).padLeft(32, '0'),style: miEstiloTooltip.copyWith(fontSize: 24,fontWeight: FontWeight.bold,),                            ),
+            buildFormattedInstruction(datapathState.instructionInfo, datapathState.instructionValue),
+          ],
+        ),
+      ),
+    if (!isPipelineMode)
+      Positioned(
+        top: yInstrucciones,
+        left: xInstructionD,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "${datapathState.instruction} (tipo ${datapathState.instructionInfo.type})",
+              style: miEstiloInst.copyWith(fontSize: 24),
+            ),
+          ],
+        ),
+      ),
+
+      if (isPipelineMode)
+      Positioned(
+        top: yInstrucciones,
+        left: xInstruction1,
+        child: Text(
+          datapathState.pipeIfInstruction,
+              style: miEstiloInst,
+        ),
+      ),                     
+      if (isPipelineMode)
+      Positioned(
+        top: yInstrucciones,
+        left: xInstruction2,
+        child: Text(
+          datapathState.pipeIdInstruction,
+              style: miEstiloInst,
+        ),
+      ),
+      if (isPipelineMode)
+      Positioned(
+        top: yInstrucciones,
+        left: xInstruction3,
+        child: Text(
+          datapathState.pipeExInstruction,
+              style: miEstiloInst,
+        ),
+      ),
+      if (isPipelineMode)
+      Positioned(
+        top: yInstrucciones,
+        left: xInstruction4,
+        child: Text(
+          datapathState.pipeMemInstruction,
+              style: miEstiloInst,
+        ),
+      ),
+      if (isPipelineMode)
+      Positioned(
+        top: yInstrucciones,
+        left: xInstruction5,
+        child: Text(
+          datapathState.pipeWbInstruction,
+              style: miEstiloInst,
+        ),
+      ),                    
+      
+  //zONA DERECHA
+  Positioned(top:0,left:xDerecha,child:
+  Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Row(
+        children: [
+          Checkbox(
+            value: datapathState.showConnectionLabels,
+            onChanged: (value) => datapathState.setShowConnectionLabels(value),
+            visualDensity: VisualDensity.compact,
+          ),
+          const Text('Show connectors', style: TextStyle(fontSize: 9)),
+        ],
+      ),
+      Row(
+        children: [
+          Checkbox(
+            value: datapathState.showBusesLabels,
+            onChanged:(value) => datapathState.setShowBusesLabels(value), 
+            visualDensity: VisualDensity.compact),
+          const Text('Show buses values', style: TextStyle(fontSize: 9, color: Colors.black)),
+        ],
+      ),
+      Row(
+        children: [
+          Checkbox(
+            value: datapathState.showControl,
+            onChanged:(value) => datapathState.setControlVisibility(value), 
+            visualDensity: VisualDensity.compact),
+          const Text('Show control signals', style: TextStyle(fontSize: 9, color: Colors.black)),
+        ],
+        
+      ),
+    if (isPipelineMode)
+      Row(
+          children: [
+            Checkbox(
+              value: datapathState.showForwarding,
+              onChanged:(value) => datapathState.setForwardingVisibility(value), 
+              visualDensity: VisualDensity.compact),
+            const Text('Show forwarding', style: TextStyle(fontSize: 9, color: Colors.black)),
+          ],
+          
+        ),
+    if (isPipelineMode)
+      Row(
+          children: [
+            Checkbox(
+              value: datapathState.showLHU,
+              onChanged:(value) => datapathState.setShowLHU(value), 
+              visualDensity: VisualDensity.compact),
+            const Text('Show LHU', style: TextStyle(fontSize: 9, color: Colors.black)),
+          ],
+        ),
+    if (isPipelineMode)
+      Row(
+          children: [
+            Checkbox(
+              value: datapathState.showBHU,
+              onChanged:(value) => datapathState.setShowBHU(value), 
+              visualDensity: VisualDensity.compact),
+            const Text('Show BHU', style: TextStyle(fontSize: 9, color: Colors.black)),
+          ],
+        ),
+      const SizedBox(height: 16),
+      // --- Contenedor para el Historial de Ejecución ---
+      // Le damos un tamaño fijo y un borde para que se vea bien.
+      Container(
+        height: 470, // Altura fija para el historial
+        width: 180,  // Ancho fijo
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: const ExecutionHistoryView(),
+      ),
+    ],
+  ),
+  ),
+  ];
+}
+
+
+final miEstiloTooltip = TextStyle(
+  fontFamily: 'RobotoMono',
+  fontSize: 12,
+  color: Colors.white,
   fontWeight: FontWeight.bold,
   fontFeatures: [const FontFeature.disable('liga')],
 );

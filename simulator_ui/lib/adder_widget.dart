@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:namer_app/geometry.dart';
 import 'colors.dart';
 
 class AdderWidget extends StatelessWidget {
@@ -15,6 +16,7 @@ class AdderWidget extends StatelessWidget {
       Offset(0,0.25),
       Offset(0,0.75),
       Offset(1,0.5),
+      Offset(1.2,0.5),
     ],
     this.color =defaultColor,
   });
@@ -26,8 +28,8 @@ class AdderWidget extends StatelessWidget {
     final Color textColor = isActive ? Colors.black : Colors.black.withAlpha(30);
 
     return SizedBox(
-      width: 60,
-      height: 120,
+      width: widthALU,
+      height: heightALU,
       // Stack nos permite apilar widgets. Dibujaremos la forma
       // y pondremos el texto '+' encima.
       child: Stack(

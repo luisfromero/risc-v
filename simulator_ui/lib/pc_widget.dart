@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:namer_app/geometry.dart';
 import 'colors.dart';
 
 class PcWidget extends StatelessWidget {
@@ -25,8 +26,8 @@ class PcWidget extends StatelessWidget {
     final Color textColor = isActive ? Colors.black : Colors.black.withAlpha(30);
 
     return Container(
-      width: 30,  // Ancho de la caja
-      height: 120, // Alto de la caja
+      width: widthPC,  // Ancho de la caja
+      height: heightPC, // Alto de la caja
       // La decoración nos permite añadir color, bordes, sombras, etc.
       decoration: BoxDecoration(
         color: backgroundColor, // Color de fondo grisáceo
