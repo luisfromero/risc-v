@@ -40,3 +40,4 @@ ffi_wrapper.py
 /out
 simulator.log
 simulator.log
+tests/generator.py

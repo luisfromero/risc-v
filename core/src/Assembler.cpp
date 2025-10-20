@@ -173,6 +173,12 @@ std::vector<std::string> RISCVAssembler::preprocess(const std::string& source_co
             continue;
         }
 
+        // NUEVO: Ignorar directivas del ensamblador (líneas que empiezan con '.')
+        if (line[0] == '.') {
+            if (m_log) *m_log << "    -> Directiva ignorada: '" << line << "'" << std::endl;
+            continue;
+        }
+
         // Expansión de pseudo-instrucciones
         if (line == "nop") {
             line = "addi x0, x0, 0";

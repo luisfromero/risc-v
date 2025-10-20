@@ -751,3 +751,74 @@ def assemble_code(
             }
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Error durante el ensamblado: {e}")
+
+# --- Endpoint para el Generador de Preguntas ---
+
+class FingerprintModel(BaseModel):
+    fingerprint: str
+
+@app.post("/generate_question", summary="Genera un par de pregunta y respuesta para un examen")
+def generate_question_endpoint(config: FingerprintModel = Body(...)):
+    """
+    Genera una pregunta de examen determinista a partir de un 'fingerprint'.
+    Este endpoint es autocontenido y gestiona su propia sesión de simulador.
+    """
+    # Importamos el generador aquí para mantenerlo aislado del resto de la API.
+    try:
+        # Como 'generator.py' está ahora en la misma carpeta 'api', se puede importar directamente.
+        import generator
+    except ImportError:
+        raise HTTPException(status_code=500, detail="No se pudo encontrar el módulo 'generator.py'.")
+
+    # Usamos un lock para asegurar que la generación es atómica, aunque
+    # este endpoint gestiona su propia instancia de simulador.
+    with simulators_lock:
+        try:
+            assembly_code, code_info, initial_pc = generator.generate_test_case(config.fingerprint)
+
+            # 2. Crear una instancia temporal del simulador
+            sim = Simulator(model=0) # Modelo 0 = SingleCycle
+            
+            # 3. Cargar el programa y establecer el PC (sin llamar a reset_with_model)
+            sim.load_program_from_assembly(assembly_code)
+            # Esta es la clave: evitamos el `step()` automático de `reset_with_model`
+            # que causa el crash. ¡CORRECCIÓN! El reset es necesario.
+            sim.reset_with_model(model=0, initial_pc=initial_pc)
+            
+            # 4. Ejecutar el programa hasta el final
+            sim.steps_until(breakpoints=[]) # Se detendrá por bucle infinito
+
+            # 5. Formatear la pregunta y la respuesta
+            qa_pair = generator.format_question_answer(
+                assembly_code=assembly_code,
+                initial_pc=initial_pc,
+                sim=sim,
+                code_info=code_info
+            )
+            return qa_pair
+
+        except Exception as e:
+            # Capturamos cualquier error durante la generación.
+            raise HTTPException(status_code=500, detail=f"Error generando la pregunta: {e}")
+
+@app.post("/assemble", summary="Ensambla código RISC-V")
+def assemble_code(
+    session_id: str = Query(..., description="ID de la sesión"),
+    assembly_code: str = Body(..., embed=True, description="Código ensamblador a compilar")
+):
+    """
+    Toma una cadena de código ensamblador, la compila usando el núcleo C++
+    y devuelve el código máquina resultante codificado en Base64.
+    """
+    with simulators_lock:
+        sim_instance = get_simulator_for_session(session_id)
+        sim = sim_instance["sim"]
+        try:
+            machine_code = sim.assemble(assembly_code)
+            machine_code_b64 = base64.b64encode(machine_code).decode('utf-8')
+            return {
+                "machine_code_b64": machine_code_b64,
+                "size_bytes": len(machine_code)
+            }
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Error durante el ensamblado: {e}")
