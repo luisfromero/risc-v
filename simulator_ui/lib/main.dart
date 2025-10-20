@@ -1343,89 +1343,112 @@ List<Widget> _buildDatapathWidgets(DatapathState datapathState, bool isSingleCyc
   Positioned(top:0,left:xDerecha,child:
   Column(
     crossAxisAlignment: CrossAxisAlignment.start,
-    mainAxisAlignment: MainAxisAlignment.center,
     children: [
-      // Solo muestra este checkbox si la app está en modo de depuración.
-      if (kDebugMode)
-        Row(
-          children: [
-            Checkbox(
-              value: datapathState.showConnectionLabels,
-              onChanged: (value) => datapathState.setShowConnectionLabels(value),
-              visualDensity: VisualDensity.compact,
-              
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // --- COLUMNA 1: Checkboxes siempre visibles ---
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (kDebugMode)
+                Row(
+                  children: [
+                    Checkbox(
+                      value: datapathState.showConnectionLabels,
+                      onChanged: (value) => datapathState.setShowConnectionLabels(value),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    const Text('Show connectors', style: TextStyle(fontSize: 9)),
+                  ],
+                ),
+              Row(
+                children: [
+                  Checkbox(
+                      value: datapathState.showBusesLabels,
+                      onChanged: (value) => datapathState.setShowBusesLabels(value),
+                      visualDensity: VisualDensity.compact),
+                  const Text('Show buses values', style: TextStyle(fontSize: 9, color: Colors.black)),
+                ],
+              ),
+              Row(
+                children: [
+                  Checkbox(
+                      value: datapathState.showControl,
+                      onChanged: (value) => datapathState.setControlVisibility(value),
+                      visualDensity: VisualDensity.compact),
+                  const Text('Show control signals', style: TextStyle(fontSize: 9, color: Colors.black)),
+                ],
+              ),
+              Row(
+                children: [
+                  Checkbox(
+                      value: datapathState.showStaticCodeView,
+                      onChanged: (value) => datapathState.setStaticCodeView(value),
+                      visualDensity: VisualDensity.compact),
+                  Text(
+                      datapathState.showStaticCodeView ? 'Show Execution Thread' : 'Show Program Listing',
+                      style: const TextStyle(fontSize: 9, color: Colors.black)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(width: 10), // Espacio entre columnas
+          // --- COLUMNA 2: Checkboxes solo para modo Pipeline ---
+          if (isPipelineMode)
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Checkbox(
+                        value: datapathState.hazardsEnabled,
+                        onChanged: (value) => datapathState.setHazardsEnabled(value),
+                        visualDensity: VisualDensity.compact),
+                    const Text('Enable Hazards', style: TextStyle(fontSize: 9, color: Colors.black)),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Checkbox(
+                        value: datapathState.showForwarding,
+                        onChanged: (value) => datapathState.setForwardingVisibility(value),
+                        visualDensity: VisualDensity.compact),
+                    const Text('Show forwarding', style: TextStyle(fontSize: 9, color: Colors.black)),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Checkbox(
+                        value: datapathState.showLHU,
+                        onChanged: (value) => datapathState.setShowLHU(value),
+                        visualDensity: VisualDensity.compact),
+                    const Text('Show LHU', style: TextStyle(fontSize: 9, color: Colors.black)),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Checkbox(
+                        value: datapathState.showBHU,
+                        onChanged: (value) => datapathState.setShowBHU(value),
+                        visualDensity: VisualDensity.compact),
+                    const Text('Show BHU', style: TextStyle(fontSize: 9, color: Colors.black)),
+                  ],
+                ),
+              ],
             ),
-            const Text('Show connectors', style: TextStyle(fontSize: 9)),
-          ],
-        ),
-      Row(
-        children: [
-          Checkbox(
-            value: datapathState.showBusesLabels,
-            onChanged:(value) => datapathState.setShowBusesLabels(value), 
-            visualDensity: VisualDensity.compact),
-          const Text('Show buses values', style: TextStyle(fontSize: 9, color: Colors.black)),
         ],
       ),
-      Row(
-        children: [
-          Checkbox(
-            value: datapathState.showControl,
-            onChanged:(value) => datapathState.setControlVisibility(value), 
-            visualDensity: VisualDensity.compact),
-          const Text('Show control signals', style: TextStyle(fontSize: 9, color: Colors.black)),
-        ],
-        
-      ),
-    if (isPipelineMode)
-      Row(
-          children: [
-            Checkbox(
-              value: datapathState.showForwarding,
-              onChanged:(value) => datapathState.setForwardingVisibility(value), 
-              visualDensity: VisualDensity.compact),
-            const Text('Show forwarding', style: TextStyle(fontSize: 9, color: Colors.black)),
-          ],
-          
-        ),
-    if (isPipelineMode)
-      Row(
-          children: [
-            Checkbox(
-              value: datapathState.showLHU,
-              onChanged:(value) => datapathState.setShowLHU(value), 
-              visualDensity: VisualDensity.compact),
-            const Text('Show LHU', style: TextStyle(fontSize: 9, color: Colors.black)),
-          ],
-        ),
-    if (isPipelineMode)
-      Row(
-          children: [
-            Checkbox(
-              value: datapathState.showBHU,
-              onChanged:(value) => datapathState.setShowBHU(value), 
-              visualDensity: VisualDensity.compact),
-            const Text('Show BHU', style: TextStyle(fontSize: 9, color: Colors.black)),
-          ],
-        ),
-      Row(
-        children: [
-          Checkbox(
-            value: datapathState.showStaticCodeView,
-            onChanged:(value) => datapathState.setStaticCodeView(value), 
-            visualDensity: VisualDensity.compact),
-          Text(
-            datapathState.showStaticCodeView ? 'Show Execution Thread' : 'Show Program Listing',
-            style: const TextStyle(fontSize: 9, color: Colors.black)),
-        ],
-      ),
-
       const SizedBox(height: 16),
       // --- Contenedor para el Historial de Ejecución ---
       // Le damos un tamaño fijo y un borde para que se vea bien.
       Container(
-        height: 470, // Altura fija para el historial
-        width: 180,  // Ancho fijo
+        height: 500, // Altura fija para el historial
+        width: 220,  // Ancho fijo
+        margin: const EdgeInsets.only(left: 30),
         decoration: BoxDecoration(
           border: Border.all(color: Colors.grey.shade400),
           borderRadius: BorderRadius.circular(4),

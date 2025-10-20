@@ -127,6 +127,9 @@ Simulator::Simulator(size_t mem_size, PipelineModel model)
     d_cache(DMEM_SIZE, 16, memory),//No usado
     i_mem(IMEM_SIZE), // Memoria de instrucciones para modo didáctico
     d_mem(DMEM_SIZE),  // Memoria de datos para modo didáctico
+    handle_load_use_hazard(true), // Habilitado por defecto
+    handle_branch_flush(true),    // Habilitado por defecto
+    handle_forwarding(true),      // Habilitado por defecto
     history_pointer(0),
     assembler(&m_logfile), // Pasamos el logfile al ensamblador
     datapath{}
@@ -138,6 +141,13 @@ Simulator::Simulator(size_t mem_size, PipelineModel model)
       // Reservar espacio para el historial para evitar realojamientos frecuentes
       history.reserve(1024);
       m_logfile << "--- Historia reservada ---" << std::endl;
+}
+
+// Nueva función para configurar las opciones de riesgo
+void Simulator::set_hazard_options(bool stalls, bool flushes, bool forwarding) {
+    handle_load_use_hazard = stalls;
+    handle_branch_flush = flushes;
+    handle_forwarding = forwarding;
 }
 
 // Ensambla un código ensamblador a código máquina.
@@ -1041,9 +1051,9 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
     bool isLWorSW=false;
     uint32_t data_to_store = datapath.Pipe_EX_MEM_B_out.value; // Valor por defecto para SW.
     datapath.bus_ControlForwardM = {0, 1, false}; // BUGFIX: Reiniciamos el bus de control de forwarding MEM->MEM en cada ciclo.
-    m_logfile << "Se desactiva por defecto el forward m m " << std::endl;
+    if(m_logfile.is_open()&&DEBUG_INFO) m_logfile << "Se desactiva por defecto el forward m m " << std::endl;
 
-    if (FORWARDING && is_valid_instr_MEM && controlSignal(datapath.Pipe_EX_MEM_Control_out.value, "MemWr")) {
+    if (handle_forwarding && is_valid_instr_MEM && controlSignal(datapath.Pipe_EX_MEM_Control_out.value, "MemWr")) {
         // --- LÓGICA DE FORWARDING MEM -> MEM ---
         // Detecta si una instrucción SW en la etapa MEM necesita el resultado de una LW en la etapa WB.
         
@@ -1059,7 +1069,7 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
         if (wb_is_load && wb_rd != 0 && wb_rd == mem_rs2_addr) {
             data_to_store = datapath.Pipe_MEM_WB_RM_out.value; // Cortocircuito desde el dato leído en la etapa anterior.
             datapath.bus_ControlForwardM = {1, 1, true}; // Activamos el forwarding.
-            m_logfile << "Se activó el forward m m " << std::endl;
+            if(m_logfile.is_open()&&DEBUG_INFO) m_logfile << "Se activó el forward m m " << std::endl;
 
         }
     }
@@ -1122,7 +1132,7 @@ catch(const std::exception& e){
     uint32_t forwarded_a = datapath.Pipe_ID_EX_A_out.value;
     uint32_t forwarded_b = datapath.Pipe_ID_EX_B_out.value;
 
-    if (is_valid_instr_EX && FORWARDING) {
+    if (is_valid_instr_EX && handle_forwarding) {
         // --- FORWARDING UNIT LOGIC ---
         // Determina si necesitamos cortocircuitar datos desde las etapas MEM o WB a la etapa EX.
 
@@ -1175,7 +1185,7 @@ catch(const std::exception& e){
         // MUX B: Selects the second operand for the ALU.
         alu_op_b = mux_B.select(datapath.Pipe_ID_EX_Imm_out.value, forwarded_b, ALUsrc);
 
-        m_logfile << "ALUsrc: "<< ALUsrc << std::endl;
+        if(m_logfile.is_open()&&DEBUG_INFO) m_logfile << "ALUsrc: "<< ALUsrc << std::endl;
 
         // ALU Execution
         alu_result = alu.calc(forwarded_a, alu_op_b, ALUctr);
@@ -1267,7 +1277,7 @@ catch(const std::exception& e){
 
     // --- LOAD-USE HAZARD DETECTION (STALL) ---
     stall = false;
-    if (LOAD_USE_HAZARD) {
+    if (handle_load_use_hazard) {
         // A load-use hazard occurs if the instruction in the EX stage is a load (lw)
         // and its destination register (rd) is one of the source registers (rs1 or rs2)
         // of the instruction currently in the ID stage.
@@ -1420,8 +1430,8 @@ catch(const std::exception& e){
     // ETAPA 1: INSTRUCTION FETCH (IF)
     // =================================================================================
     // Fetches the next instruction from memory.
-    
-if(!BRANCH_FLUSH)flush=false;
+
+    if(!handle_branch_flush) flush=false;
 
 
     datapath.bus_Control = { id_control_word, 1 }; //En dart es 'Control'

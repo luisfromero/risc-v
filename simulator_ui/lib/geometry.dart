@@ -65,7 +65,7 @@ const double y_PipeDCfinal=y_shift+490;
 const y_rdest=y_shift+345; //Buses de propagacion de registro destino
 
 const double yInstrucciones=y_shift+540;
-const double xDerecha=xMaximo+40;
+const double xDerecha=xMaximo+20;
 
 
 // Referencias buses control Pipelie

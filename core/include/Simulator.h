@@ -57,6 +57,9 @@ public:
     // Ejecuta un solo ciclo de instrucción.
     void step();
 
+    // Configura las opciones de gestión de riesgos.
+    void set_hazard_options(bool stalls, bool flushes, bool forwarding);
+
     // Retrocede un ciclo en la simulación.
     void step_back();
 
@@ -84,6 +87,11 @@ private:
     std::ofstream m_logfile;  // Fichero para el log
     RegisterFile register_file;
     PipelineModel model;
+
+    // --- Opciones de gestión de riesgos ---
+    bool handle_load_use_hazard;
+    bool handle_branch_flush;
+    bool handle_forwarding;
 
     // Componentes para el modo General (con cachés)
     Memory memory; // Memoria principal unificada

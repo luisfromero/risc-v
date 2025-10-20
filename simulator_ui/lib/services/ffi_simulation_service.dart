@@ -33,6 +33,9 @@ typedef SimulatorStepBack = Pointer<Utf8> Function(Pointer<Void>);
 typedef SimulatorResetNative = Pointer<Utf8> Function(Pointer<Void>, Int32, Uint32);
 typedef SimulatorReset = Pointer<Utf8> Function(Pointer<Void>, int, int);
 
+typedef SimulatorSetHazardOptionsNative = Void Function(Pointer<Void>, Bool, Bool, Bool);
+typedef SimulatorSetHazardOptions = void Function(Pointer<Void>, bool, bool, bool);
+
 typedef SimulatorGetInstructionStringNative = Pointer<Utf8> Function(Pointer<Void>);
 typedef SimulatorGetInstructionString = Pointer<Utf8> Function(Pointer<Void>);
 
@@ -87,6 +90,7 @@ late final SimulatorGetAllRegisters simulatorGetAllRegisters;
 late final SimulatorGetStateJson simulatorGetStateJson;
 late final SimulatorGetIMem simulatorGetIMem;
 late final SimulatorGetDMem simulatorGetDMem;
+late final SimulatorSetHazardOptions simulatorSetHazardOptions;
 
 // -------------------------------------------
 // Clase Dart para usar el simulador
@@ -205,6 +209,10 @@ class Simulador {
     }
   }
 
+  void setHazardOptions(bool enabled) {
+    simulatorSetHazardOptions(_sim, enabled, enabled, enabled);
+  }
+
   Map<String, dynamic> reset(int mode, int initialPc) {
     try {
       final jsonStr = simulatorReset(_sim, mode, initialPc).toDartString();
@@ -311,6 +319,10 @@ class FfiSimulationService implements SimulationService {
           .asFunction();
       simulatorGetDMem = _simulatorLib
           .lookup<NativeFunction<SimulatorGetDMemNative>>('Simulator_get_d_mem')
+          .asFunction();
+      simulatorSetHazardOptions = _simulatorLib
+          .lookup<NativeFunction<SimulatorSetHazardOptionsNative>>(
+              'Simulator_set_hazard_options')
           .asFunction();
 
 
@@ -427,7 +439,13 @@ class FfiSimulationService implements SimulationService {
 // ffi_simulation_service.dart
 
   @override
-  Future<SimulationState> reset({required SimulationMode mode, int initial_pc = 0, String? assemblyCode, Uint8List? binCode}) async {
+  Future<SimulationState> reset({
+    required SimulationMode mode,
+    int initial_pc = 0,
+    String? assemblyCode,
+    Uint8List? binCode,
+    bool hazardsEnabled = true,
+  }) async {
     if (binCode != null && binCode.isNotEmpty) {
       simulador.loadProgram(binCode, mode.index);
       // ignore: avoid_print
@@ -438,6 +456,9 @@ class FfiSimulationService implements SimulationService {
       print('Programa desde ensamblador cargado en el simulador FFI.');
     }
     // Si no se proporciona código, el simulador mantiene el programa que ya tenía en memoria.
+
+    // Configuramos las opciones de riesgo ANTES de llamar a reset.
+    simulador.setHazardOptions(hazardsEnabled);
 
     final stateMap = simulador.reset(mode.index, initial_pc);
 

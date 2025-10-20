@@ -204,6 +204,9 @@ core_lib.Simulator_reset.restype = ctypes.c_char_p
 core_lib.Simulator_reset_with_model.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_uint]
 core_lib.Simulator_reset_with_model.restype = ctypes.c_char_p
 
+core_lib.Simulator_set_hazard_options.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_bool, ctypes.c_bool]
+core_lib.Simulator_set_hazard_options.restype = None
+
 core_lib.Simulator_get_pc.argtypes = [ctypes.c_void_p]
 core_lib.Simulator_get_pc.restype = ctypes.c_uint32
 
@@ -338,6 +341,12 @@ class Simulator:
     def __del__(self):
         if hasattr(self, 'obj') and self.obj:
             core_lib.Simulator_delete(self.obj)
+
+    def set_hazard_options(self, stalls: bool, flushes: bool, forwarding: bool):
+        """Configura las opciones de detección de riesgos en el núcleo C++."""
+        if not self.obj:
+            return
+        core_lib.Simulator_set_hazard_options(self.obj, stalls, flushes, forwarding)
 
 # --- Paso 5: Crear la aplicación FastAPI ---
 
@@ -580,6 +589,7 @@ class ResetConfig(BaseModel):
     load_test_program: bool = True
     bin_code: str | None = None  # Base64 encoded binary
     assembly_code: str | None = None
+    hazards_enabled: bool = True # Nuevo campo para controlar los riesgos
 
 
 
@@ -595,6 +605,7 @@ def reset_simulator(
     - **load_test_program**: Si es true, carga el programa de prueba inicial (ignorado si se provee bin_code o assembly_code).
     - **bin_code**: Código binario del programa, codificado en Base64.
     - **assembly_code**: Código ensamblador del programa (aún no implementado).
+    - **hazards_enabled**: Si es true, activa la detección de riesgos de datos y de control, y los cortocircuitos.
     """
     with simulators_lock:
         # Obtenemos la instancia existente para asegurarnos de que la sesión es válida
@@ -610,6 +621,11 @@ def reset_simulator(
             "model_name": config.model
         }
         sim = simulators[session_id]["sim"]
+
+        # Configuramos las opciones de riesgo en el núcleo C++
+        sim.set_hazard_options(stalls=config.hazards_enabled, 
+                               flushes=config.hazards_enabled, 
+                               forwarding=config.hazards_enabled)
         print("Creada nueva instancia del simulador...")
 
         if config.bin_code:

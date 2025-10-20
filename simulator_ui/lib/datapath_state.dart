@@ -270,6 +270,7 @@ class DatapathState extends ChangeNotifier {
   bool _showLHU = false;
   bool _showBHU = false;
   bool _showStaticCodeView = false; // Por defecto, mostramos la vista dinámica (hilo)
+  bool _hazardsEnabled = true; // Nuevo estado para controlar los riesgos
 
 
   // --- GESTIÓN DE ANIMACIONES Y BREAKPOINTS ---
@@ -354,6 +355,7 @@ bool get isBranchHazard => _isBranchHazard;
   bool get showLHU => _showLHU;
   bool get showBHU => _showBHU;
   bool get showStaticCodeView => _showStaticCodeView;
+  bool get hazardsEnabled => _hazardsEnabled;
   Set<int> get breakpoints => _breakpoints;
   bool get isPlaying => _isPlaying;
 
@@ -468,6 +470,14 @@ bool get isBranchHazard => _isBranchHazard;
     }
   }
 
+  void setHazardsEnabled(bool? value) {
+    if (value != null && _hazardsEnabled != value) {
+      _hazardsEnabled = value;
+      notifyListeners();
+      // Opcional: resetear al cambiar para que el cambio tenga efecto inmediato.
+      reset();
+    }
+  }
 
 
   // Simula la ejecución de un ciclo de reloj
@@ -534,7 +544,11 @@ bool get isBranchHazard => _isBranchHazard;
   // Resetea el estado a sus valores iniciales.
   Future<void> reset({int initial_pc = 0, String? assemblyCode, Uint8List? binCode}) async {
     final newState = await _simulationService.reset(
-        mode: _simulationMode, initial_pc: initial_pc, assemblyCode: assemblyCode, binCode: binCode);
+        mode: _simulationMode, 
+        initial_pc: initial_pc, 
+        assemblyCode: assemblyCode, 
+        binCode: binCode,
+        hazardsEnabled: _hazardsEnabled); // Pasamos el nuevo estado
     print("Ejecutado reset() con modo: $_simulationMode");
     //newState.copyWith(initial_pc: initial_pc);
     _sliderValue = 0.0;

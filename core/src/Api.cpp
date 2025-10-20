@@ -200,6 +200,13 @@ extern "C" {
         return jsonFromState(state);
     }
 
+    SIMULATOR_API void Simulator_set_hazard_options(void* sim_ptr, bool stalls, bool flushes, bool forwarding) {
+        if (!sim_ptr) return;
+        // Llama al nuevo método en la instancia del simulador.
+        static_cast<Simulator*>(sim_ptr)->set_hazard_options(stalls, flushes, forwarding);
+    }
+
+
     SIMULATOR_API const char*  Simulator_step(void* sim_ptr) {
         if (!sim_ptr) return "{}";
         static_cast<Simulator*>(sim_ptr)->step();
