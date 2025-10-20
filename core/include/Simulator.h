@@ -63,6 +63,9 @@ public:
     // Retrocede un ciclo en la simulación.
     void step_back();
 
+    // Ejecuta la simulación hasta que se cumpla una condición (breakpoint, bucle, etc.).
+    int stepsUntil(const std::vector<uint32_t>& breakpoints);
+
     void reset(PipelineModel model = PipelineModel::SingleCycle, uint32_t _initial_pc=0);
     
     // Devuelve el estado actual para la API.

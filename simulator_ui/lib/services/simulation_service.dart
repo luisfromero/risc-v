@@ -619,6 +619,9 @@ abstract class SimulationService {
   /// Retrocede un ciclo de reloj y devuelve el estado anterior.
   Future<SimulationState> stepBack();
 
+  /// Ejecuta la simulación hasta alcanzar uno de los breakpoints.
+  Future<SimulationState> runUntil(List<int> breakpoints);
+
   /// Resetea la simulación a su estado inicial.
   Future<SimulationState> reset({
     required SimulationMode mode,

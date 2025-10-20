@@ -184,14 +184,6 @@ extern "C" {
         return machine_code.size();
     }
 
-    SIMULATOR_API const char* Simulator_reset(void* sim_ptr) {
-        if (!sim_ptr) return "{}";
-        // Llama a reset sin argumentos, usando el valor por defecto (SingleCycle) que hemos definido en Simulator.h
-        static_cast<Simulator*>(sim_ptr)->reset();
-        DatapathState state = static_cast<Simulator*>(sim_ptr)->get_datapath_state();
-        return jsonFromState(state); // fastapi no lo usa; prefiere llamar a state después
-    }
-
     // Nueva función para que la UI pueda especificar el modo al resetear.
     SIMULATOR_API const char* Simulator_reset_with_model(void* sim_ptr, int mode_int, uint32_t initial_pc) {
         if (!sim_ptr) return "{}";
@@ -217,6 +209,23 @@ extern "C" {
     SIMULATOR_API const char* Simulator_step_back(void* sim_ptr) {
         if (!sim_ptr) return "{}";
         static_cast<Simulator*>(sim_ptr)->step_back();
+        DatapathState state = static_cast<Simulator*>(sim_ptr)->get_datapath_state();
+        return jsonFromState(state);
+    }
+
+    SIMULATOR_API const char* Simulator_steps_until(void* sim_ptr, const uint32_t* breakpoints_ptr, size_t num_breakpoints) {
+        if (!sim_ptr) return "{}";
+
+        // Convertimos el array C-style a un std::vector para pasarlo al núcleo.
+        std::vector<uint32_t> breakpoints;
+        if (breakpoints_ptr != nullptr && num_breakpoints > 0) {
+            breakpoints.assign(breakpoints_ptr, breakpoints_ptr + num_breakpoints);
+        }
+
+        // Llama a la función del núcleo para ejecutar pasos hasta la condición de parada.
+        // La función devuelve el número de pasos, que de momento no usamos aquí, pero podría ser útil para logs.
+        static_cast<Simulator*>(sim_ptr)->stepsUntil(breakpoints);
+        // Devuelve el estado final del datapath como JSON.
         DatapathState state = static_cast<Simulator*>(sim_ptr)->get_datapath_state();
         return jsonFromState(state);
     }

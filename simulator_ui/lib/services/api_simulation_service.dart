@@ -243,4 +243,42 @@ Future<SimulationState> getDataMemory() async {
       throw Exception('Failed to call reset API: ${response.statusCode}');
     }
   }
+
+  @override
+  Future<SimulationState> runUntil(List<int> breakpoints) async {
+    _checkSession();
+    if (_currentState == null) {
+      throw Exception(
+          "El estado del simulador no está inicializado. Llama a reset() primero.");
+    }
+
+    final stateBeforeRun = _currentState!;
+
+    final uri = Uri.parse('$_baseUrl/run').replace(queryParameters: {
+      'session_id': _sessionId!,
+    });
+
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'breakpoints': breakpoints}),
+    );
+
+    if (response.statusCode == 200) {
+      final newState =
+          SimulationState.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
+
+      // La ejecución puede haber modificado la memoria de datos, así que la actualizamos.
+      final dataMemory = (await getDataMemory()).dataMemory;
+
+      // CORRECTO: Combinamos el nuevo estado con las memorias que ya teníamos.
+      _currentState = newState.copyWith(
+          // Mantenemos la memoria de instrucciones del estado anterior.
+          instructionMemory: stateBeforeRun.instructionMemory,
+          dataMemory: dataMemory);
+      return _currentState!;
+    } else {
+      throw Exception('Failed to call runUntil API: ${response.statusCode}');
+    }
+  }
 }

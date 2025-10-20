@@ -389,12 +389,9 @@ class _MyAppState extends State<MyApp> {
                         Expanded(
                           flex: 1,
                           child: Tooltip(
-                            message: 'Run at backend (up to breakpoint, trap or infinite loop) (not implemented)',
+                            message: 'Run until next breakpoint (or step if none)',
                             child: ElevatedButton.icon(
-                              onPressed: () {
-                                // Lógica para el botón Run (backend)
-                                // datapathState.run(); // A implementar en el futuro
-                              },
+                              onPressed: () => datapathState.run(),
                               icon: const Icon(Icons.fast_forward, size: 16),
                               label: const Text('Run'),
                               style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade100, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 8)),

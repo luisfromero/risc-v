@@ -198,8 +198,8 @@ core_lib.Simulator_step.restype = ctypes.c_char_p
 core_lib.Simulator_step_back.argtypes = [ctypes.c_void_p]
 core_lib.Simulator_step_back.restype = ctypes.c_char_p
 
-core_lib.Simulator_reset.argtypes = [ctypes.c_void_p]
-core_lib.Simulator_reset.restype = ctypes.c_char_p
+core_lib.Simulator_steps_until.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32), ctypes.c_size_t]
+core_lib.Simulator_steps_until.restype = ctypes.c_char_p
 
 core_lib.Simulator_reset_with_model.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_uint]
 core_lib.Simulator_reset_with_model.restype = ctypes.c_char_p
@@ -277,10 +277,17 @@ class Simulator:
         print("Llamando al step back de la dll...")
         return core_lib.Simulator_step_back(self.obj).decode('utf-8')
 
+    def steps_until(self, breakpoints: List[int]):
+        num_breakpoints = len(breakpoints)
+        print(f"Llamando a steps_until de la dll con {num_breakpoints} breakpoints...")
 
-    def reset(self):
-        print("Llamando al reset de la dll...")
-        return core_lib.Simulator_reset(self.obj).decode('utf-8')
+        if num_breakpoints == 0:
+            # Si no hay breakpoints, llamamos a la función con un puntero nulo y tamaño 0.
+            return core_lib.Simulator_steps_until(self.obj, None, 0).decode('utf-8')
+
+        breakpoints_array = (ctypes.c_uint32 * num_breakpoints)(*breakpoints)
+        return core_lib.Simulator_steps_until(self.obj, breakpoints_array, num_breakpoints).decode('utf-8')
+
 
     def reset_with_model(self, model: int, initial_pc: int = 0):
         print("Llamando al reset de la dll...")
@@ -675,6 +682,25 @@ def execute_step_back(session_id: str = Query(..., description="ID de la sesión
         sim = sim_instance["sim"]
         model_name = sim_instance["model_name"]
         return _get_full_state_data(sim, model_name)    
+
+class RunConfig(BaseModel):
+    breakpoints: List[int]
+
+@app.post("/run", response_model=SimulatorStateModel, summary="Ejecutar hasta el siguiente breakpoint")
+def run_until(
+    session_id: str = Query(..., description="ID de la sesión"),
+    config: RunConfig = Body(...)
+) -> SimulatorStateModel:
+    """
+    Ejecuta la simulación hasta que el PC alcanza una de las direcciones en la lista de 'breakpoints',
+    se detecta un bucle o se alcanza el número máximo de pasos.
+    """
+    with simulators_lock:
+        sim_instance = get_simulator_for_session(session_id)
+        sim = sim_instance["sim"]
+        model_name = sim_instance["model_name"]
+        sim.steps_until(config.breakpoints)
+        return _get_full_state_data(sim, model_name)
 
 @app.get("/memory/data", 
          summary="Obtener el contenido de la memoria de datos",

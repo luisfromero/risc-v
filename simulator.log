@@ -1,2 +1,21 @@
 --- Log del Simulador RISC-V ---
 --- Historia reservada ---
+
+--- Advertencia: Se cargó un programa vacío. Limpiando memoria. ---
+Model:0
+
+--- Reseteando ---
+PC: 0x0
+
+--- Localizando la primera instruccion ---
+Model:0
+Instruction:0
+
+--- Ciclo 0 ---
+PC: 0x0
+Instruccion leida: 0x0
+Model:0
+0000000000000000
+Instrucción no reconocida: 0x0
+Instruccion ejecutada: 0x0
+Control: 0x0

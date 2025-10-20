@@ -38,3 +38,5 @@ riscv.7z
 ffi_wrapper.py
 /.vs
 /out
+simulator.log
+simulator.log

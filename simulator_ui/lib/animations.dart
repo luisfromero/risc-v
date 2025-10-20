@@ -48,9 +48,9 @@ extension DatapathAnimation on DatapathState {
       case SimulationMode.singleCycle:
         // En monociclo, cada 'step' gradúa una instrucción.
         // Un bucle se detecta si el PC de la instrucción actual es igual al de la anterior.
-        if (_historyManager.history.length > 1) {
-          final lastRecord = _historyManager.history.last;
-          final previousRecord = _historyManager.history[_historyManager.history.length - 2];
+        if (historyManager.history.length > 1) {
+          final lastRecord = historyManager.history.last;
+          final previousRecord = historyManager.history[historyManager.history.length - 2];
           if (lastRecord.pc == previousRecord.pc) {
             print("Single-cycle: Infinite loop or end of program detected at ${toHex(current_pc)}. Pausing.");
             pause();

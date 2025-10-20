@@ -44,7 +44,7 @@ class InstructionMemoryItem {
 /// hacia `ExecutionHistoryManager`. Esto permite al gestor del historial saber
 /// cómo debe modificar su log (añadir un registro, quitarlo, borrar todo, etc.).
 enum CAUSAS {
-  STEP,
+  STEP, // Causa genérica para cualquier avance que no sea micro-ciclo
   RESET,
   STEPBACK,
   STEP_MICRO,
@@ -141,8 +141,8 @@ class DatapathState extends ChangeNotifier {
   SimulationMode get simulationMode => _simulationMode;
 
   // --- HISTORIAL DE EJECUCIÓN ---
-  final ExecutionHistoryManager _historyManager = ExecutionHistoryManager();
-  List<ExecutionRecord> get executionHistory => _historyManager.history;
+  final ExecutionHistoryManager historyManager = ExecutionHistoryManager();
+  List<ExecutionRecord> get executionHistory => historyManager.history;
 
   // --- ESTADO DE LA SIMULACIÓN (TIMING) ---
   int _criticalTime = 100;      // Tiempo total del ciclo, para el slider.
@@ -375,9 +375,8 @@ bool get isBranchHazard => _isBranchHazard;
 
       //Aqui actualizamos las direcciones segun initial_state 
 
-
       _sliderValue = initialState.criticalTime.toDouble();
-      _historyManager.cause=CAUSAS.RESET;
+      historyManager.cause=CAUSAS.RESET;
       _updateState(initialState, clearHover: true);
       // Nos aseguramos de que el layout esté construido antes de calcular las posiciones.
       WidgetsBinding.instance.addPostFrameCallback((_) => updateLayoutMetrics());
@@ -487,13 +486,13 @@ bool get isBranchHazard => _isBranchHazard;
       if (_currentMicroCycle >= _totalMicroCycles) {
         // Si completamos los micro-ciclos, pedimos la siguiente instrucción.
         final newState = await _simulationService.step(); 
-        _historyManager.cause=CAUSAS.STEP;
+        historyManager.cause=CAUSAS.STEP;
         _updateState(newState); // Esto resetea _currentMicroCycle a 0 y actualiza el estado.
       } else {
         // Si solo avanzamos un micro-ciclo, actualizamos la vista sin llamar al backend.
         _evaluateActiveComponents();
-        _historyManager.cause=CAUSAS.STEP_MICRO;
-        _historyManager.update(this);
+        historyManager.cause=CAUSAS.STEP_MICRO;
+        historyManager.update(this);
         notifyListeners();
       }
     } else {
@@ -504,7 +503,7 @@ bool get isBranchHazard => _isBranchHazard;
         print("Ejecutado step()  ");
         print(newState);
         _sliderValue=newState.criticalTime.toDouble();
-        _historyManager.cause=CAUSAS.STEP;
+        historyManager.cause=CAUSAS.STEP;
         _updateState(newState);
                 // --- Lógica de historial ---
 
@@ -522,8 +521,8 @@ bool get isBranchHazard => _isBranchHazard;
     if (_simulationMode == SimulationMode.multiCycle && _currentMicroCycle > 0) {
       _currentMicroCycle--;
       _evaluateActiveComponents();
-      _historyManager.cause=CAUSAS.STEPBACK_MICRO;
-      _historyManager.update(this);
+      historyManager.cause=CAUSAS.STEPBACK_MICRO;
+      historyManager.update(this);
       notifyListeners();
     } else {
       // Para monociclo, pipeline, o al inicio de una instrucción multiciclo,
@@ -532,7 +531,7 @@ bool get isBranchHazard => _isBranchHazard;
         // --- Lógica de historial ---
         final newState = await _simulationService.stepBack();
         _sliderValue = newState.criticalTime.toDouble();
-        _historyManager.cause=CAUSAS.STEPBACK;
+        historyManager.cause=CAUSAS.STEPBACK;
         _updateState(newState);
       } catch (e) {
         // ignore: avoid_print
@@ -557,11 +556,30 @@ bool get isBranchHazard => _isBranchHazard;
     _breakpoints.clear(); // Limpiamos los breakpoints al resetear.
 
     // --- Lógica de historial ---
-    _historyManager.cause=CAUSAS.RESET;
+    historyManager.cause=CAUSAS.RESET;
     _updateState(newState, clearHover: true);
     
   }
 
+  // Ejecuta la simulación hasta que se encuentre un breakpoint de la lista.
+  Future<void> run() async {
+    // Si no hay breakpoints, simplemente ejecuta un paso.
+    if (_breakpoints.isEmpty) {
+      await step();
+      return;
+    }
+
+    // Si hay breakpoints, pasa la lista completa al backend.
+    // El backend se encargará de parar en el primero que encuentre.
+      try {
+      final newState = await _simulationService.runUntil(_breakpoints.toList());
+        _sliderValue = newState.criticalTime.toDouble();
+        historyManager.cause = CAUSAS.STEP; // Lo tratamos como un 'step' grande
+        _updateState(newState);
+      } catch (e) {
+        print("Error during runUntil: $e");
+      }
+  }
   // Método privado para centralizar la actualización del estado de la UI.
   void _updateState(SimulationState simState, {bool clearHover = false}) {
     _instruction = simState.instruction;
@@ -624,7 +642,7 @@ bool get isBranchHazard => _isBranchHazard;
     // print("Evaluated active components with readyAt: $_readyAt"); // Opcional para depuración
     if (clearHover) _hoverInfo = "";
             
-    _historyManager.update(this);
+    historyManager.update(this);
 
     notifyListeners();
   }

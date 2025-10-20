@@ -30,6 +30,9 @@ typedef SimulatorStep = Pointer<Utf8> Function(Pointer<Void>);
 typedef SimulatorStepBackNative = Pointer<Utf8> Function(Pointer<Void>);
 typedef SimulatorStepBack = Pointer<Utf8> Function(Pointer<Void>);
 
+typedef SimulatorStepsUntilNative = Pointer<Utf8> Function(Pointer<Void>, Pointer<Uint32>, IntPtr);
+typedef SimulatorStepsUntil = Pointer<Utf8> Function(Pointer<Void>, Pointer<Uint32>, int);
+
 typedef SimulatorResetNative = Pointer<Utf8> Function(Pointer<Void>, Int32, Uint32);
 typedef SimulatorReset = Pointer<Utf8> Function(Pointer<Void>, int, int);
 
@@ -83,6 +86,7 @@ late final SimulatorLoadProgram simulatorLoadProgram;
 late final SimulatorReset simulatorReset;
 late final SimulatorStep simulatorStep;
 late final SimulatorStepBack simulatorStepBack;
+late final SimulatorStepsUntil simulatorStepsUntil;
 late final SimulatorGetInstructionString simulatorGetInstructionString;
 late final SimulatorGetPc simulatorGetPc;
 late final SimulatorGetStatusRegister simulatorGetStatusRegister;
@@ -209,6 +213,26 @@ class Simulador {
     }
   }
 
+  Map<String, dynamic> runUntil(List<int> breakpoints) {
+    // 1. Alojar memoria en C para el array de breakpoints.
+    final bpArray = calloc<Uint32>(breakpoints.length);
+    
+    // 2. Copiar los breakpoints de la lista de Dart al array de C.
+    for (var i = 0; i < breakpoints.length; i++) {
+      bpArray[i] = breakpoints[i];
+    }
+
+    try {
+      final json = simulatorStepsUntil(_sim, bpArray, breakpoints.length);
+      final jsonStr = json.toDartString();
+      return _getFullState(jsonStr);
+    } finally {
+      // 3. Liberar la memoria alojada en C.
+      calloc.free(bpArray);
+    }
+  }
+
+  
   void setHazardOptions(bool enabled) {
     simulatorSetHazardOptions(_sim, enabled, enabled, enabled);
   }
@@ -295,6 +319,10 @@ class FfiSimulationService implements SimulationService {
           .asFunction();
       simulatorStepBack = _simulatorLib
           .lookup<NativeFunction<SimulatorStepBackNative>>('Simulator_step_back')
+          .asFunction();
+      simulatorStepsUntil = _simulatorLib
+          .lookup<NativeFunction<SimulatorStepsUntilNative>>(
+              'Simulator_steps_until')
           .asFunction();
       simulatorGetInstructionString = _simulatorLib
           .lookup<NativeFunction<SimulatorGetInstructionStringNative>>(
@@ -479,7 +507,15 @@ class FfiSimulationService implements SimulationService {
   }
 
 // ffi_simulation_service.dart
-
+  @override
+  Future<SimulationState> runUntil(List<int> breakpoints) async {
+    final stateMap = simulador.runUntil(breakpoints);
+    var state = SimulationState.fromJson(stateMap);
+    // La ejecución puede modificar la memoria de datos (ej: con un SW)
+    var dMem = simulador.getDataMemory();
+    state = state.copyWith(dataMemory: dMem);
+    return state;
+  }
 @override
 Future<SimulationState> getDataMemory() async {
   // Primero, comprobamos que el estado ya se haya inicializado con reset()

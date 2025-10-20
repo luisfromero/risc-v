@@ -13,7 +13,14 @@ class ExecutionHistoryManager {
   int _stepCounter = 0;
   ExecutionRecord? _instructionToRetire=ExecutionRecord(pc: 0, instruction: "nop");
 
-  CAUSAS cause=CAUSAS.RESET;
+  CAUSAS? cause=CAUSAS.RESET;
+
+  
+  /// "Consume" la causa del evento para evitar acciones repetidas (como el auto-scroll).
+  void clearCause() {
+    cause = null;
+  }
+
 
   /// Devuelve una vista no modificable del historial.
   List<ExecutionRecord> get history => UnmodifiableListView(_historyLog);
@@ -68,6 +75,7 @@ class ExecutionHistoryManager {
     final Color baseColor = instructionColors[(simState.pcValue ~/ 4) % instructionColors.length];
     switch (cause) {
       case CAUSAS.RESET:
+      
       case CAUSAS.STEP: // Un step completo añade un nuevo bloque de instrucciones
         if (cause == CAUSAS.RESET) _historyLog.clear();
 

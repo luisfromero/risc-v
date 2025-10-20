@@ -6,6 +6,9 @@
 #include <vector>
 #include "ControlTableData.h" // Para el namespace ControlWord
 
+// Límite para la ejecución automática para evitar bucles infinitos no detectados.
+#define MAX_STEPS 1000
+
 
 void copy_pipeline_registers_to_out(DatapathState& datapath) {
     datapath.Pipe_IF_ID_Instr_out=datapath.Pipe_IF_ID_Instr;
@@ -221,6 +224,49 @@ void Simulator::step() {
 
     }
 }
+
+// Ejecuta la simulación hasta que se alcanza un breakpoint, se detecta un bucle
+// o se llega al número máximo de pasos.
+int Simulator::stepsUntil(const std::vector<uint32_t>& breakpoints) {
+    for (int i = 0; i < MAX_STEPS; ++i) {
+        uint32_t pc_before_step = pc;
+
+        // Ejecutamos el siguiente ciclo de la simulación.
+        step();
+
+        // --- CONDICIONES DE PARADA (se comprueban DESPUÉS de ejecutar el paso) ---
+
+        // 1. Comprobar si la instrucción que acabamos de ejecutar estaba en un breakpoint.
+        for (uint32_t bp_address : breakpoints) {
+            if (pc_before_step == bp_address) {
+                m_logfile << "--- Breakpoint alcanzado y ejecutado en 0x" << std::hex << pc_before_step << " tras " << std::dec << i + 1 << " pasos ---" << std::endl;
+                return i + 1; // Devolvemos el número de pasos ejecutados.
+            }
+        }
+
+
+        // 2. Detección de bucle infinito. La estrategia depende del modelo. (Se comprueba después del paso)
+        if (model == PipelineModel::PipeLined) {
+            // En pipeline, un bucle infinito se detecta si la señal de salto está activa
+            // y el PC de destino del salto es la misma dirección de la instrucción de salto.
+            if (datapath.bus_branch_taken.value && datapath.bus_PC_dest.value == datapath.Pipe_ID_EX_PC_out.value) {
+                 m_logfile << "--- Bucle infinito (salto a sí mismo) detectado en pipeline en 0x" << std::hex << pc_before_step << " ---" << std::endl;
+                 return i + 1;
+            }
+        } else {
+            // En monociclo y multiciclo, un bucle se detecta si el PC no cambia tras un ciclo.
+            if (pc == pc_before_step) {
+                m_logfile << "--- Bucle infinito detectado en 0x" << std::hex << pc << " tras " << std::dec << i + 1 << " pasos ---" << std::endl;
+                return i + 1;
+            }
+        }
+    }
+
+    // 3. Si salimos del bucle, es porque se ha alcanzado el número máximo de pasos.
+    m_logfile << "--- Se alcanzó el máximo de " << MAX_STEPS << " pasos. Deteniendo ejecución. ---" << std::endl;
+    return MAX_STEPS;
+}
+
 
 // Ejecuta un ciclo completo: fetch, decode, execute.
 void Simulator::reset(PipelineModel _model, uint32_t _initial_pc) {

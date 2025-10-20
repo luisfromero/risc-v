@@ -28,32 +28,41 @@ class _ProgramListingViewState extends State<ProgramListingView> {
     // Se ejecuta después de que el frame se ha renderizado para asegurar que el
     // scrollController está listo y las dimensiones son conocidas.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
+      // --- Lógica de Auto-Scroll Condicional ---
+      // Solo hacemos scroll si la causa fue una acción de ejecución.
+      final scrollTriggers = {CAUSAS.STEP, CAUSAS.STEPBACK, CAUSAS.RESET};
+      final currentCause = datapathState.historyManager.cause;
 
-      final instructionList = datapathState.instructionMemory!;
-      final currentPc = datapathState.current_pc;
+      if (currentCause != null && scrollTriggers.contains(currentCause)) {
+        // "Consumimos" la causa para que no se vuelva a hacer scroll en el siguiente rebuild.
+        datapathState.historyManager.clearCause();
 
-      // Buscamos el índice de la instrucción actual.
-      final index = instructionList.indexWhere((item) => item.address == currentPc);
+        if (!_scrollController.hasClients) return;
 
-      if (index != -1) {
-        // Estimamos la altura de cada elemento para calcular el desplazamiento.
-        // (Padding vertical de 2+2, más la altura de la fuente).
-        const double itemHeight = 18.0; 
-        final targetOffset = index * itemHeight;
+        final instructionList = datapathState.instructionMemory!;
+        final currentPc = datapathState.current_pc;
 
-        // Obtenemos el área visible actual del ListView.
-        final minScroll = _scrollController.position.pixels;
-        final maxScroll = minScroll + _scrollController.position.viewportDimension;
+        // Buscamos el índice de la instrucción actual.
+        final index = instructionList.indexWhere((item) => item.address == currentPc);
 
-        // Si el elemento no está visible, lo centramos.
-        if (targetOffset < minScroll || targetOffset > maxScroll - itemHeight) {
-          final centeredOffset = targetOffset - (_scrollController.position.viewportDimension / 2) + (itemHeight / 2);
-          _scrollController.animateTo(
-            centeredOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-          );
+        if (index != -1) {
+          // Estimamos la altura de cada elemento para calcular el desplazamiento.
+          const double itemHeight = 18.0; 
+          final targetOffset = index * itemHeight;
+
+          // Obtenemos el área visible actual del ListView.
+          final minScroll = _scrollController.position.pixels;
+          final maxScroll = minScroll + _scrollController.position.viewportDimension;
+
+          // Si el elemento no está visible, lo centramos.
+          if (targetOffset < minScroll || targetOffset > maxScroll - itemHeight) {
+            final centeredOffset = targetOffset - (_scrollController.position.viewportDimension / 2) + (itemHeight / 2);
+            _scrollController.animateTo(
+              centeredOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
         }
       }
     });
