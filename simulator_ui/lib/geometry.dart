@@ -6,59 +6,70 @@ import 'dart:core';
 // --- Posiciones de los Componentes ---
 
 // Unidad de Control
-const double widthUC = 1100;
-const double heightUC = 70;
+const double widthUC = 1120;
+const double heightUC = 60;
+
+
+
+
 
 // Permiten mover todo el datapath sin cambiar cada coordenada individualmente.
-const double yShift=heightUC;
-const double xShift=0;
+const double y_shift=heightUC;
+const double x_shift=20;
+
 
 const double yPosUC =0;
-const double xPosUC=xShift+275;
+const double xPosUC=x_shift+150;
 
+
+// Parámetros principales y eje central
+const double h_main=120;
+const double y_main=y_shift+260;
 
 // Referencias buses
 
-const double yPc4Up =yShift+ 65;
-const double yNPC=yShift+ 80;
-const double yAluResultUp=yShift+ 175;
-const double y_Bdown=yShift+330;
-const double yAlu2pcDown=yShift+480;
-const double yBrDown=yShift+500;
-const double yWbDown=yShift+520;
+const double yPc4Up =y_shift+ 65;
+const double yNPC=y_shift+ 80;
+const double yAluResultUp=y_shift+ 175;
+const double y_Bdown=y_shift+330;
+const double yAlu2pcDown=y_shift+480;
+const double yBrDown=y_shift+500;
+const double yWbDown=y_shift+520;
 
 //const double xCimm=xShift+ 1340;
-const double xPcUp=xShift+ 290; //pc_bus vertical
-const double xMinimo=xShift+20;
-const double xMinimo2=xShift+40;
+const double xPcUp=x_shift+ 190; //pc_bus vertical
+
+const double xMinimo=x_shift+0;
+const double xMinimo2=x_shift+20;
+
 //const double xRegOut=xShift+770;
 //const double xImmOut=xShift+790;
 
-const double x_B_mem=xShift+1080;
+const double x_B_mem=x_shift+965;
 
-const double x_4=xShift+ 600; //Salida a BR, antes de llegar
-const double x_5=xShift+ 1250; //Bus a M1
-const double x_6=xShift+ 1265; //Bus a M1
-const double xMaximo=xShift+ 1360; //Bus C 
+const double x_4=x_shift+ 500; //Salida a BR, antes de llegar
+const double x_5=x_shift+ 1150; //Bus a M1
+const double x_6=x_shift+ 1165; //Bus a M1
+const double xMaximo=x_shift+ 1260; //Bus C 
 //const double xMaximo=xShift+ 1390; //Bus PC destC 
-const double x_PipeDCfinal=xShift+580;
-const double x_PipeDCinicial=xShift+560;
+const double x_PipeDCfinal=x_shift+480;
+const double x_PipeDCinicial=x_shift+460;
 
-const x_dcPipe1=xShift+550;
-const x_dcPipe2=xShift+1260;
+const x_dcPipe1=x_shift+450;
+const x_dcPipe2=x_shift+1160;
 
 
-const double yCimm=yShift+510; //Control inmediato
-const double yCpcSrc=yShift+30;
-const double y_PipeDCfinal=yShift+490;
-const y_rdest=yShift+345; //Buses de propagacion de registro destino
+const double yCimm=y_shift+510; //Control inmediato
+const double yCpcSrc=y_shift+30;
+const double y_PipeDCfinal=y_shift+490;
+const y_rdest=y_shift+345; //Buses de propagacion de registro destino
 
-const double yInstrucciones=yShift+540;
-const double xDerecha=xMaximo+20;
+const double yInstrucciones=y_shift+540;
+const double xDerecha=xMaximo+40;
 
 
 // Referencias buses control Pipelie
-const double x_controlPipe_Pcsrc=xShift+770;
+const double x_controlPipe_Pcsrc=x_shift+670;
 
 
 // Tamaños compartidos
@@ -67,7 +78,7 @@ const double widthReg=10;
 const double heightIB=260;
 
 const double widthPC = 30;
-const double heightPC = 120;
+const double heightPC = h_main;
 
 //Estos dos no los estoy usando. Revisar
 const double widthAdder = 80;
@@ -83,26 +94,26 @@ const double heightPCPipeReg=40;
 
 // PC y componentes asociados
 
-const double xMuxPC =xShift+ 60;
-const double yMuxPC = yShift + 220;
+const double xMuxPC =x_shift+ 30;
+const double yMuxPC = y_main-h_MainMuxes/2;
 
-const double xPC = xShift+230;
-const double yPC = yShift + 200;
+const double xPC = x_shift+130;
+const double yPC = y_main-heightPC/2;
 
-const double xAdderPC =xShift+ 320;
-const double yAdderPC = yShift + 90;
+const double xAdderPC =x_shift+ 220;
+const double yAdderPC = y_shift + 90;
 
-const double xConst4 = xShift+150;
-const double yConst4 = yShift + 110;
+const double xConst4 = x_shift+50;
+const double yConst4 = y_shift + 110;
 
 // Etapa IF (Instruction Fetch)
 
-const double xInstrMem =xShift+ 380;
-const double yInstrMem = yShift + 200;
+const double xInstrMem =x_shift+ 280;
+const double yInstrMem = y_main- heightMems/2;
 
 // Registros de Pipeline IF/ID
-const double xIB = xShift+ 520;
-const double yIB = yShift + 160;
+const double xIB = x_shift+ 420;
+const double yIB = y_shift + 160;
 const double xPipeRegIFID_NPC =xIB;
 const double yPipeRegIFID_NPC = yIB-heightNPCReg;
 const double xPipeRegIFID_PC =xIB;
@@ -110,48 +121,48 @@ const double yPipeRegIFID_PC =yIB+heightIB;
 
 // Etapa ID (Instruction Decode)
 const double widthMems=80; 
-const double heightMems=120;
-const double xRegFile =xShift+ 620;
-const double yRegFile = yShift + 200;
+const double heightMems=h_main;
+const double xRegFile =x_shift+ 520;
+const double yRegFile = y_main- heightMems/2;
 
 const double widthExtender=100;
 const double heightExtender=30;
-const double xExtender = xShift+ 620;
+const double xExtender = x_shift+ 520;
 
 // Registros de Pipeline ID/EX
 
-const double xPipeRegIDEX_Control = xShift+740;
-const double yPipeRegIDEX_Control = yShift + 80;
+const double xPipeRegIDEX_Control = x_shift+640;
+const double yPipeRegIDEX_Control = y_shift + 80;
 
-const double xPipeRegIDEX_NPC = xShift+740;
-const double yPipeRegIDEX_NPC = yShift + 120; 
+const double xPipeRegIDEX_NPC = x_shift+640;
+const double yPipeRegIDEX_NPC = y_shift + 120; 
 
-const double xPipeRegIDEX_Data =xShift+ 740; // A, B, Imm, etc.
-const double yPipeRegIDEX_Data = yShift + 160;
+const double xPipeRegIDEX_Data =x_shift+ 640; // A, B, Imm, etc.
+const double yPipeRegIDEX_Data = y_shift + 160;
 
-const double xPipeRegIDEX_PC =xShift+ 740;
-const double yPipeRegIDEX_PC = yShift + 420;
+const double xPipeRegIDEX_PC =x_shift+ 640;
+const double yPipeRegIDEX_PC = y_shift + 420;
 
 // Etapa EX (Execute)
 
 const double widthMuxALU=30;
 const double heightMuxALU=50;
-const double xMuxALU =xShift+ 810;
-const double yMuxALU = yShift + 265;
+const double xMuxALU =x_shift+ 710;
+const double yMuxALU = y_shift + 265;
 
 const double widthALU = 60;
-const double heightALU = 120;
+const double heightALU = h_main;
 
-const double widthMuxWB = 40;
-const double heightMuxWB = 80;
+const double w_mainMuxes = 40;
+const double h_MainMuxes = 80;
 
-const double xAdderBranch =xShift+ 810;
-const double yAdderBranch = yShift + 350;
+const double xAdderBranch =x_shift+ 710;
+const double yAdderBranch = y_shift + 350;
 
-const double xALU =xShift+ 920;
-const double yALU = yShift + 200;
+const double xALU =x_shift+ 820;
+const double yALU = y_main-heightALU/2;
 
-const double xFlagZ =xShift+ 1040;
+const double xFlagZ =x_shift+ 900;
 
 // Se calculaconst double yFlagZ = yShift + 220;
 
@@ -160,45 +171,49 @@ const double xFlagZ =xShift+ 1040;
 
 const double widthHazard=100;
 const double heightHazard=50;
-const double xHazardUnits =xShift+ 850;
-const double yHazardUnits = yShift + 10;
+const double xHazardUnits =x_shift+ 750;
+const double yHazardUnits = y_shift + 10;
 
 // Muxes de Forwarding
-const double xMuxFwdA =xShift+ 880;
-const double yMuxFwdA = yShift + 210;
+const double xMuxFwdA =xALU-40;
+const double yMuxFwdA = y_shift + 210;
 
-const double xMuxFwdB =xShift+ 880;
-const double yMuxFwdB = yShift + 270;
+const double xMuxFwdB =xALU-40;
+const double yMuxFwdB = y_shift + 270;
+
+const double xMuxFwdM =xDataMem-40;
+const double yMuxFwdM = y_shift + 270;
+
 
 // Registros de Pipeline EX/MEM
-const double xPipeRegEXMEM_Control =xShift+ 1020;
-const double yPipeRegEXMEM_Control = yShift + 80;
+const double xPipeRegEXMEM_Control =x_shift+ 920;
+const double yPipeRegEXMEM_Control = y_shift + 80;
 
-const double xPipeRegEXMEM_NPC = xShift+1020;
-const double yPipeRegEXMEM_NPC = yShift + 120;
+const double xPipeRegEXMEM_NPC = x_shift+920;
+const double yPipeRegEXMEM_NPC = y_shift + 120;
 
-const double xPipeRegEXMEM_Data =xShift+ 1020;
-const double yPipeRegEXMEM_Data = yShift + 160;
+const double xPipeRegEXMEM_Data =x_shift+ 920;
+const double yPipeRegEXMEM_Data = y_shift + 160;
 
 // Etapa MEM (Memory)
-const double xDataMem =xShift+ 1100;
-const double yDataMem = yShift + 200;
+const double xDataMem =x_shift+ 1020;
+const double yDataMem = y_main-heightALU/2;
 
 // Registros de Pipeline MEM/WB
-const double xPipeRegMEMWB_Control =xShift+ 1220;
-const double yPipeRegMEMWB_Control = yShift + 80;
+const double xPipeRegMEMWB_Control =x_shift+ 1120;
+const double yPipeRegMEMWB_Control = y_shift + 80;
 
-const double xPipeRegMEMWB_NPC = xShift+1220;
-const double yPipeRegMEMWB_NPC = yShift + 120;
+const double xPipeRegMEMWB_NPC = x_shift+1120;
+const double yPipeRegMEMWB_NPC = y_shift + 120;
 
-const double xPipeRegMEMWB_Data =xShift+ 1220;
-const double yPipeRegMEMWB_Data = yShift + 160;
+const double xPipeRegMEMWB_Data =x_shift+ 1120;
+const double yPipeRegMEMWB_Data = y_shift + 160;
 
 // Etapa WB (Write Back)
-const double xMuxWB =xShift+ 1280;
-const double yMuxWB = yShift + 220;
+const double xMuxWB =x_shift+ 1180;
+const double yMuxWB = y_main-h_MainMuxes/2;
 
-const double y_controlWrite=yShift+115;
+const double y_controlWrite=y_shift+115;
 
 
 
@@ -206,14 +221,14 @@ const double heightControlPipe1=30;
 const double heightControlPipe2=20;
 const double heightControlPipe3=10;
 
-const double xInstruction =xShift+840;
-const double xInstructionD =xShift+430;
+const double xInstruction =x_shift+740;
+const double xInstructionD =x_shift+330;
 
-const double xInstruction1 =xShift+240;
-const double xInstruction2 =xShift+500;
-const double xInstruction3 =xShift+750;
-const double xInstruction4 =xShift+1010;
-const double xInstruction5 =xShift+1230;
+const double xInstruction1 =x_shift+160;
+const double xInstruction2 =x_shift+400;
+const double xInstruction3 =x_shift+640;
+const double xInstruction4 =x_shift+900;
+const double xInstruction5 =x_shift+1120;
 
 //Connection points de la UC relativos a los buses 
 
@@ -244,10 +259,10 @@ const double xControl4=600; //funct7
 const double xControl5=xRegFile+0.5*widthMems; // 
 const double xControl6=xMuxALU+0.35*widthMuxALU; //
 const double xControl7=xALU+0.5*widthALU; //
-const double xControl8=1000; //ok flagZ
+const double xControl8=xFlagZ; //ok flagZ
 const double xControl9=xDataMem+0.5*widthMems; //
-const double xControl10=xMuxWB+0.35*widthMuxWB; //
-const double xControl11=xPosUC+1070; //ok
+const double xControl10=xMuxWB+0.35*w_mainMuxes; //
+const double xControl11=xPosUC+widthUC-20; //ok
 
 
 
@@ -290,7 +305,7 @@ const r_DE3=(yPipePC0-yPipeRegIDEX_Data)/heightIB;
 const r_DE4=0.1;
 
 
-const double yFlagZ=yALU+0.35*heightALU; //flagZ (no se usa, pero por si)
+const double yFlagZ=yALU+0.25*heightALU; //flagZ (no se usa, pero por si)
 const double y_salidaALU=yALU+0.5*heightALU;  //Salida ALU 
 
 
@@ -299,7 +314,7 @@ const r_EM1=(y_salidaALU-yPipeRegEXMEM_Data)/heightIB;
 const r_EM2=(y_Bdown-yPipeRegEXMEM_Data)/heightIB;
 const r_EM3=(y_rdest-yPipeRegEXMEM_Data)/heightIB;
 
-const double ySalidaMemData=yMuxWB +0.6*heightMuxWB; //La referencia es la entrada 2 del mux (60%)y deberia usarse para el calculo de la salida de la memoria de datos
+const double ySalidaMemData=yMuxWB +0.6*h_MainMuxes; //La referencia es la entrada 2 del mux (60%)y deberia usarse para el calculo de la salida de la memoria de datos
 
 const double ry_salidaMemData=(ySalidaMemData-yDataMem)/heightMems;
 
@@ -320,15 +335,18 @@ const double yPipeNPC1=(yAdderPC+0.5*heightALU-yPipeRegIDEX_NPC)/heightNPCReg;
 const double rPipePC1=(yPipePC1-yPipeRegIDEX_PC)/heightPCPipeReg;  //No se usa porque sale 0.5 pero se debería usar
 
 //
-const double yFwdA=yShift+355;
-const double yFwdB=yShift+365;
-const double xFwdMem=xShift+862;
-const double xFwdWr=xShift+855;
+const double yFwdA=y_shift+355;
+const double yFwdB=y_shift+365;
+
+const double xFwdMem=xMuxFwdA-20;
+const double xFwdWr=xFwdMem-10;
 
 const double yMuxFwdA0=yMuxFwdA+0.25*heightMuxFwd;
 const double yMuxFwdB0=yMuxFwdB+0.25*heightMuxFwd;
 const double yMuxFwdA1=yMuxFwdA+0.75*heightMuxFwd;
 const double yMuxFwdB1=yMuxFwdB+0.75*heightMuxFwd;
+const double yMuxFwdM0=yMuxFwdM+0.75*heightMuxFwd;
+const double yMuxFwdM1=yMuxFwdM+0.75*heightMuxFwd;
 
 
 // Calculamos la x de los buses que activan los muxes de los cortocircuitos

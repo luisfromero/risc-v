@@ -91,6 +91,7 @@ class BusesPainter extends CustomPainter {
         // Lógica para tooltips de buses de control
         // Generamos un identificador especial para que el widget del tooltip sepa cómo dibujarlo.
         tooltipText = '##CONTROL_BUS:${bus.valueKey}';
+        //Definido en buildControlBusTooltip
       } else if (bus.isState) {
         // Lógica para tooltips de buses de estado
         tooltipText = '${bus.valueKey} (${bus.size} bits)\nValue: ${value != null ? value.toRadixString(2).padLeft(bus.size, '0') : 'N/A'}';
@@ -124,7 +125,7 @@ class BusesPainter extends CustomPainter {
         // Guardamos la información de hover para este segmento.
         busHoverInfoList.add(BusHoverInfo(
           path: segmentPath,
-          bounds: segmentPath.getBounds().inflate(width.toDouble() + 4),
+          bounds: segmentPath.getBounds().inflate(width.toDouble() + 1),
           tooltip: tooltipText,
           strokeWidth: width.toDouble(),
         ));

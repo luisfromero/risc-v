@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'generated/control_table.g.dart';
@@ -7,6 +7,7 @@ import 'execution_history_manager.dart';
 import 'services/simulation_service.dart';
 import 'simulation_mode.dart';
 import 'geometry.dart';
+part 'animations.dart';
 
 class ExecutionRecord {
   final int pc;
@@ -23,19 +24,25 @@ class ExecutionRecord {
 }
 
 class InstructionMemoryItem {
+  final int address;
   final int value;
   final String instruction;
 
-  InstructionMemoryItem({required this.value, required this.instruction});
+  // El constructor ahora requiere la dirección.
+  InstructionMemoryItem({required this.address, required this.value, required this.instruction});
 
   factory InstructionMemoryItem.fromJson(Map<String, dynamic> json) {
     return InstructionMemoryItem(
+      address: 0,// La dirección se asignará en el servicio.
       value: json['value'],
       instruction: json['instruction'],
     );
   }
 }
 
+/// Comunica la "causa" de una actualización de estado desde `DatapathState`
+/// hacia `ExecutionHistoryManager`. Esto permite al gestor del historial saber
+/// cómo debe modificar su log (añadir un registro, quitarlo, borrar todo, etc.).
 enum CAUSAS {
   STEP,
   RESET,
@@ -117,6 +124,9 @@ class Bus {
 }
 
 
+
+
+
 // Clase para representar una entrada en la memoria de instrucciones
 
 
@@ -174,6 +184,7 @@ class DatapathState extends ChangeNotifier {
   final mux3Key = GlobalKey();
   final muxFWAKey = GlobalKey();
   final muxFWBKey = GlobalKey();
+  final muxFWMKey = GlobalKey();
   final instructionMemoryKey = GlobalKey();
   final dataMemoryKey = GlobalKey();
   final registerFileKey = GlobalKey();
@@ -216,6 +227,7 @@ class DatapathState extends ChangeNotifier {
   // --- ESTADO DE LOS VALORES ---
 
   int _pcValue = 0x00400000;
+  int current_pc = 0;
   int _initial_pc = 0;
   set initial_pc(int value) {_initial_pc = value;}
 
@@ -257,6 +269,29 @@ class DatapathState extends ChangeNotifier {
   bool _showForwarding = false;
   bool _showLHU = false;
   bool _showBHU = false;
+  bool _showStaticCodeView = false; // Por defecto, mostramos la vista dinámica (hilo)
+
+
+  // --- GESTIÓN DE ANIMACIONES Y BREAKPOINTS ---
+
+
+    // --- ESTADO PARA PLAY/PAUSE (FRONTEND) ---
+  bool _isPlaying = false;
+  Timer? _timer;
+
+  // --- ESTADO PARA BREAKPOINTS ---
+  final Set<int> _breakpoints = {};
+
+  // --- ESTADO PARA DETECCIÓN DE BUCLE ---
+
+  bool hasBreakpoint(int address) => _breakpoints.contains(address);
+
+  void toggleBreakpoint(int address) {
+    if (_breakpoints.contains(address)) _breakpoints.remove(address);
+    else _breakpoints.add(address);
+    notifyListeners(); // Notifica a la UI para que redibuje el punto del breakpoint
+  }
+
 
   List<InstructionMemoryItem>? instructionMemory;
   Uint8List? dataMemory;
@@ -303,7 +338,6 @@ bool get isPCsrcActive => _isPCsrcActive;
 bool get isLoadHazard => _isLoadHazard;
 bool get isBranchHazard => _isBranchHazard;
 
-
   int get pcValue => _pcValue;
   String get hoverInfo => _hoverInfo;
   double get sliderValue => _sliderValue;
@@ -319,6 +353,9 @@ bool get isBranchHazard => _isBranchHazard;
   bool get showForwarding => _showForwarding;
   bool get showLHU => _showLHU;
   bool get showBHU => _showBHU;
+  bool get showStaticCodeView => _showStaticCodeView;
+  Set<int> get breakpoints => _breakpoints;
+  bool get isPlaying => _isPlaying;
 
 
   int get initial_pc => _initial_pc;
@@ -333,6 +370,10 @@ bool get isBranchHazard => _isBranchHazard;
       _updateBuses();
       final initialState = await _simulationService.reset(mode: _simulationMode,initial_pc: 0);
       // Al inicializar, ponemos el slider al final para mostrar el estado completo.
+
+      //Aqui actualizamos las direcciones segun initial_state 
+
+
       _sliderValue = initialState.criticalTime.toDouble();
       _historyManager.cause=CAUSAS.RESET;
       _updateState(initialState, clearHover: true);
@@ -361,6 +402,8 @@ bool get isBranchHazard => _isBranchHazard;
       _simulationMode = newMode;
       _updateBuses(); // ¡La clave! Regenera los buses para el nuevo modo.
       // ignore: avoid_print
+      pause(); // Detenemos la reproducción automática si se estaba ejecutando.
+      _breakpoints.clear(); // Limpiamos los breakpoints al cambiar de modo.
       print("Cambiando a modo: $newMode");
       notifyListeners();
       reset(); // Opcional: resetea la simulación al cambiar de modo.
@@ -395,6 +438,13 @@ bool get isBranchHazard => _isBranchHazard;
         _showBHU = false;
       }
       notifyListeners();  
+    }
+  }
+  
+  void setStaticCodeView(bool? value) {
+    if (value != null && _showStaticCodeView != value) {
+      _showStaticCodeView = value;
+      notifyListeners();
     }
   }
   void setShowLHU(bool? value) {
@@ -486,18 +536,22 @@ bool get isBranchHazard => _isBranchHazard;
     final newState = await _simulationService.reset(
         mode: _simulationMode, initial_pc: initial_pc, assemblyCode: assemblyCode, binCode: binCode);
     print("Ejecutado reset() con modo: $_simulationMode");
-
+    //newState.copyWith(initial_pc: initial_pc);
     _sliderValue = 0.0;
     _sliderValue=newState.criticalTime.toDouble();
+    pause(); // Detenemos la reproducción automática al resetear.
+    _breakpoints.clear(); // Limpiamos los breakpoints al resetear.
 
     // --- Lógica de historial ---
     _historyManager.cause=CAUSAS.RESET;
     _updateState(newState, clearHover: true);
+    
   }
 
   // Método privado para centralizar la actualización del estado de la UI.
   void _updateState(SimulationState simState, {bool clearHover = false}) {
     _instruction = simState.instruction;
+    _initial_pc = simState.initial_pc;
     _instructionValue = simState.instructionValue;
     _statusRegister = simState.statusRegister;
     _registers = simState.registers;
@@ -527,10 +581,16 @@ bool get isBranchHazard => _isBranchHazard;
     _isLoadHazard = simState.isLoadHazard;
     _isBranchHazard = simState.isBranchHazard;
 
-    
+  
     if(simState.instructionMemory!=null) {
-      //En ciclos posteriores, el estado viene sin las instrucciones. No perdemos la que vino con reset
-      instructionMemory=simState.instructionMemory;
+      // El estado viene con la memoria de instrucciones (probablemente desde reset()).
+      // Este es el lugar centralizado para enriquecer la lista con las direcciones.
+      final rawIMem = simState.instructionMemory!;
+      final enrichedIMem = [
+        for (int i = 0; i < rawIMem.length; i++)
+          InstructionMemoryItem(address: simState.initial_pc + (i * 4), value: rawIMem[i].value, instruction: rawIMem[i].instruction)
+      ];
+      instructionMemory = enrichedIMem;
     }
 
     //Solo algunos steps vienen con la memoria de datos
@@ -539,8 +599,8 @@ bool get isBranchHazard => _isBranchHazard;
       dataMemory= simState.dataMemory;
     }
 
-
-
+    current_pc = simState.busValues['pc_bus']??0;
+    
     // --- Depuración: Imprime el tiempo crítico recibido ---
     // ignore: avoid_print
     print('Nuevo tiempo crítico recibido: $_criticalTime');
@@ -658,6 +718,7 @@ bool get isBranchHazard => _isBranchHazard;
     extractPoints(mux3Key, 'M3');
     extractPoints(muxFWAKey, 'MFWA');
     extractPoints(muxFWBKey, 'MFWB');
+    extractPoints(muxFWMKey, 'MFWM');
     extractPoints(instructionMemoryKey, 'IM');
     extractPoints(dataMemoryKey, 'DM');
     extractPoints(registerFileKey, 'RF');
@@ -829,8 +890,8 @@ bool get isBranchHazard => _isBranchHazard;
       Bus(startPointLabel: 'CU-8', endPointLabel: 'DM-2', isActive: (s) => s.isControlActive,isControl: true,size:1,valueKey: "control_MemWr"),
       Bus(startPointLabel: 'CU-9', endPointLabel: 'M1-4', isActive: (s) => s.isControlActive,isControl: true,size:2,valueKey: "control_ResSrc"),
       Bus(startPointLabel: 'CU-10', endPointLabel: 'EXT-1', isActive: (s) => s.isControlActive, 
-      // El 100 es para desplazar abajo la etiqueta
-      waypointsBuilder: (s) => [Offset(x('CU-10'),100),Offset(x('CU-10'),yCimm),Offset(x('EXT-1'),yCimm)], 
+      // El 110 es para desplazar abajo la etiqueta
+      waypointsBuilder: (s) => [Offset(x('CU-10'),110),Offset(x('CU-10'),yCimm),Offset(x('EXT-1'),yCimm)], 
       isControl: true,size:3,valueKey: "control_ImmSrc"),
 
       Bus(startPointLabel: 'ALU-6', endPointLabel: 'M2-2', isActive: (s) => false, 
@@ -1043,7 +1104,7 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
       //Creo que sobra
       //Bus(startPointLabel: 'DEControl-2', endPointLabel: 'ALU-2', isActive: (s) => s.isPathActive("Pipe_ID_EX_Control_out"),valueKey: 'control_ALUctr', waypoints: List.of([_manhattan('ALU-2', 'DEControl-2')]),isControl: true,size:3),
       
-      Bus(startPointLabel: 'DEControl-2', endPointLabel: 'M3-2', isActive: (s) => s.isPathActive("Pipe_ID_EX_Control_out"),valueKey: 'control_ALUsrc',
+      Bus(startPointLabel: 'DEControl-2', endPointLabel: 'M3-2', isActive: (s) => s.isPathActive("Pipe_ID_EX_Control_out"),valueKey: 'Pipe_ALUsrc',
       waypoints: List.of([_manhattan('M3-2', 'DEControl-2')]),isControl: true,size:1),
       //Este no se de donde ha salido:
       //Bus(startPointLabel: 'DEControl-2', endPointLabel: 'M3-2', isActive: (s) => s.isPathActive("Pipe_ID_EX_NPC_out"),valueKey: 'Pipe_ALUsrc',waypoints: List.of([const Offset(820, 100) ]),isControl: true,size:3),
@@ -1173,14 +1234,15 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
 
 
 ///Buses de forwarding. Solo visibles cuando hay un hazard de datos que se puede resolver con forwarding.
+///
     buses.addAll([
 
-      // Los 4 buses de datos
+      // Los 5 buses de datos
       Bus(
         startPointLabel: 'ALU-5', // Aparentemente, ALU, pero es la salida del pipelie Ex / Mem
         endPointLabel: 'MFWA-0',   // Mux Forwarding a
-        isHidden: (s) => !(s.showForwarding || s.busValues['bus_ControlForwardA'] == 0),
-        isActive: (s) => s.busValues['bus_ControlForwardA'] == 0, // Se activa si el mux selecciona esta entrada
+        isHidden: (s) => !(s.showForwarding || s.busValues['bus_ControlForwardA'] == 1),
+        isActive: (s) => s.busValues['bus_ControlForwardA'] == 1, // Se activa si el mux selecciona esta entrada
         valueKey: 'bus_ForwardA',
         isControl: false, 
         isForwardingBus: true,
@@ -1189,12 +1251,11 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
         waypoints:  [Offset(x('ALU-5'), yFwdA),Offset(xFwdMem, yFwdA),Offset(xFwdMem, yMuxFwdA0)],
       ),
 
-
       Bus(
         startPointLabel: 'ALU-5', // Aparentemente, ALU, pero es la salida del pipelie Ex / Mem
         endPointLabel: 'MFWB-0',   // Mux Forwarding b
-        isHidden: (s) => !(s.showForwarding || s.busValues['bus_ControlForwardB'] == 0),
-        isActive: (s) => s.busValues['bus_ControlForwardB'] == 0, // Se activa si el mux selecciona esta entrada
+        isHidden: (s) => !(s.showForwarding || s.busValues['bus_ControlForwardB'] == 1),
+        isActive: (s) => s.busValues['bus_ControlForwardB'] == 1, // Se activa si el mux selecciona esta entrada
         valueKey: 'bus_ForwardB',
         isControl: false, 
         isForwardingBus: true,
@@ -1215,6 +1276,7 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
         size: 32,
         waypoints:  [Offset(x('M1-6'), yFwdB),Offset(xFwdWr, yFwdB),Offset(xFwdWr, yMuxFwdA1)],
       ),
+
       Bus(
         startPointLabel: 'M1-6', // Pipeline Mem /wb
         endPointLabel: 'MFWB-2',   // Mux de la alu
@@ -1228,12 +1290,26 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
         waypoints:  [Offset(x('M1-6'), yFwdB),Offset(xFwdWr, yFwdB),Offset(xFwdWr, yMuxFwdB1)],
       ),
       
+      Bus(
+        startPointLabel: 'M1-6', // Pipeline Mem /wb
+        endPointLabel: 'MFWM-2',   // Mux de la alu
+        isHidden: (s) => !(s.showForwarding || (s.busValues['bus_ControlForwardM'] == 1)),
+        isActive: (s) => s.busValues['bus_ControlForwardM'] == 1, // Se activa si el mux selecciona esta entrada
+        valueKey: 'bus_ForwardM',
+        isControl: false, 
+        isForwardingBus: true,
+        color: const Color.fromARGB(255, 236, 170, 247),
+        size: 32,
+        waypoints:  [Offset(x('M1-6'), yFwdB),Offset(xMuxFwdM-10, yFwdB),Offset(xMuxFwdM-10, yMuxFwdM1)],
+      ),
+
+
       // Los buses de datos de salida
       Bus(
         startPointLabel: 'MFWA-3', // Salida de mux forward a   
         endPointLabel: 'ALU-0',   // Entrada a de la ALU
-        isHidden: (s) => !(s.showForwarding || (s.busValues['bus_ControlForwardA'] != 1 && s.busValues['bus_ControlForwardA'] != null)),
-        isActive: (s) => (s.busValues['bus_ControlForwardA'] != 1 && s.busValues['bus_ControlForwardA'] != null),
+        isHidden: (s) => !(s.showForwarding || (s.busValues['bus_ControlForwardA'] != 0 && s.busValues['bus_ControlForwardA'] != null)),
+        isActive: (s) => (s.busValues['bus_ControlForwardA'] != 0 && s.busValues['bus_ControlForwardA'] != null),
         valueKey: 'bus_ForwardA',
         isControl: false, 
         isForwardingBus: true,
@@ -1244,9 +1320,21 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
       Bus(
         startPointLabel: 'MFWB-3', // Salida de mux forward b
         endPointLabel: 'ALU-1',   // Entrada b de la ALU
-        isHidden: (s) => !(s.showForwarding || (s.busValues['bus_ControlForwardB'] != 1 && s.busValues['bus_ControlForwardB'] != null)),
-        isActive: (s) => (s.busValues['bus_ControlForwardB'] != 1 && s.busValues['bus_ControlForwardB'] != null),
+        isHidden: (s) => !(s.showForwarding || (s.busValues['bus_ControlForwardB'] != 0 && s.busValues['bus_ControlForwardB'] != null)),
+        isActive: (s) => (s.busValues['bus_ControlForwardB'] != 0 && s.busValues['bus_ControlForwardB'] != null),
         valueKey: 'bus_ForwardB',
+        isControl: false, 
+        isForwardingBus: true,
+        color: const Color.fromARGB(255, 10, 235, 93),
+        size: 32,
+        waypoints: const [],
+      ),
+      Bus(
+        startPointLabel: 'MFWM-3', // Salida de mux forward b
+        endPointLabel: 'DM-1',   // Entrada b de la ALU
+        isHidden: (s) => !(s.showForwarding || (s.busValues['bus_ControlForwardM'] != 0 && s.busValues['bus_ControlForwardM'] != null)),
+        isActive: (s) => (s.busValues['bus_ControlForwardM'] != 0 && s.busValues['bus_ControlForwardM'] != null),
+        valueKey: 'bus_ForwardM',
         isControl: false, 
         isForwardingBus: true,
         color: const Color.fromARGB(255, 10, 235, 93),
@@ -1260,7 +1348,7 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
       Bus(  //Valores registro fuente en ex
         startPointLabel: 'DE1-8', // 
         endPointLabel: 'FU-0',   //        isHidden: (s) => !s.isBranchHazard,
-        isHidden: (s) => !(s.showForwarding || (s.busValues['bus_ControlForwardB'] != 1 || s.busValues['bus_ControlForwardA'] != 1)),
+        isHidden: (s) => !(s.showForwarding || (s.busValues['bus_ControlForwardB'] == 1 || s.busValues['bus_ControlForwardA'] == 1)),
         isActive: (s) => true,
         valueKey: 'Pipe_ID_EX_RS1_RS2_out',
         isState: true, 
@@ -1268,14 +1356,14 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
         size: 10, // Entrada: señal de salto tomado
         waypointsBuilder: (s) => [s._manhattan('FU-0', 'DE1-8')],
 
-      ),
+      ),                        
 
       Bus( //Instruccion en ex que necesita los registros /****/
         startPointLabel: 'DEControl-1', // 
         endPointLabel: 'FU-1',   //        isHidden: (s) => !s.isBranchHazard,
-        isHidden: (s) => !(s.showForwarding || (s.busValues['bus_ControlForwardB'] != 1 || s.busValues['bus_ControlForwardA'] != 1)),
+        isHidden: (s) => !(s.showForwarding || (s.busValues['bus_ControlForwardB'] != 0 || s.busValues['bus_ControlForwardA'] != 0)),
         isActive: (s) => true,
-        valueKey: '',
+        valueKey: 'Pipe_ID_EX_Control_out',
         isControl: true, 
         isForwardingBus: true,
         waypointsBuilder: (s) => [s._manhattan('FU-1', 'DEControl-1')],
@@ -1285,11 +1373,11 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
 
 
       Bus(
-        startPointLabel: 'MWControl-2', //  Instruccion en escritura
+        startPointLabel: 'MWControl-2', //  Palabra de control de la instruccion en escritura
         endPointLabel: 'FU-3',   //        isHidden: (s) => !s.isBranchHazard,
-        isHidden: (s) => !(s.showForwarding || s.busValues['bus_ControlForwardA'] == 2 || s.busValues['bus_ControlForwardB'] == 2),
+        isHidden: (s) => !(s.showForwarding || s.busValues['bus_ControlForwardA'] == 2 || s.busValues['bus_ControlForwardB'] == 2|| s.busValues['bus_ControlForwardM'] == 1),
         isActive: (s) => true,
-        valueKey: '',
+        valueKey: 'Pipe_MEM_WB_Control_out',
         isControl: true, 
         isForwardingBus: true,
         size: 16, // Entrada: señal de salto tomado
@@ -1298,23 +1386,23 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
       ),
 
       Bus(
-        startPointLabel: 'EMControl-3', // 
+        startPointLabel: 'EMControl-3', //  Palabr de control de la instruccion en Mamoria 
         endPointLabel: 'FU-4',   //        isHidden: (s) => !s.isBranchHazard,
-        isHidden: (s) => !(s.showForwarding || s.busValues['bus_ControlForwardA'] == 0 || s.busValues['bus_ControlForwardB'] == 0),
+        isHidden: (s) => !(s.showForwarding || s.busValues['bus_ControlForwardA'] == 1 || s.busValues['bus_ControlForwardB'] == 1|| s.busValues['bus_ControlForwardM'] == 1),
         isActive: (s) => true,
-        valueKey: '',
+        valueKey: 'Pipe_EX_MEM_Control_out',
         isControl: true, 
         isForwardingBus: true,
-        size: 16, // Entrada: señal de salto tomado
+        size: 16, 
         waypointsBuilder: (s) => [s._manhattan('EMControl-3', 'FU-4')],
       ),
       
-      // Salida: Buses de los muxes
+      // Salida: control de los muxes de forward
 
       Bus(
         startPointLabel: 'FU-5', // 
         endPointLabel: 'MFWA-4',   //        isHidden: (s) => !s.isBranchHazard,
-        isHidden: (s) => !(s.showForwarding || s.busValues['bus_ControlForwardA'] == 0 || s.busValues['bus_ControlForwardA'] == 2),
+        isHidden: (s) => !(s.showForwarding || s.busValues['bus_ControlForwardA'] == 1 || s.busValues['bus_ControlForwardA'] == 2),
         isActive: (s) => true,
         valueKey: 'bus_ControlForwardA',
         isControl: true, 
@@ -1326,7 +1414,7 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
       Bus(
         startPointLabel: 'FU-5', // 
         endPointLabel: 'MFWB-4',   //        isHidden: (s) => !s.isBranchHazard,
-        isHidden: (s) => !(s.showForwarding || s.busValues['bus_ControlForwardB'] == 0 || s.busValues['bus_ControlForwardB'] == 2),
+        isHidden: (s) => !(s.showForwarding || s.busValues['bus_ControlForwardB'] == 1 || s.busValues['bus_ControlForwardB'] == 2),
         isActive: (s) => true,
         valueKey: 'bus_ControlForwardB',
         isControl: true, 
@@ -1334,6 +1422,19 @@ void modifyBuses(List<Bus> buses,{bool isMultiCycle = false}) {
         size: 1, // Entrada: señal de salto tomado
         //waypointsBuilder: (s) => [s._manhattan('MFWB-4', 'FU-5')],
       ),
+
+      Bus(
+        startPointLabel: 'FU-6', // 
+        endPointLabel: 'MFWM-4',   //        isHidden: (s) => !s.isBranchHazard,
+        isHidden: (s) => !(s.showForwarding || s.busValues['bus_ControlForwardM'] == 1),
+        isActive: (s) => true,
+        valueKey: 'bus_ControlForwardM',
+        isControl: true, 
+        isForwardingBus: true,
+        size: 1, // 
+        waypointsBuilder: (s) => [s._manhattan('MFWM-4', 'FU-6')],
+      ),
+
 
     ]);
   }

@@ -38,8 +38,8 @@ class MuxWidget extends StatelessWidget {
   final TextStyle estilo= TextStyle(fontSize: 13,color:textColor);
 
     return SizedBox(
-      width: widthMuxWB,
-      height: heightMuxWB,
+      width: w_mainMuxes,
+      height: h_MainMuxes,
       
       // Stack nos permite apilar widgets. Dibujaremos la forma
       // y pondremos el texto '+' encima.

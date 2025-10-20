@@ -8,6 +8,7 @@ import 'reg_widget.dart';
 import 'package:flutter/services.dart'; // Para RawKeyboard
 // Para FontFeature
 import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart'; // Para kDebugMode
 import 'buses_painter.dart';
 import 'datapath_state.dart';          // Importa nuestro estado
 import 'pc_widget.dart';
@@ -26,6 +27,7 @@ import 'platform_init.dart'; // Importación condicional para la configuración 
 import 'hazard_unit_widget.dart'; // Importamos el nuevo widget
 import 'execution_history_view.dart'; // Importamos la nueva vista
 
+import 'program_listing_view.dart';
 const String _registerFileHoverId = '##REGISTER_FILE_HOVER##';
 const String _instructionMemoryHoverId = '##INSTRUCTION_MEMORY_HOVER##';
 const String _dataMemoryHoverId = '##DATA_MEMORY_HOVER##';
@@ -39,6 +41,10 @@ const String _aluHoverId = '##ALU_HOVER##';
 const String _pcAdderHoverId = '##PC_ADDER_HOVER##';
 const String _controlTableHoverId = '##CONTROL_TABLE_HOVER##';
 const String _instructionFormatTableHoverId = '##INSTRUCTION_FORMAT_HOVER##';
+const String _dacLogoHoverId = '##DAC_LOGO_HOVER##';
+const String _muxFWDAHoverId = '##MUX_FWD_A_HOVER##';
+const String _muxFWDBHoverId = '##MUX_FWD_B_HOVER##';
+const String _muxFWDMHoverId = '##MUX_FWD_M_HOVER##';
 
 
 
@@ -146,7 +152,7 @@ String _getHazardTooltipText(DatapathState datapathState) {
       reason += " incondicionalmente.";
     }
     return 'La unidad de Riesgo de Salto se ha activado\nporque $reason''\n\nNota: El campo RD del registro de segmentación,\nen branch, se usa para propagar funct3 (tipo de branch).';
-  } else if (datapathState.busValues['bus_ControlForwardA'] != 1 || datapathState.busValues['bus_ControlForwardB'] != 1) {
+  } else if (datapathState.busValues['bus_ControlForwardA'] != 0 || datapathState.busValues['bus_ControlForwardB'] != 0) {
     // Hacemos el tooltip más específico para los cortocircuitos.
     final forwardA = datapathState.busValues['bus_ControlForwardA'];
     final forwardB = datapathState.busValues['bus_ControlForwardB'];
@@ -291,16 +297,16 @@ class _MyAppState extends State<MyApp> {
           children: [
             // --- Panel de Control Superior ---
             Container(
-              padding: const EdgeInsets.only(top: 12, left:12),
+              padding: const EdgeInsets.only(top: 12, left:12, bottom: 10),
               child: Row(
                 children: [
                   // Envolvemos los botones en un SizedBox para fijar el ancho total.
                   SizedBox(
-                    width: 255, // Ancho total fijo para los tres botones.
-                    height:40,
+                    width: 425, // Ancho total fijo para los cinco botones.
+                    height:50,
                     child: Row(
                       children: [
-                        // Cada bo90tón se envuelve en Expanded para que compartan el espacio.
+                        // Cada botón se envuelve en Expanded para que compartan el espacio.
                         Expanded(
                           child: 
                           Tooltip(message: 'Upload program to memory',
@@ -350,6 +356,7 @@ class _MyAppState extends State<MyApp> {
                               onLongPress: () {
                                 datapathState.initial_pc  = 256 * Random().nextInt(256);
                                 datapathState.reset(initial_pc: datapathState.initial_pc);
+                                datapathState.current_pc = datapathState.initial_pc;
                               },
                               icon: const Icon(Icons.refresh, size: 16),
                               label: const Text('Reset'),
@@ -375,6 +382,40 @@ class _MyAppState extends State<MyApp> {
                               icon: const Icon(Icons.timer, size: 16),
                               label: const Text('Clock'),
                               style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade100, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 8)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          flex: 1,
+                          child: Tooltip(
+                            message: 'Run at backend (up to breakpoint, trap or infinite loop) (not implemented)',
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                // Lógica para el botón Run (backend)
+                                // datapathState.run(); // A implementar en el futuro
+                              },
+                              icon: const Icon(Icons.fast_forward, size: 16),
+                              label: const Text('Run'),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade100, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 8)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          flex: 1,
+                          child: Tooltip(
+                            message: datapathState.isPlaying ? 'Pause auto-step' : 'Play auto-step (frontend)',
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                datapathState.togglePlayPause();
+                              },
+                              icon: Icon(
+                                datapathState.isPlaying ? Icons.pause : Icons.play_arrow,
+                                size: 16,
+                              ),
+                              label: Text(datapathState.isPlaying ? 'Pause' : 'Play'),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade100, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 8)),
                             ),
                           ),
                         ),
@@ -413,20 +454,24 @@ class _MyAppState extends State<MyApp> {
 
                       // --- Logos ---
                       Positioned(
-                        top: yShift+520,
+                        top: y_shift+520,
                         left: 22,
                         child: Row(
                           children: [
-                            Image.asset(
-                              'img/dac.png',
-                              width: 60,
-                              height: 50,
+                            MouseRegion(
+                              onEnter: (_) => datapathState.setHoverInfo(_dacLogoHoverId),
+                              onExit: (_) => datapathState.setHoverInfo(''),
+                              child: Image.asset(
+                                'img/dac.png',
+                                width: 60,
+                                height: 50,
+                              ),
                             ),
-                            const SizedBox(width: 20),
+                            const SizedBox(width: 10),
                             Image.asset(
                               'img/uma.png',
-                              width: 70,
-                              height: 70,
+                              width: 60,
+                              height: 60,
                             ),
                           ],
                         ),
@@ -839,14 +884,15 @@ List<Widget> _buildDatapathWidgets(DatapathState datapathState, bool isSingleCyc
       top: yMuxFwdA,
       left: xMuxFwdA,
       child: Opacity(
-        opacity: datapathState.showForwarding||(datapathState.busValues['bus_ControlForwardA'] !=1)? 1.0 : 0.0,
+        opacity: datapathState.showForwarding||(datapathState.busValues['bus_ControlForwardA'] !=0)? 1.0 : 0.0,
         child: MouseRegion(
-          onEnter: (_) { if (datapathState.showForwarding) datapathState.setHoverInfo(_muxBHoverId); },
+          onEnter: (_) { if (datapathState.showForwarding) datapathState.setHoverInfo(_muxFWDBHoverId); },
           onExit: (_) => datapathState.setHoverInfo(''),
           child: Mux3Widget(
             key: datapathState.muxFWAKey,
-            value: 1,
+            value: datapathState.busValues['bus_ControlForwardA'] ?? 0,
             isActive: true,
+            labels: ['1','0','2'],
           ),
         ),
       ),
@@ -856,14 +902,33 @@ List<Widget> _buildDatapathWidgets(DatapathState datapathState, bool isSingleCyc
       top: yMuxFwdB,
       left: xMuxFwdB,
       child: Opacity(
-        opacity: datapathState.showForwarding||(datapathState.busValues['bus_ControlForwardB'] !=1)? 1.0 : 0.0,
+        opacity: datapathState.showForwarding||(datapathState.busValues['bus_ControlForwardB'] !=0)? 1.0 : 0.0,
         child: MouseRegion(
-          onEnter: (_) { if (datapathState.showForwarding) datapathState.setHoverInfo(_muxBHoverId); },
+          onEnter: (_) { if (datapathState.showForwarding) datapathState.setHoverInfo(_muxFWDBHoverId); },
           onExit: (_) => datapathState.setHoverInfo(''),
           child: Mux3Widget(
             key: datapathState.muxFWBKey,
-            value: 1,
+            value: datapathState.busValues['bus_ControlForwardB'] ?? 0,
             isActive: true,
+            labels: ['1','0','2'],
+          ),
+        ),
+      ),
+    ),
+    if(isPipelineMode)
+    Positioned(
+      top: yMuxFwdM,
+      left: xMuxFwdM,
+      child: Opacity(
+        opacity: datapathState.showForwarding||(datapathState.busValues['bus_ControlForwardM'] !=0)? 1.0 : 0.0,
+        child: MouseRegion(
+          onEnter: (_) { if (datapathState.showForwarding) datapathState.setHoverInfo(_muxFWDMHoverId); },
+          onExit: (_) => datapathState.setHoverInfo(''),
+          child: Mux3Widget(
+            key: datapathState.muxFWMKey,
+            value: datapathState.busValues['bus_ControlForwardM'] ?? 0,
+            isActive: true,
+            labels: ['','0','1'],
           ),
         ),
       ),
@@ -889,7 +954,7 @@ List<Widget> _buildDatapathWidgets(DatapathState datapathState, bool isSingleCyc
             Offset(0.5,0.15),
             Offset(1,0.35),
             Offset(1,0.5),
-            Offset(2.5,0.5),
+            Offset(2.2,0.5),
             Offset(1.2,0.5),
           ],
         ),
@@ -1101,6 +1166,8 @@ List<Widget> _buildDatapathWidgets(DatapathState datapathState, bool isSingleCyc
     ),
 
     // --- Unidades de Riesgo y Cortocircuito ---
+
+    //LOAD HAZARD
     if (isPipelineMode)
       Positioned(
         top: yHazardUnits,
@@ -1119,6 +1186,7 @@ List<Widget> _buildDatapathWidgets(DatapathState datapathState, bool isSingleCyc
         ),
       ),
 
+    //BRANCH HAZARD
     if (isPipelineMode)
       Positioned(
         top: yHazardUnits,
@@ -1138,7 +1206,8 @@ List<Widget> _buildDatapathWidgets(DatapathState datapathState, bool isSingleCyc
           ],
         ),
       ),
-
+    
+    //FORWARDING
     if (isPipelineMode)
       Positioned(
         top: yHazardUnits,
@@ -1146,15 +1215,16 @@ List<Widget> _buildDatapathWidgets(DatapathState datapathState, bool isSingleCyc
         child: HazardUnitWidget(
           key: datapathState.forwardingUnitKey,
           label: 'Forwarding Unit',
-          isActive: datapathState.showForwarding || datapathState.busValues['bus_ControlForwardA'] != 1 || datapathState.busValues['bus_ControlForwardB'] != 1,
+          isActive: datapathState.showForwarding || datapathState.busValues['bus_ControlForwardA'] != 0 || datapathState.busValues['bus_ControlForwardB'] != 0,
           activeColor: Colors.purpleAccent,
           connectionPoints: const [
             Offset(0.2, 1), // Entrada rd1 rd2
             Offset(0.5, 1), // Entrada desde Control ex
             Offset(0.5, 1.5), // Entrada desde Control ex
             Offset(1, 0.2), // Entrada desde Control me
-            Offset(1, 0.5), // Entrada desde Control wb
+            Offset(1, 0.7), // Entrada desde Control wb
             Offset(rx_controlMuxHzd, 1), // Salida hacia los muxes
+            Offset(1, 0.5), // Salida control mem mem fwd
           ],
         ),
       ),
@@ -1275,16 +1345,19 @@ List<Widget> _buildDatapathWidgets(DatapathState datapathState, bool isSingleCyc
     crossAxisAlignment: CrossAxisAlignment.start,
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
-      Row(
-        children: [
-          Checkbox(
-            value: datapathState.showConnectionLabels,
-            onChanged: (value) => datapathState.setShowConnectionLabels(value),
-            visualDensity: VisualDensity.compact,
-          ),
-          const Text('Show connectors', style: TextStyle(fontSize: 9)),
-        ],
-      ),
+      // Solo muestra este checkbox si la app está en modo de depuración.
+      if (kDebugMode)
+        Row(
+          children: [
+            Checkbox(
+              value: datapathState.showConnectionLabels,
+              onChanged: (value) => datapathState.setShowConnectionLabels(value),
+              visualDensity: VisualDensity.compact,
+              
+            ),
+            const Text('Show connectors', style: TextStyle(fontSize: 9)),
+          ],
+        ),
       Row(
         children: [
           Checkbox(
@@ -1335,6 +1408,18 @@ List<Widget> _buildDatapathWidgets(DatapathState datapathState, bool isSingleCyc
             const Text('Show BHU', style: TextStyle(fontSize: 9, color: Colors.black)),
           ],
         ),
+      Row(
+        children: [
+          Checkbox(
+            value: datapathState.showStaticCodeView,
+            onChanged:(value) => datapathState.setStaticCodeView(value), 
+            visualDensity: VisualDensity.compact),
+          Text(
+            datapathState.showStaticCodeView ? 'Show Execution Thread' : 'Show Program Listing',
+            style: const TextStyle(fontSize: 9, color: Colors.black)),
+        ],
+      ),
+
       const SizedBox(height: 16),
       // --- Contenedor para el Historial de Ejecución ---
       // Le damos un tamaño fijo y un borde para que se vea bien.
@@ -1345,7 +1430,10 @@ List<Widget> _buildDatapathWidgets(DatapathState datapathState, bool isSingleCyc
           border: Border.all(color: Colors.grey.shade400),
           borderRadius: BorderRadius.circular(4),
         ),
-        child: const ExecutionHistoryView(),
+        // Alternamos entre la vista estática del programa y la dinámica del historial.
+        child: datapathState.showStaticCodeView
+            ? const ProgramListingView()
+            : const ExecutionHistoryView(),
       ),
     ],
   ),
@@ -1408,6 +1496,14 @@ class FloatingTooltip extends StatelessWidget {
       content = buildControlTableTooltip();
     } else if (message == _instructionFormatTableHoverId) {
       content = buildInstructionFormatTooltip();
+    } else if (message == _dacLogoHoverId) {
+      content = buildDacLogoTooltip();
+    } else if (message == _muxFWDAHoverId) {
+      content = buildMuxFwdATooltip(datapathState);
+    } else if (message == _muxFWDBHoverId) {
+      content = buildMuxFwdBTooltip(datapathState);
+    } else if (message == _muxFWDMHoverId) {
+      content = buildMuxFwdMTooltip(datapathState);
     } else {
       content = Text(
         message,
@@ -1415,10 +1511,26 @@ class FloatingTooltip extends StatelessWidget {
       );
     }
 
+    // --- Lógica de posicionamiento del Tooltip ---
+    double? left = position.dx + 15;
+    double? top = position.dy + 15;
+    double? right;
+    double? bottom;
+
+    // Caso especial para el tooltip del logo DAC: lo posicionamos arriba a la derecha.
+    if (message == _dacLogoHoverId) {
+      left = position.dx; // Dejamos que 'right' controle la posición horizontal.
+      top = null;  // Dejamos que 'bottom' controle la posición vertical.
+      right = null;// MediaQuery.of(context).size.width - position.dx + 15;
+      bottom = MediaQuery.of(context).size.height - position.dy -200;
+    }
+
     // Usamos un Positioned para colocar el tooltip en las coordenadas del ratón.
     return Positioned(
-      left: position.dx + 15, // Pequeño offset para que no tape el cursor.
-      top: position.dy + 15,
+      left: left,
+      top: top,
+      right: right,
+      bottom: bottom,
       // IgnorePointer evita que el tooltip intercepte eventos del ratón.
       child: IgnorePointer(
         child: Container(
@@ -1432,4 +1544,50 @@ class FloatingTooltip extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget buildDacLogoTooltip() {
+  final todoStyle = miEstiloTooltip.copyWith(fontSize: 11);
+  final nameStyle = miEstiloTooltip.copyWith(fontSize: 14, fontWeight: FontWeight.bold);
+  final titleStyle = miEstiloTooltip.copyWith(fontSize: 12);
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Imagen
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              image: DecorationImage(
+                fit: BoxFit.cover,
+                image: AssetImage('img/ipe.png'),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Texto
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Luis Felipe Romero', style: nameStyle),
+              Text('Catedrático de Arquitectura de Computadores', style: titleStyle),
+              Text('Universidad de Málaga', style: titleStyle),
+            ],
+          ),
+        ],
+      ),
+      const SizedBox(height: 15),
+      // Lista de ToDo
+      Text('ToDo:', style: nameStyle),
+      const SizedBox(height: 5),
+      Text(' • Play/Pause x steps (frontend)', style: todoStyle),
+      Text(' • Run x steps (backend)', style: todoStyle),
+    ],
+  );
 }

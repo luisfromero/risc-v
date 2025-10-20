@@ -123,12 +123,15 @@ struct InstructionEntry {
             // --- Señales para Cortocircuitos (Forwarding) ---
             {"bus_ControlForwardA", {{"value", state.bus_ControlForwardA.value}, {"ready_at", state.bus_ControlForwardA.ready_at}, {"is_active", state.bus_ControlForwardA.is_active}}},
             {"bus_ControlForwardB", {{"value", state.bus_ControlForwardB.value}, {"ready_at", state.bus_ControlForwardB.ready_at}, {"is_active", state.bus_ControlForwardB.is_active}}},
+            {"bus_ControlForwardM", {{"value", state.bus_ControlForwardM.value}, {"ready_at", state.bus_ControlForwardM.ready_at}, {"is_active", state.bus_ControlForwardM.is_active}}},
             {"bus_ForwardA", {{"value", state.bus_ForwardA.value}, {"ready_at", state.bus_ForwardA.ready_at}, {"is_active", state.bus_ForwardA.is_active}}},
             {"bus_ForwardB", {{"value", state.bus_ForwardB.value}, {"ready_at", state.bus_ForwardB.ready_at}, {"is_active", state.bus_ForwardB.is_active}}},
+            {"bus_ForwardM", {{"value", state.bus_ForwardM.value}, {"ready_at", state.bus_ForwardM.ready_at}, {"is_active", state.bus_ForwardM.is_active}}},
 
 
         };
 
+        json_str = j.dump();
         json_str = j.dump();
         return json_str.c_str();
     }

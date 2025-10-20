@@ -48,9 +48,9 @@ class ExecutionHistoryManager {
         // Sin embargo, el `DatapathState` todavía tiene el valor antiguo.
         // Por simplicidad y robustez, asumimos que el `step` añade la instrucción del estado actual.
         if (simState.instruction.isNotEmpty) {
-          if (_historyLog.isEmpty || _historyLog.last.pc != simState.pcValue) {
+          //if (_historyLog.isEmpty || _historyLog.last.pc != simState.pcValue) {
              _historyLog.add(ExecutionRecord(pc: simState.pcValue, instruction: simState.instruction));
-          }
+          //}
         }
         break;
       case CAUSAS.STEPBACK:

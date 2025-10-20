@@ -134,8 +134,10 @@ Future<SimulationState> getDataMemory() async {
           .map((item) =>
               InstructionMemoryItem.fromJson(item as Map<String, dynamic>))
           .toList();
+
       _currentState =
           _currentState!.copyWith(instructionMemory: instructionMemory);
+          
       return _currentState!;
     } else {
       // ignore: avoid_print
@@ -210,8 +212,8 @@ Future<SimulationState> getDataMemory() async {
 
     if (response.statusCode == 200) {
       // 1. Obtenemos el estado inicial del simulador (registros, PC, etc.).
-      final initialState = SimulationState.fromJson(
-          jsonDecode(utf8.decode(response.bodyBytes)));
+      final initialState = SimulationState.fromJson(jsonDecode(utf8.decode(response.bodyBytes)),
+          initial_pc: initial_pc);
 
       // 2. Establecemos un estado base para que las llamadas de memoria funcionen.
       _currentState = initialState;

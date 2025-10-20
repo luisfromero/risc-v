@@ -177,6 +177,19 @@ std::vector<std::string> RISCVAssembler::preprocess(const std::string& source_co
         if (line == "nop") {
             line = "addi x0, x0, 0";
             if (m_log) *m_log << "    -> Pseudo-instrucción 'nop' expandida a '" << line << "'" << std::endl;
+        } else if (line.rfind("subi", 0) == 0) { // subi rd, rs1, imm
+            // Primero, nos aseguramos de que no haya comas para facilitar el parseo
+            std::replace(line.begin(), line.end(), ',', ' ');
+            std::stringstream ss_line(line);
+            std::string mnemonic, rd, rs1, imm_str;
+            ss_line >> mnemonic >> rd >> rs1 >> imm_str; // Extraemos "subi", "rd", "rs1", "imm"
+            try {
+                int imm_val = std::stoi(imm_str);
+                line = "addi " + rd + " " + rs1 + " " + std::to_string(-imm_val);
+                if (m_log) *m_log << "    -> Pseudo-instrucción 'subi' expandida a '" << line << "'" << std::endl;
+            } catch (const std::invalid_argument& ia) {
+                // Dejar que las fases posteriores manejen el error si el inmediato no es un número.
+            }
         }
 
         // 3. Reemplazar comas y paréntesis por espacios para facilitar el split

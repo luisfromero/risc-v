@@ -120,6 +120,7 @@ class Simulador {
       // El offset de 'instruction' es 4 bytes (después de 'value' de 32 bits).
       final instructionPtr = Pointer<Utf8>.fromAddress(entryPtr.address + 4);
       instructionList.add(InstructionMemoryItem(
+        address: i, // La dirección real se asignará en el servicio.
         value: entryPtr.ref.value,
         instruction: instructionPtr.toDartString(),
       ));
@@ -440,7 +441,7 @@ class FfiSimulationService implements SimulationService {
 
     final stateMap = simulador.reset(mode.index, initial_pc);
 
-    final initialState = SimulationState.fromJson(stateMap);
+    final initialState = SimulationState.fromJson(stateMap, initial_pc: initial_pc);
     
     // Obtenemos las memorias por separado
     final iMem = simulador.getInstructionMemory();

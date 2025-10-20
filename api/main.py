@@ -168,8 +168,10 @@ class DatapathState(ctypes.Structure):
         # --- Señales para Cortocircuitos (Forwarding) --- (EL ORDEN IMPORTA)
         ("bus_ControlForwardA", Signal_u8),
         ("bus_ControlForwardB", Signal_u8),
+        ("bus_ControlForwardM", Signal_u8),
         ("bus_ForwardA", Signal_u32),
         ("bus_ForwardB", Signal_u32),
+        ("bus_ForwardM", Signal_u32),
     ]
 
 # --- Paso 3: Definir los prototipos de las funciones C ---
@@ -452,7 +454,7 @@ ABI_NAMES = [
 
 def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel:
     """Construye y devuelve el estado completo actual del simulador."""
-    print("Construyendo estado completo...")
+    print("Reconstruyendo estado completo...")
     pc = sim.get_pc()
     status = sim.get_status_register()
     registers = sim.get_registers()
@@ -499,9 +501,10 @@ def _get_full_state_data(sim: Simulator, model_name: str) -> SimulatorStateModel
     for field_name, field_type in datapath_c_struct._fields_:
         # Obtenemos el valor del campo desde la instancia de la estructura C
         value = getattr(datapath_c_struct, field_name)
-
         # Caso 1: El campo es una de nuestras estructuras 'Signal_*'
         if isinstance(value, signal_types):
+            # print(field_name)
+            # print(value.value)
             datapath_model[field_name] = {
                 "value": value.value,
                 "ready_at": value.ready_at,

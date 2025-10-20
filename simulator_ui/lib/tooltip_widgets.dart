@@ -714,6 +714,15 @@ Widget buildControlBusTooltip(DatapathState datapathState, String signalKey) {
       );
     }
 
+    if(signalKey=="Pipe_MEM_WB_Control_out")
+     {
+      currentValue=datapathState.busValues["Pipe_MEM_WB_Control_out"];
+      final hexValue = toHex(currentValue, 4); // Formateamos a 4 dígitos hexadecimales
+      return Text(
+        '$signalKey: $hexValue ($currentValue)', // Mostramos ambos formatos
+        style: miEstiloTooltip.copyWith(color: Colors.cyan), // Usamos un color para destacarlo
+      );
+    }
 
 
     if (options == null || currentValue != null) {
@@ -1170,4 +1179,100 @@ String _padCenter(String text, int width) {
   int left = padding ~/ 2;
   int right = padding - left;
   return (' ' * left) + text + (' ' * right);
+}
+
+/// Construye el tooltip para el Mux de Forwarding A.
+Widget buildMuxFwdATooltip(DatapathState datapathState) {
+  final forwardA = datapathState.busValues['bus_ControlForwardA'] ?? 0;
+  final value = datapathState.busValues['bus_ForwardA'];
+
+  String sourceDescription;
+  switch (forwardA) {
+    case 1:
+      sourceDescription = "1: Resultado de la etapa MEM (ALU)";
+      break;
+    case 2:
+      sourceDescription = "2: Resultado de la etapa WB";
+      break;
+    default:
+      sourceDescription = "0: Valor del registro (sin forwarding)";
+      break;
+  }
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text('Mux Forwarding A (MFWA)', style: miEstiloTooltip.copyWith(fontWeight: FontWeight.bold, fontSize: 14)),
+      const SizedBox(height: 8),
+      Text('Selección: $forwardA ($sourceDescription)', style: miEstiloTooltip),
+      const SizedBox(height: 4),
+      Text('Valor de salida: ${toHex(value)}', style: miEstiloTooltip),
+      const SizedBox(height: 8),
+      Text('Este mux selecciona la entrada para el operando A de la ALU.', style: miEstiloTooltip.copyWith(fontSize: 11, fontStyle: FontStyle.italic)),
+    ],
+  );
+}
+
+/// Construye el tooltip para el Mux de Forwarding B.
+Widget buildMuxFwdBTooltip(DatapathState datapathState) {
+  final forwardB = datapathState.busValues['bus_ControlForwardB'] ?? 0;
+  final value = datapathState.busValues['bus_ForwardB'];
+
+  String sourceDescription;
+  switch (forwardB) {
+    case 1:
+      sourceDescription = "1: Resultado de la etapa MEM (ALU)";
+      break;
+    case 2:
+      sourceDescription = "2: Resultado de la etapa WB";
+      break;
+    default:
+      sourceDescription = "0: Valor del registro (sin forwarding)";
+      break;
+  }
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text('Mux Forwarding B (MFWB)', style: miEstiloTooltip.copyWith(fontWeight: FontWeight.bold, fontSize: 14)),
+      const SizedBox(height: 8),
+      Text('Selección: $forwardB ($sourceDescription)', style: miEstiloTooltip),
+      const SizedBox(height: 4),
+      Text('Valor de salida: ${toHex(value)}', style: miEstiloTooltip),
+      const SizedBox(height: 8),
+      Text('Este mux selecciona la entrada para el operando B de la ALU.', style: miEstiloTooltip.copyWith(fontSize: 11, fontStyle: FontStyle.italic)),
+    ],
+  );
+}
+
+/// Construye el tooltip para el Mux de Forwarding M (Memoria).
+Widget buildMuxFwdMTooltip(DatapathState datapathState) {
+  final forwardM = datapathState.busValues['bus_ControlForwardM'] ?? 0;
+  final value = datapathState.busValues['bus_ForwardM'];
+
+  String sourceDescription;
+  switch (forwardM) {
+    case 1:
+      sourceDescription = "1: Resultado de la etapa WB";
+      break;
+    default:
+      sourceDescription = "0: Valor del registro (sin forwarding)";
+      break;
+  }
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text('Mux Forwarding Mem (MFWM)', style: miEstiloTooltip.copyWith(fontWeight: FontWeight.bold, fontSize: 14)),
+      const SizedBox(height: 8),
+      Text('Selección: $forwardM ($sourceDescription)', style: miEstiloTooltip),
+      const SizedBox(height: 4),
+      Text('Valor de salida: ${toHex(value)}', style: miEstiloTooltip),
+      const SizedBox(height: 8),
+      Text('Adelanta el dato a escribir en memoria para instrucciones SW.', style: miEstiloTooltip.copyWith(fontSize: 11, fontStyle: FontStyle.italic)),
+    ],
+  );
 }

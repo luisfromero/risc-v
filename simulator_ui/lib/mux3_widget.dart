@@ -22,7 +22,7 @@ class Mux3Widget extends StatelessWidget {
       Offset(1,0.5),
       Offset(0.3,0),
     ],
-    this.color = const Color.fromARGB(255, 212, 59, 250), // Color por defecto
+    this.color = const Color.fromARGB(255, 229, 150, 249), // Color por defecto
   });
 
   //final TextStyle estilo=  TextStyle(fontSize: 16);
@@ -45,14 +45,10 @@ class Mux3Widget extends StatelessWidget {
             painter: _MuxPainter(color: backgroundColor, borderColor: textColor),
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 15),
-            child: 
-            Column(
-              children: [
-                Text(" 0",style:estilo),
-                Text(" 1",style:estilo),
-                Text(" 2",style:estilo),
-              ],
+            padding: const EdgeInsets.only(right: 15,left:2),
+            child: Column(
+              // Mapeamos la lista de 'labels' a una lista de widgets de Texto.
+              children: labels.map((label) => Text(label, style: estilo)).toList(),
             ),
           ),
 

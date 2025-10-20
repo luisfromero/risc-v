@@ -292,10 +292,12 @@ void Simulator::reset(PipelineModel _model, uint32_t _initial_pc) {
         datapath.bus_BRwr.is_active=false;
         datapath.bus_ALUsrc.is_active=false;
 
-        datapath.bus_ControlForwardA={1, 1, false};
-        datapath.bus_ControlForwardB={1, 1, false};
+        datapath.bus_ControlForwardA={0, 1, false};
+        datapath.bus_ControlForwardB={0, 1, false};
+        datapath.bus_ControlForwardM={0, 1, false};
         datapath.bus_ForwardA.is_active=false;
         datapath.bus_ForwardB.is_active=false;
+        datapath.bus_ForwardM.is_active=false;
 
         
 
@@ -1022,7 +1024,7 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
 
 
     if(m_logfile.is_open()&&DEBUG_INFO){
-        m_logfile << "WB Stage: " << std::endl
+        m_logfile << "WB Stage test: " << std::endl
                   << "Pipe0: " << datapath.Pipe_MEM_WB_RD.is_active << "\t" << (int)datapath.Pipe_MEM_WB_RD.value << std::endl
                   << "Pipe1: " << datapath.Pipe_MEM_WB_RM.is_active << "\t" << (int)datapath.Pipe_MEM_WB_RM.value << std::endl
                   << "Pipe2: " << datapath.Pipe_MEM_WB_NPC.is_active << "\t" << (int)datapath.Pipe_MEM_WB_NPC.value << std::endl
@@ -1037,6 +1039,31 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
     // Data comes from the EX/MEM pipeline register.
     uint32_t mem_read_data = INDETERMINADO;
     bool isLWorSW=false;
+    uint32_t data_to_store = datapath.Pipe_EX_MEM_B_out.value; // Valor por defecto para SW.
+    datapath.bus_ControlForwardM = {0, 1, false}; // BUGFIX: Reiniciamos el bus de control de forwarding MEM->MEM en cada ciclo.
+    m_logfile << "Se desactiva por defecto el forward m m " << std::endl;
+
+    if (FORWARDING && is_valid_instr_MEM && controlSignal(datapath.Pipe_EX_MEM_Control_out.value, "MemWr")) {
+        // --- LÓGICA DE FORWARDING MEM -> MEM ---
+        // Detecta si una instrucción SW en la etapa MEM necesita el resultado de una LW en la etapa WB.
+        
+        // Registro fuente (rs2) de la instrucción SW en la etapa MEM.
+        // El valor de rs2 se propagó en el bus B y ahora está en Pipe_EX_MEM_B.
+        // La dirección del registro rs2 se propagó en el bus RD de ID/EX y EX/MEM.
+        uint8_t mem_rs2_addr = datapath.Pipe_EX_MEM_RD_out.value; // Reutilizamos RD para rs2 en SW
+
+        // Registro destino (rd) de la instrucción en la etapa WB.
+        uint8_t wb_rd = datapath.Pipe_MEM_WB_RD_out.value;
+        bool wb_is_load = datapath.Pipe_MEM_WB_Control_out.is_active && controlSignal(datapath.Pipe_MEM_WB_Control_out.value, "ResSrc") == 0; // ResSrc=0 es LW
+
+        if (wb_is_load && wb_rd != 0 && wb_rd == mem_rs2_addr) {
+            data_to_store = datapath.Pipe_MEM_WB_RM_out.value; // Cortocircuito desde el dato leído en la etapa anterior.
+            datapath.bus_ControlForwardM = {1, 1, true}; // Activamos el forwarding.
+            m_logfile << "Se activó el forward m m " << std::endl;
+
+        }
+    }
+
     try{
     if (datapath.Pipe_EX_MEM_Control_out.is_active) {
         uint16_t mem_control = datapath.Pipe_EX_MEM_Control_out.value;
@@ -1046,7 +1073,7 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
 
 
         if (MemWr == 1) { // Store instruction (e.g., SW)
-            d_mem.write_word(alu_result, datapath.Pipe_EX_MEM_B_out.value);
+            d_mem.write_word(alu_result, data_to_store);
             isLWorSW=true;
         } else if (controlSignal(mem_control, "ResSrc") == 0) { // Load instruction (e.g., LW)
             mem_read_data = d_mem.read_word(alu_result,true);
@@ -1054,6 +1081,7 @@ void Simulator::simulate_pipeline(uint32_t instruction) {
         }
     }
     datapath.bus_Mem_read_data = { mem_read_data, 1, isLWorSW };
+    datapath.bus_ForwardM = { data_to_store, 1, datapath.bus_ControlForwardM.is_active };
 
     // Pass data to the next stage's register (MEM/WB)
     datapath.Pipe_MEM_WB_Control      = datapath.Pipe_EX_MEM_Control_out;
@@ -1111,25 +1139,25 @@ catch(const std::exception& e){
         bool mem_wb_reg_write = datapath.Pipe_MEM_WB_Control_out.is_active && controlSignal(datapath.Pipe_MEM_WB_Control_out.value, "BRwr");
 
         // Lógica para Forward A (operando rs1)
-        if (ex_mem_reg_write && ex_mem_rd != 0 && ex_mem_rd == ex_rs1_addr) {
-            datapath.bus_ControlForwardA = {0, 1, true}; // Forward desde MEM (ALU result)
+        if (ex_mem_reg_write && ex_mem_rd != 0 && ex_mem_rd == ex_rs1_addr) { // <-- ex_mem_rd != 0
+            datapath.bus_ControlForwardA = {1, 1, true}; // Forward desde MEM (ALU result)
             forwarded_a = datapath.Pipe_EX_MEM_ALU_result_out.value;
-        } else if (mem_wb_reg_write && mem_wb_rd != 0 && mem_wb_rd == ex_rs1_addr) {
+        } else if (mem_wb_reg_write && mem_wb_rd != 0 && mem_wb_rd == ex_rs1_addr) { // <-- mem_wb_rd != 0
             datapath.bus_ControlForwardA = {2, 1, true}; // Forward desde WB (resultado final)
             forwarded_a = datapath.bus_C.value; // bus_C contiene el resultado final de la etapa WB
         } else {
-            datapath.bus_ControlForwardA = {1, 1, false}; // Sin forwarding
+            datapath.bus_ControlForwardA = {0, 1, false}; // Sin forwarding
         }
 
         // Lógica para Forward B (operando rs2)
-        if (ex_mem_reg_write && ex_mem_rd != 0 && ex_mem_rd == ex_rs2_addr) {
-            datapath.bus_ControlForwardB = {0, 1, true}; // Forward desde MEM
+        if (ex_mem_reg_write && ex_mem_rd != 0 && ex_mem_rd == ex_rs2_addr) { // <-- ex_mem_rd != 0
+            datapath.bus_ControlForwardB = {1, 1, true}; // Forward desde MEM
             forwarded_b = datapath.Pipe_EX_MEM_ALU_result_out.value;
         } else if (mem_wb_reg_write && mem_wb_rd != 0 && mem_wb_rd == ex_rs2_addr) {
             datapath.bus_ControlForwardB = {2, 1, true}; // Forward desde WB
             forwarded_b = datapath.bus_C.value;
         } else {
-            datapath.bus_ControlForwardB = {1, 1, false}; // Sin forwarding
+            datapath.bus_ControlForwardB = {0, 1, false}; // Sin forwarding
         }
 
         // Actualizamos los buses de datos que salen de los Mux de Forwarding
@@ -1323,6 +1351,10 @@ catch(const std::exception& e){
         // para pasar el campo funct3 a la siguiente etapa.
         if (is_valid_instr_ID && decoded_info->type == 'B') {
             uint8_t funct3 = (instruction_in_id >> 12) & 0x7;
+            datapath.Pipe_ID_EX_RD = {funct3, 1, is_valid_instr_ID};
+        } else if (is_valid_instr_ID && decoded_info->type == 'S') {
+            // Para SW, necesitamos rs2 para el forwarding MEM->MEM. Lo pasamos por el campo RD.
+            uint8_t funct3 = rs2_addr; // El registro a escribir en memoria
             datapath.Pipe_ID_EX_RD = {funct3, 1, is_valid_instr_ID};
         } else {
             datapath.Pipe_ID_EX_RD = {rd_addr,1,is_valid_instr_ID};

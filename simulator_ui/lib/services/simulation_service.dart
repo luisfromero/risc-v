@@ -20,6 +20,8 @@ class SimulationState {
   final int statusRegister;
   final Map<String, int> registers;
   final int pcValue;
+  final int initial_pc;
+  final int current_pc;
   final int criticalTime;
   final Map<String, int> readyAt;
   final Map<String, bool> activePaths;
@@ -60,6 +62,8 @@ class SimulationState {
     this.criticalTime = 0,
     this.registers = const {},
     required this.pcValue,
+    this.initial_pc = 0,
+    this.current_pc = 0,
     this.readyAt = const {},
     this.activePaths = const {},
     this.busValues = const {},
@@ -88,7 +92,8 @@ class SimulationState {
 
   SimulationState copyWith({
     List<InstructionMemoryItem>? instructionMemory,
-    Uint8List? dataMemory
+    Uint8List? dataMemory,
+    int? initial_pc,
   }) {
     return SimulationState(
       instruction: instruction,
@@ -121,6 +126,7 @@ class SimulationState {
       pipeWbInstructionInfo: pipeWbInstructionInfo,
       isLoadHazard: isLoadHazard,
       isBranchHazard: isBranchHazard,
+      initial_pc: initial_pc ?? this.initial_pc,
 
     );
   }
@@ -128,7 +134,7 @@ class SimulationState {
   /// Crea un SimulationState a partir de un mapa JSON.
   /// Esta función actúa como un "traductor", tomando los datos "crudos" del simulador C++
   /// y transformándolos en un estado que la UI de Flutter puede entender y utilizar fácilmente.
-  factory SimulationState.fromJson(Map<String, dynamic> json) {
+  factory SimulationState.fromJson(Map<String, dynamic> json, {int initial_pc = 0}) {
     // 1. Normalización del JSON: La API anida los datos en 'datapath', FFI no.
     final Map<String, dynamic> datapathJson; // Usaremos este mapa para todas las lecturas.
     if (json.containsKey('datapath') && json['datapath'] is Map<String, dynamic>) {      
@@ -318,8 +324,10 @@ class SimulationState {
       "bus_flush": getReadyAt('bus_flush'),
       "bus_ForwardA": getReadyAt('bus_ForwardA'),
       "bus_ForwardB": getReadyAt('bus_ForwardB'),
+      "bus_ForwardM": getReadyAt('bus_ForwardM'),
       "bus_ControlForwardA": getReadyAt('bus_ControlForwardA'),
       "bus_ControlForwardB": getReadyAt('bus_ControlForwardB'),
+      "bus_ControlForwardM": getReadyAt('bus_ControlForwardM'),
   
     };
 
@@ -531,8 +539,10 @@ class SimulationState {
       // --- Señales de Cortocircuito ---
       'bus_ForwardA': getValue('bus_ForwardA'),
       'bus_ForwardB': getValue('bus_ForwardB'),
+      'bus_ForwardM': getValue('bus_ForwardM'),
       'bus_ControlForwardA': getValue('bus_ControlForwardA'),
       'bus_ControlForwardB': getValue('bus_ControlForwardB'),
+      'bus_ControlForwardM': getValue('bus_ControlForwardM'),
 
       // Añadimos la nueva señal virtual al mapa de valores.
       'Pipe_ID_EX_RS1_RS2': datapathJson['Pipe_ID_EX_RS1_RS2'] as int? ?? 0,
@@ -568,6 +578,8 @@ class SimulationState {
       pipeWbInstructionValue: json['Pipe_WB_instruction'] as int? ?? 0,
       isLoadHazard: (getValue('bus_stall') == 1),
       isBranchHazard: (getValue('bus_flush') == 1),
+      initial_pc: initial_pc,
+      current_pc: getValue('PC'),
     );
   }
 

@@ -207,9 +207,11 @@ struct DatapathState {
     Signal<bool> bus_flush; // Indica si se debe limpiar el pipeline
 
     // --- Señales para Cortocircuitos (Forwarding) ---
-    Signal<uint8_t> bus_ControlForwardA; // Control para el Mux de Forwarding A (01: normal, 00: EX/MEM, 10: MEM/WB)
+    Signal<uint8_t> bus_ControlForwardA; // Control para el Mux de Forwarding A (00: normal, 01: EX/MEM, 10: MEM/WB)
     Signal<uint8_t> bus_ControlForwardB; // Control para el Mux de Forwarding B
+    Signal<uint8_t> bus_ControlForwardM; // Control para el Mux de Forwarding B
     Signal<uint32_t> bus_ForwardA; // Salida de forward a, si existe (entrada alu a)
     Signal<uint32_t> bus_ForwardB; // Salida de forward b, si existe (entrada alu b)
+    Signal<uint32_t> bus_ForwardM; // Salida de forward b, si existe (entrada alu b)
 
 };
