@@ -294,6 +294,7 @@ class _MyAppState extends State<MyApp> {
         ),
         // Usamos un Column para añadir el Slider debajo del Stack
         body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, // Alinea los hijos a la izquierda
           children: [
             // --- Panel de Control Superior ---
             Container(
@@ -508,7 +509,30 @@ class _MyAppState extends State<MyApp> {
                           ],
                         ),
                       ),
-                    
+
+                             // --- Slider (solo visible en modo single-cycle) ---
+            if (isSingleCycleMode)
+              Positioned(
+                top: 660, // Posición vertical fija como sugeriste.
+                left: 0,
+                child: Container(
+                  // Limitamos el ancho del slider para que no se extienda por debajo del panel derecho.
+                  constraints: const BoxConstraints(maxWidth: xDerecha),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    child: Slider(
+                      value: datapathState.sliderValue,
+                      min: 0,
+                      max: datapathState.criticalTime.toDouble(),
+                      divisions: datapathState.criticalTime > 0 ? datapathState.criticalTime : null,
+                      label: datapathState.sliderValue.round().toString(),
+                      onChanged: (double value) => datapathState.setSliderValue(value),
+                    ),
+                  ),
+                ),
+              ),
+
+
                       // --- Todos los widgets del datapath ---
                       ..._buildDatapathWidgets(datapathState, isSingleCycleMode, isPipelineMode, isMultiCycleMode),
                     
@@ -524,23 +548,6 @@ class _MyAppState extends State<MyApp> {
                 ),
               ),
             ),
-            // --- Slider (solo visible en modo single-cycle) ---
-            if (datapathState.simulationMode == SimulationMode.singleCycle)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-                child: Slider(
-                  value: datapathState.sliderValue,
-                  min: 0,
-                  max: datapathState.criticalTime.toDouble(),
-                  // divisions no puede ser 0. Si criticalTime es 0, lo dejamos en null (continuo).
-                  divisions: datapathState.criticalTime > 0 ? datapathState.criticalTime : null,
-                  label: datapathState.sliderValue.round().toString(),
-                  onChanged: (double value) {
-                    // Llama al método para actualizar el estado del slider
-                    datapathState.setSliderValue(value);
-                  },
-                ),
-              ),
           ],
         ),
       ),
@@ -1443,7 +1450,7 @@ List<Widget> _buildDatapathWidgets(DatapathState datapathState, bool isSingleCyc
       // --- Contenedor para el Historial de Ejecución ---
       // Le damos un tamaño fijo y un borde para que se vea bien.
       Container(
-        height: 500, // Altura fija para el historial
+        height: 570, // Altura fija para el historial
         width: 220,  // Ancho fijo
         margin: const EdgeInsets.only(left: 30),
         decoration: BoxDecoration(

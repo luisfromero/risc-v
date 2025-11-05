@@ -41,3 +41,4 @@ ffi_wrapper.py
 simulator.log
 simulator.log
 tests/generator.py
+guion.md

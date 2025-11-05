@@ -757,7 +757,7 @@ def assemble_code(
 class FingerprintModel(BaseModel):
     fingerprint: str
 
-@app.post("/generate_question", summary="Genera un par de pregunta y respuesta para un examen")
+@app.post("/questions/q&a1", summary="Genera un par de pregunta y respuesta para un examen")
 def generate_question_endpoint(config: FingerprintModel = Body(...)):
     """
     Genera una pregunta de examen determinista a partir de un 'fingerprint'.

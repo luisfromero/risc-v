@@ -267,7 +267,6 @@ int Simulator::stepsUntil(const std::vector<uint32_t>& breakpoints) {
     return MAX_STEPS;
 }
 
-
 // Ejecuta un ciclo completo: fetch, decode, execute.
 void Simulator::reset(PipelineModel _model, uint32_t _initial_pc) {
     // Actualizamos el modelo del simulador con el que nos pasan.

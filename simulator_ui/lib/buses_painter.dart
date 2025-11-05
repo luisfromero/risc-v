@@ -195,10 +195,14 @@ class BusesPainter extends CustomPainter {
     // 2. Formatear el texto del valor.
     String valueText;
     if (bus.isControl || bus.isState) {
-      // Para buses de control y estado, mostrar el valor binario con padding.
+      // Para buses de control y estado, se muestra el valor en binario.
       valueText = value.toRadixString(2).padLeft(bus.size, '0');
+      // Sin embargo, si la representación binaria es mayor a 5 caracteres,
+      // se cambia a formato hexadecimal para que no ocupe tanto espacio.
       if(valueText.length > 5) {
-        // Si es muy largo, lo cortamos y añadimos "..."
+        valueText = '0x${value.toRadixString(16).padLeft(2, '0')}';
+      } 
+      if(valueText.length > 8) {
         valueText = '0x${value.toRadixString(16).padLeft(4, '0')}';
       } 
 

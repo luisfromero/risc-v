@@ -16,10 +16,10 @@ class IBWidget extends StatelessWidget {
     super.key,
     this.isActive = false,
     this.connectionPoints = const [
-      Offset(0,0.385),
-      Offset(0,0.045),
-      Offset(1,0.09),
-      Offset(1,0.16),
+      Offset(0,r_IB0),
+      Offset(1,r_IB1),
+      Offset(1,r_IB2),
+      Offset(1,r_IB3), //funct7
       Offset(1,r_IB4),
       Offset(1,r_IB5),
       Offset(1,r_IB6),

@@ -253,7 +253,7 @@ const r_BR_B=(y_BR_B-yRegFile)/heightMems;
 
 //x de los buses que salen de la UC
 const double xControl1=380; //ok
-const double xControl2=460; //ok
+const double xControl2=500; //ok
 const double xControl3=560; //funct3
 const double xControl4=600; //funct7
 const double xControl5=xRegFile+0.5*widthMems; // 
@@ -286,6 +286,13 @@ const yIr2=yRegFile+0.6*heightMems;
 const yIr3=yRegFile+0.8*heightMems;
 
 const yImm0=yExtender+0.5*heightExtender;
+
+const r_IB0=0.385;  //Entrada instruccion
+const r_IB1=0.03; //Salida Opcode
+const r_IB2=0.08; //funct3
+const r_IB3=0.13; //funct7  
+
+
 
 const r_IB4=(yIr0-yIB)/heightIB;
 const r_IB5=(yIr1-yIB)/heightIB;
