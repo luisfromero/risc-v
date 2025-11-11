@@ -4,6 +4,8 @@ from typing import Dict, Any, Tuple
 
 # La URL donde se está ejecutando tu API de FastAPI
 API_BASE_URL = "http://localhost:8070"
+
+# Hacemos esta lista accesible para otros módulos que la importen.
 ABI_NAMES = [
     "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2", "s0", "s1", "a0",
     "a1", "a2", "a3", "a4", "a5", "a6", "a7", "s2", "s3", "s4", "s5",
@@ -60,6 +62,18 @@ def generate_test_case(fingerprint_hex: str) -> Tuple[str, Dict[str, Any], int]:
     val2 = gen.get_int(1, 15)
     mem_addr = gen.get_int(0, 15) * 4
     initial_pc = gen.choice([0x100, 0x200, 0x400, 0x800])
+    
+    # Elegimos sobre qué registro vamos a preguntar y lo añadimos a la secuencia.
+    reg_to_ask_idx = gen.choice([reg_load, reg_sum])
+
+    # Elegimos un rango de bits para la pregunta tipo 3
+    bit_range_len = gen.get_int(3, 8)
+    bit_start = gen.get_int(0, 31 - bit_range_len)
+    bit_end = bit_start + bit_range_len - 1
+
+    # Elegimos una señal de control para la pregunta tipo 4 (sobre la última instrucción 'lw')
+    # Las señales relevantes para un 'lw' son: ALUsrc, BRwr, MemWr, ResSrc
+    signal_to_ask = gen.choice(["ALUsrc", "BRwr", "MemWr", "ResSrc"])
 
     # 3. Construir el código ensamblador usando los valores generados.
     assembly_code = f"""
@@ -74,7 +88,14 @@ end:
 jal zero, end
 """
     
-    code_info = {'reg_load': reg_load, 'reg_sum': reg_sum}
+    code_info = {
+        'reg_load': reg_load, 
+        'reg_sum': reg_sum, 
+        'reg_to_ask': reg_to_ask_idx,
+        'bit_start': bit_start,
+        'bit_end': bit_end,
+        'signal_to_ask': signal_to_ask
+    }
     return assembly_code, code_info, initial_pc
 
 def format_question_answer(assembly_code: str, initial_pc: int, sim, code_info: Dict[str, Any]) -> Dict[str, Any]:

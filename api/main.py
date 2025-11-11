@@ -756,6 +756,7 @@ def assemble_code(
 
 class FingerprintModel(BaseModel):
     fingerprint: str
+    question_type: int = Field(default=1, description="Tipo de pregunta a generar (1: Estado final, 2: Valor de registro, 3: Bits de un valor, 4: Señal de control).")
 
 @app.post("/questions/q&a1", summary="Genera un par de pregunta y respuesta para un examen")
 def generate_question_endpoint(config: FingerprintModel = Body(...)):
@@ -774,6 +775,7 @@ def generate_question_endpoint(config: FingerprintModel = Body(...)):
     # este endpoint gestiona su propia instancia de simulador.
     with simulators_lock:
         try:
+            # 1. Generar el código y ejecutar la simulación (esto no cambia)
             assembly_code, code_info, initial_pc = generator.generate_test_case(config.fingerprint)
 
             # 2. Crear una instancia temporal del simulador
@@ -788,13 +790,92 @@ def generate_question_endpoint(config: FingerprintModel = Body(...)):
             # 4. Ejecutar el programa hasta el final
             sim.steps_until(breakpoints=[]) # Se detendrá por bucle infinito
 
-            # 5. Formatear la pregunta y la respuesta
-            qa_pair = generator.format_question_answer(
-                assembly_code=assembly_code,
-                initial_pc=initial_pc,
-                sim=sim,
-                code_info=code_info
-            )
+            # 5. Formatear la pregunta y la respuesta SEGÚN EL TIPO SOLICITADO
+            if config.question_type == 1:
+                # Comportamiento original: preguntar por el estado final completo.
+                qa_pair = generator.format_question_answer(
+                    assembly_code=assembly_code,
+                    initial_pc=initial_pc,
+                    sim=sim,
+                    code_info=code_info
+                )
+            elif config.question_type == 2:
+                # Nueva pregunta: Valor de un registro específico.
+                # Reutilizamos el generador para elegir un registro de forma determinista.
+                reg_to_ask_idx = code_info['reg_to_ask']
+                reg_name = f"x{reg_to_ask_idx} ({generator.ABI_NAMES[reg_to_ask_idx]})"
+                
+                question_text = f"""
+Considerando el estado final del procesador tras ejecutar el siguiente código (iniciando en {hex(initial_pc)}):
+
+```assembly
+{assembly_code}
+```
+
+¿Cuál es el valor final contenido en el registro **{reg_name}**?
+"""
+                final_registers = sim.get_registers()
+                final_value = final_registers[reg_to_ask_idx]
+
+                qa_pair = {
+                    "question": question_text.strip(),
+                    "answer": {
+                        "register_queried": reg_name,
+                        "final_value_decimal": final_value,
+                        "final_value_hex": f"0x{final_value:08x}"
+                    }
+                }
+            elif config.question_type == 3:
+                # Implementación para "cuáles son los bits tal a tal"
+                reg_to_ask_idx = code_info['reg_to_ask']
+                reg_name = f"x{reg_to_ask_idx} ({generator.ABI_NAMES[reg_to_ask_idx]})"
+                bit_start = code_info['bit_start']
+                bit_end = code_info['bit_end']
+
+                question_text = f"""
+Considerando el estado final del procesador tras la ejecución del código anterior, ¿cuál es el valor binario de los bits `{bit_end}:{bit_start}` del registro **{reg_name}**?
+"""
+                final_registers = sim.get_registers()
+                final_value = final_registers[reg_to_ask_idx]
+
+                # Lógica para extraer los bits
+                bit_length = bit_end - bit_start + 1
+                mask = (1 << bit_length) - 1
+                extracted_bits_value = (final_value >> bit_start) & mask
+                
+                # Formatear el valor binario con ceros a la izquierda
+                binary_representation = f"{extracted_bits_value:0{bit_length}b}"
+
+                qa_pair = {
+                    "question": question_text.strip(),
+                    "answer": {
+                        "register_queried": reg_name,
+                        "bit_range": f"{bit_end}:{bit_start}",
+                        "value_binary": binary_representation,
+                        "value_decimal": extracted_bits_value
+                    }
+                }
+            elif config.question_type == 4:
+                # Pregunta sobre el valor de una señal de control en la última instrucción
+                signal_to_ask = code_info['signal_to_ask']
+
+                question_text = f"""
+Siguiendo con el mismo caso, ¿qué valor tomó la señal de control **{signal_to_ask}** durante la ejecución de la última instrucción del programa (`lw`)?
+"""
+                # El estado del datapath corresponde al último ciclo, que es el de la instrucción 'lw'
+                datapath_state = sim.get_datapath_state()
+                signal_value = getattr(datapath_state, signal_to_ask).value
+
+                qa_pair = {
+                    "question": question_text.strip(),
+                    "answer": {
+                        "signal_queried": signal_to_ask,
+                        "value": signal_value
+                    }
+                }
+            else:
+                raise HTTPException(status_code=400, detail=f"Invalid question_type: {config.question_type}")
+
             return qa_pair
 
         except Exception as e:
